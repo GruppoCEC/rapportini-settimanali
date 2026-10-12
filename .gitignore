@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+
+# Dati aziendali: MAI su GitHub
+import/*
+!import/LEGGIMI.md

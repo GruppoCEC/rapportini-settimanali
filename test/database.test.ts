@@ -1,0 +1,248 @@
+// Test del database: esegue le migrazioni su un Postgres vero (PGlite)
+// e verifica le regole di accesso tra uffici, aree e città.
+import { PGlite } from '@electric-sql/pglite'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { beforeAll, describe, expect, it } from 'vitest'
+
+const CARTELLA_MIGRAZIONI = join(__dirname, '..', 'supabase', 'migrations')
+
+// Ricrea il minimo indispensabile di Supabase: ruoli e auth.jwt()
+const AMBIENTE_SUPABASE = `
+  create role anon nologin;
+  create role authenticated nologin;
+  create role supabase_auth_admin nologin;
+  create schema auth;
+  create function auth.jwt() returns jsonb language sql stable as
+    $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+  grant usage on schema auth to authenticated, anon;
+  grant execute on function auth.jwt() to authenticated, anon;
+`
+
+let db: PGlite
+
+/** Esegue una query come l'utente collegato con questa email */
+async function come<T = Record<string, unknown>>(email: string, sql: string, params: unknown[] = []) {
+  await db.exec(`set role authenticated; select set_config('request.jwt.claims', '${JSON.stringify({ email })}', false);`)
+  try {
+    return (await db.query<T>(sql, params)).rows
+  } finally {
+    await db.exec(`reset role; select set_config('request.jwt.claims', '', false);`)
+  }
+}
+
+/** Verifica che la query venga rifiutata */
+async function rifiutata(email: string, sql: string, params: unknown[] = []) {
+  await expect(come(email, sql, params)).rejects.toThrow()
+}
+
+const id = async (sql: string) => (await db.query<{ id: number }>(sql)).rows[0].id
+
+let romaA: number, romaB: number, romaC: number, milanoA: number
+
+beforeAll(async () => {
+  db = new PGlite()
+  await db.exec(AMBIENTE_SUPABASE)
+  for (const file of readdirSync(CARTELLA_MIGRAZIONI).filter((f) => f.endsWith('.sql')).sort()) {
+    await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
+  }
+
+  // Dati di prova (inseriti come amministratore del database)
+  const romaNord = await id(`insert into aree (nome, citta_id) values ('Roma Nord', 1) returning id`)
+  const milanoCentro = await id(`insert into aree (nome, citta_id) values ('Milano Centro', 2) returning id`)
+  romaA = await id(`insert into uffici (nome, citta_id, area_id) values ('Roma A', 1, ${romaNord}) returning id`)
+  romaB = await id(`insert into uffici (nome, citta_id, area_id) values ('Roma B', 1, ${romaNord}) returning id`)
+  romaC = await id(`insert into uffici (nome, citta_id) values ('Roma C', 1) returning id`)
+  milanoA = await id(`insert into uffici (nome, citta_id, area_id) values ('Milano A', 2, ${milanoCentro}) returning id`)
+
+  await db.exec(`
+    insert into impostazioni values ('modello_email_accesso', 'rapportini+{utente}@gmail.com');
+    insert into utenti (email, nome_utente, ruolo, ufficio_id) values
+      ('a@test.it', 'roma-a', 'ufficio', ${romaA}),
+      ('b@test.it', 'roma-b', 'ufficio', ${romaB}),
+      ('m@test.it', 'milano-a', 'ufficio', ${milanoA});
+    insert into utenti (email, nome_utente, ruolo, area_id) values ('resp@test.it', 'resp', 'responsabile', ${romaNord});
+    insert into utenti (email, nome_utente, ruolo, citta_id, ufficio_id) values ('adminmi@test.it', 'adminmi', 'admin_citta', 2, ${milanoA});
+    insert into utenti (email, nome_utente, ruolo, citta_id) values ('davide@test.it', 'davide', 'admin_generale', 1);
+  `)
+
+  for (const u of [romaA, romaB, romaC, milanoA]) {
+    await db.exec(`insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato)
+                   values (${u}, '2026-10-05', 'incarichi', 2, 1)`)
+  }
+})
+
+const ufficiVisti = async (email: string) =>
+  (await come<{ ufficio_id: number }>(email, `select distinct ufficio_id from rilevazioni order by 1`)).map((r) => r.ufficio_id)
+
+describe('Ufficio', () => {
+  it('vede solo i propri dati', async () => {
+    expect(await ufficiVisti('a@test.it')).toEqual([romaA])
+  })
+
+  it('compila il proprio ufficio', async () => {
+    await come('a@test.it', `insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato)
+                             values ($1, '2026-10-05', 'vendite', 1, 1)`, [romaA])
+  })
+
+  it('non può scrivere su un altro ufficio', async () => {
+    await rifiutata('a@test.it', `insert into rilevazioni (ufficio_id, settimana, metrica, risultato)
+                                  values ($1, '2026-10-05', 'vendite', 5)`, [romaB])
+    const modificate = await come('a@test.it', `update rilevazioni set risultato = 99 where ufficio_id = $1 returning *`, [romaB])
+    expect(modificate).toHaveLength(0)
+  })
+
+  it('non può promuoversi amministratore', async () => {
+    const r = await come('a@test.it', `update utenti set ruolo = 'admin_generale' where email = 'a@test.it' returning *`)
+    expect(r).toHaveLength(0)
+  })
+
+  it('accetta solo il lunedì come inizio settimana', async () => {
+    await rifiutata('a@test.it', `insert into rilevazioni (ufficio_id, settimana, metrica, risultato)
+                                  values ($1, '2026-10-06', 'proposte', 1)`, [romaA])
+  })
+})
+
+describe('Responsabile d\'area', () => {
+  it('vede tutti gli uffici della sua area e nient\'altro', async () => {
+    expect(await ufficiVisti('resp@test.it')).toEqual([romaA, romaB])
+  })
+
+  it('è in sola lettura', async () => {
+    await rifiutata('resp@test.it', `insert into rilevazioni (ufficio_id, settimana, metrica, risultato)
+                                     values ($1, '2026-10-12', 'vendite', 1)`, [romaA])
+  })
+})
+
+describe('Amministratore di Milano', () => {
+  it('vede solo Milano', async () => {
+    expect(await ufficiVisti('adminmi@test.it')).toEqual([milanoA])
+    const uffici = await come<{ nome: string }>('adminmi@test.it', `select nome from uffici order by nome`)
+    expect(uffici.map((u) => u.nome)).toEqual(['Milano A'])
+    const utenti = await come<{ email: string }>('adminmi@test.it', `select email from utenti order by email`)
+    expect(utenti.map((u) => u.email)).toEqual(['adminmi@test.it', 'm@test.it'])
+  })
+
+  it('aggiunge colleghi e uffici a Milano', async () => {
+    await come('adminmi@test.it', `insert into utenti (nome_utente, ruolo, ufficio_id, email_promemoria) values ('brera', 'ufficio', $1, 'Brera@Gmail.com')`, [milanoA])
+    const nuovo = (await db.query<{ email: string; email_promemoria: string }>(`select email, email_promemoria from utenti where nome_utente = 'brera'`)).rows[0]
+    expect(nuovo).toEqual({ email: 'rapportini+brera@gmail.com', email_promemoria: 'brera@gmail.com' })
+    await come('adminmi@test.it', `insert into uffici (nome, citta_id) values ('Milano B', 2)`)
+  })
+
+  it('non può creare amministratori né toccare Roma', async () => {
+    await rifiutata('adminmi@test.it', `insert into utenti (nome_utente, ruolo, citta_id) values ('xxx', 'admin_citta', 2)`)
+    await rifiutata('adminmi@test.it', `insert into utenti (nome_utente, ruolo, citta_id) values ('yyy', 'admin_generale', 2)`)
+    await rifiutata('adminmi@test.it', `insert into utenti (nome_utente, ruolo, ufficio_id) values ('zzz', 'ufficio', $1)`, [romaA])
+    await rifiutata('adminmi@test.it', `insert into uffici (nome, citta_id) values ('Roma Z', 1)`)
+    await rifiutata('adminmi@test.it', `insert into rilevazioni (ufficio_id, settimana, metrica, risultato)
+                                        values ($1, '2026-10-12', 'vendite', 1)`, [romaA])
+  })
+
+  it('compila il proprio ufficio milanese', async () => {
+    await come('adminmi@test.it', `insert into rilevazioni (ufficio_id, settimana, metrica, risultato)
+                                   values ($1, '2026-10-12', 'vendite', 1)`, [milanoA])
+  })
+})
+
+describe('Amministratore generale', () => {
+  it('vede entrambe le città', async () => {
+    expect(await ufficiVisti('davide@test.it')).toEqual([romaA, romaB, romaC, milanoA])
+  })
+
+  it('può nominare l\'amministratore di Milano', async () => {
+    await come('davide@test.it', `insert into utenti (nome_utente, ruolo, citta_id) values ('admin-milano', 'admin_citta', 2)`)
+  })
+})
+
+describe('Email non abilitata', () => {
+  it('non vede nulla', async () => {
+    expect(await ufficiVisti('estraneo@test.it')).toEqual([])
+    expect(await come('estraneo@test.it', `select * from metriche`)).toHaveLength(0)
+    expect(await come('estraneo@test.it', `select * from uffici`)).toHaveLength(0)
+  })
+
+})
+
+describe('Account con nome utente', () => {
+  it('la pagina di accesso ricava l\'email tecnica dal nome utente, anche senza essere collegati', async () => {
+    await db.exec(`set role anon`)
+    try {
+      const r = (await db.query<{ e: string }>(`select email_di_accesso(' Somalia ') as e`)).rows[0]
+      expect(r.e).toBe('rapportini+somalia@gmail.com')
+    } finally { await db.exec('reset role') }
+  })
+
+  it('il nome utente non si può cambiare né duplicare', async () => {
+    await rifiutata('davide@test.it', `update utenti set nome_utente = 'altro' where nome_utente = 'roma-a'`)
+    await rifiutata('davide@test.it', `insert into utenti (nome_utente, ruolo, ufficio_id) values ('roma-a', 'ufficio', $1)`, [romaA])
+    await rifiutata('davide@test.it', `insert into utenti (nome_utente, ruolo, ufficio_id) values ('No Spazi', 'ufficio', $1)`, [romaA])
+  })
+
+  it('nessun amministratore può toccare il collegamento all\'account (auth_id)', async () => {
+    await rifiutata('adminmi@test.it', `update utenti set auth_id = gen_random_uuid() where nome_utente = 'milano-a'`)
+    await rifiutata('davide@test.it', `update utenti set auth_id = gen_random_uuid() where nome_utente = 'roma-a'`)
+  })
+
+  it('l\'amministratore aggiorna l\'email dei promemoria, l\'ufficio no', async () => {
+    const ok = await come('adminmi@test.it', `update utenti set email_promemoria = 'ufficio.milano@gmail.com' where nome_utente = 'milano-a' returning email_promemoria`)
+    expect(ok).toHaveLength(1)
+    expect(await come('a@test.it', `update utenti set email_promemoria = 'x@y.it' where nome_utente = 'roma-a' returning *`)).toHaveLength(0)
+    await rifiutata('adminmi@test.it', `update utenti set email_promemoria = 'non-una-email' where nome_utente = 'milano-a'`)
+  })
+})
+
+describe('Salvataggi e registro modifiche', () => {
+  it('registra chi salva, ignora i salvataggi identici e non tiene obiettivi sui dati di zona', async () => {
+    const conta = async () => (await db.query<{ n: number }>(`select count(*)::int as n from storico_modifiche`)).rows[0].n
+    const upsert = `insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato)
+                    values ($1, '2026-10-05', 'portafoglio', 5, 3)
+                    on conflict (ufficio_id, settimana, metrica) do update
+                    set obiettivo = excluded.obiettivo, risultato = excluded.risultato`
+    await come('a@test.it', upsert, [romaA])
+    const dopoPrimo = await conta()
+    await come('a@test.it', upsert, [romaA])
+    expect(await conta()).toBe(dopoPrimo)
+
+    const riga = (await db.query<{ obiettivo: number | null; aggiornato_da: string }>(
+      `select obiettivo, aggiornato_da from rilevazioni where ufficio_id = $1 and metrica = 'portafoglio'`, [romaA])).rows[0]
+    expect(riga.obiettivo).toBeNull()
+    expect(riga.aggiornato_da).toBe('a@test.it')
+  })
+})
+
+describe('Calcoli', () => {
+  it('assegna la settimana al mese del giovedì', async () => {
+    const r = (await db.query<{ mese: string; n: number }>(
+      `select to_char(mese_della_settimana('2026-09-28'), 'YYYY-MM') as mese, settimana_nel_mese('2026-09-28') as n`)).rows[0]
+    expect(r).toEqual({ mese: '2026-10', n: 1 })
+  })
+
+  it('somma le attività e prende l\'ultimo valore di zona nel mese, con quota di mercato', async () => {
+    // Febbraio dal file di Somalia: App.ti Vendita obiettivi 5/15/15/5, risultati 0/21/33/4
+    const u = romaC
+    const settimane = ['2026-02-02', '2026-02-09', '2026-02-16', '2026-02-23']
+    const ob = [5, 15, 15, 5], ris = [0, 21, 33, 4]
+    const port = [2, 3, 1, 1], incZona = [34, 35, 34, 34]
+    for (let i = 0; i < 4; i++) {
+      await db.exec(`insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato) values
+        (${u}, '${settimane[i]}', 'app_vendita', ${ob[i]}, ${ris[i]}),
+        (${u}, '${settimane[i]}', 'portafoglio', null, ${port[i]}),
+        (${u}, '${settimane[i]}', 'incarichi_zona', null, ${incZona[i]})`)
+    }
+    const mese = await come<{ metrica: string; obiettivo: number; risultato: number; esito: number }>('davide@test.it',
+      `select metrica, obiettivo, risultato, esito from v_mesi
+       where ufficio_id = $1 and mese = '2026-02-01' order by metrica`, [u])
+    expect(mese.find((m) => m.metrica === 'app_vendita')).toMatchObject({ obiettivo: 40, risultato: 58, esito: 18 })
+    expect(mese.find((m) => m.metrica === 'portafoglio')).toMatchObject({ risultato: 1 })   // non 7!
+
+    const quota = await come<{ settimana: string; quota: string }>('davide@test.it',
+      `select to_char(settimana, 'YYYY-MM-DD') as settimana, quota from v_quota_settimanale where ufficio_id = $1 order by settimana`, [u])
+    expect(quota.map((q) => Number(q.quota))).toEqual([0.0556, 0.0789, 0.0286, 0.0286])
+  })
+
+  it('le viste rispettano le regole di accesso', async () => {
+    const righe = await come<{ ufficio_id: number }>('a@test.it', `select distinct ufficio_id from v_mesi`)
+    expect(righe.map((r) => r.ufficio_id)).toEqual([romaA])
+  })
+})

@@ -1,0 +1,53 @@
+# Promemoria automatici via email (vedi scripts/promemoria.mjs).
+# GitHub ragiona in ora UTC e non conosce l'ora legale: ogni promemoria è
+# programmato in due orari e lo script invia solo a quello giusto, una volta sola.
+name: Promemoria
+
+on:
+  schedule:
+    - cron: '0 14,15 * * 5'    # venerdì ore 16:00 italiane
+    - cron: '0 8,9 * * 0'      # domenica ore 10:00 italiane
+    - cron: '30 5,6 * * 1'     # lunedì ore 7:30 italiane
+  workflow_dispatch:
+    inputs:
+      tipo:
+        description: 'Quale promemoria inviare'
+        required: true
+        default: venerdi
+        type: choice
+        options: [venerdi, domenica, lunedi]
+      email_prova:
+        description: 'Prova: se compilato, TUTTE le email vanno solo a questo indirizzo'
+        required: false
+
+permissions:
+  contents: read
+  actions: write     # serve al passo "Mantieni attivo"
+
+jobs:
+  invia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Invia promemoria
+        run: node scripts/promemoria.mjs
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SITO_URL: ${{ vars.SITO_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GMAIL_UTENTE: ${{ secrets.GMAIL_UTENTE }}
+          GMAIL_PASSWORD_APP: ${{ secrets.GMAIL_PASSWORD_APP }}
+          TIPO: ${{ inputs.tipo }}
+          EMAIL_PROVA: ${{ inputs.email_prova }}
+      # GitHub sospende le azioni programmate dopo 60 giorni senza modifiche al
+      # repository: questo passo le riattiva a ogni esecuzione.
+      - name: Mantieni attivo
+        if: always()
+        run: gh workflow enable promemoria.yml
+        env:
+          GH_TOKEN: ${{ github.token }}
