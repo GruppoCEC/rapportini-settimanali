@@ -29,15 +29,16 @@ interface PropsAndamento {
   percentuale?: boolean           // valori 0–1 mostrati come %
   rigaRiferimento?: number        // es. obiettivo quota 20%
   altezza?: number
+  compatto?: boolean              // versione piccola per le griglie (senza legenda, assi essenziali)
 }
 
 /** Andamento nel tempo: risultato (linea blu) e, se c'è, obiettivo (linea grigia tratteggiata) */
-export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 'Risultato', percentuale, rigaRiferimento, altezza = 240 }: PropsAndamento) {
+export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 'Risultato', percentuale, rigaRiferimento, altezza = 240, compatto }: PropsAndamento) {
   const formato = (v: number) => percentuale ? `${(v * 100).toLocaleString('it-IT', { maximumFractionDigits: 1 })}%` : v.toLocaleString('it-IT')
   const datasets = [
     {
       label: nomeSerie, data: risultati, borderColor: COLORI.serie, backgroundColor: COLORI.serie,
-      borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, spanGaps: true, tension: 0,
+      borderWidth: 2, pointRadius: compatto ? 3 : 4, pointHoverRadius: 6, spanGaps: true, tension: 0,
     },
   ]
   if (obiettivi && obiettivi.some((v) => v !== null)) {
@@ -61,12 +62,15 @@ export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 
     responsive: true, maintainAspectRatio: false, animation: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { display: datasets.length > 1, position: 'bottom', labels: { boxWidth: 14, boxHeight: 2 } },
+      legend: { display: !compatto && datasets.length > 1, position: 'bottom', labels: { boxWidth: 14, boxHeight: 2 } },
       tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y === null ? '—' : formato(c.parsed.y)}` } },
     },
     scales: {
-      x: { grid: { display: false }, border: bordo },
-      y: { beginAtZero: true, grid: griglia, border: { display: false }, ticks: { callback: (v) => formato(Number(v)), precision: percentuale ? undefined : 0 } },
+      x: { grid: { display: false }, border: bordo, ticks: compatto ? { font: { size: 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 4 } : {} },
+      y: {
+        beginAtZero: true, grid: griglia, border: { display: false },
+        ticks: { callback: (v) => formato(Number(v)), precision: percentuale ? undefined : 0, ...(compatto ? { font: { size: 11 }, maxTicksLimit: 4 } : {}) },
+      },
     },
   }
   return <div style={{ height: altezza }}><Line data={{ labels: etichette, datasets }} options={opzioni} /></div>

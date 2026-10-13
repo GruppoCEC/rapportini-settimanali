@@ -1,7 +1,7 @@
-// Amministrazione della città: account (nome utente + password), uffici e aree.
+// Amministrazione della città: account (nome utente + password), uffici e (se attive) aree.
 import { useState } from 'react'
 import { gestioneAccount, generaPassword, suggerisciNomeUtente } from '../lib/account'
-import { type Contesto, nomeArea } from '../lib/contesto'
+import { AREE_ATTIVE, type Contesto, nomeArea } from '../lib/contesto'
 import { supabase } from '../lib/supabase'
 import { NOMI_RUOLO, type Ruolo, type Utente } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
@@ -39,7 +39,7 @@ export default function Amministrazione({ ctx }: { ctx: Contesto }) {
       <div className="scheda">
         <h1>Amministrazione · {nomeCitta}</h1>
         <div className="interruttore" role="tablist">
-          {(['account', 'uffici', 'aree'] as const).map((s) => (
+          {(AREE_ATTIVE ? ['account', 'uffici', 'aree'] as const : ['account', 'uffici'] as const).map((s) => (
             <button key={s} role="tab" aria-selected={sezione === s} className={sezione === s ? 'attivo' : ''} onClick={() => setSezione(s)}>
               {{ account: 'Account', uffici: 'Uffici', aree: 'Aree' }[s]}
             </button>
@@ -57,7 +57,8 @@ export default function Amministrazione({ ctx }: { ctx: Contesto }) {
 
 function SezioneAccount({ ctx }: { ctx: Contesto }) {
   const generale = ctx.utente.ruolo === 'admin_generale'
-  const ruoli: Ruolo[] = generale ? ['ufficio', 'responsabile', 'admin_citta', 'admin_generale'] : ['ufficio', 'responsabile']
+  const ruoli: Ruolo[] = (generale ? ['ufficio', 'responsabile', 'admin_citta', 'admin_generale'] as Ruolo[] : ['ufficio', 'responsabile'] as Ruolo[])
+    .filter((r) => AREE_ATTIVE || r !== 'responsabile')
   const ufficiCitta = ctx.uffici.filter((u) => u.citta_id === ctx.cittaId && u.attivo)
   const areeCitta = ctx.aree.filter((a) => a.citta_id === ctx.cittaId)
   const [esito, setEsito] = useState<Esito>(null)
@@ -180,7 +181,7 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
           )}
           <div className="tabella-scorrevole">
             <table className="tabella-riepilogo tabella-admin">
-              <thead><tr><th>Nome utente</th><th>Nome</th><th>Ruolo</th><th>Ufficio / Area</th><th>Email promemoria</th><th>Stato</th><th>Azioni</th></tr></thead>
+              <thead><tr><th>Nome utente</th><th>Nome</th><th>Ruolo</th><th>{AREE_ATTIVE ? 'Ufficio / Area' : 'Ufficio'}</th><th>Email promemoria</th><th>Stato</th><th>Azioni</th></tr></thead>
               <tbody>
                 {elenco.dati.map((u) => modifica === u.email ? (
                   <RigaModificaAccount key={u.email} u={u} ctx={ctx} ruoli={ruoli} onAnnulla={() => setModifica(null)}
@@ -282,12 +283,14 @@ function SezioneUffici({ ctx }: { ctx: Contesto }) {
         <h2>Nuovo ufficio</h2>
         <div className="griglia-form">
           <label>Nome<input required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="es. Somalia" /></label>
-          <label>Area
-            <select value={area} onChange={(e) => setArea(e.target.value)}>
-              <option value="">Nessuna area</option>
-              {aree.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-            </select>
-          </label>
+          {AREE_ATTIVE && (
+            <label>Area
+              <select value={area} onChange={(e) => setArea(e.target.value)}>
+                <option value="">Nessuna area</option>
+                {aree.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+              </select>
+            </label>
+          )}
         </div>
         <p><button type="submit">Aggiungi ufficio</button></p>
       </form>
@@ -295,7 +298,7 @@ function SezioneUffici({ ctx }: { ctx: Contesto }) {
         <h2>Uffici ({uffici.filter((u) => u.attivo).length} attivi)</h2>
         <div className="tabella-scorrevole">
           <table className="tabella-riepilogo tabella-admin">
-            <thead><tr><th>Nome</th><th>Area</th><th>Stato</th><th>Azioni</th></tr></thead>
+            <thead><tr><th>Nome</th>{AREE_ATTIVE && <th>Area</th>}<th>Stato</th><th>Azioni</th></tr></thead>
             <tbody>
               {uffici.map((u) => (
                 <tr key={u.id} className={u.attivo ? '' : 'disattivo'}>
@@ -305,13 +308,15 @@ function SezioneUffici({ ctx }: { ctx: Contesto }) {
                       if (v && v !== u.nome) esegui(supabase.from('uffici').update({ nome: v }).eq('id', u.id), `Ufficio rinominato in "${v}".`)
                     }} />
                   </th>
+                  {AREE_ATTIVE && (
                   <td>
-                    <select value={u.area_id ?? ''} aria-label="Area" onChange={(e) =>
-                      esegui(supabase.from('uffici').update({ area_id: e.target.value ? Number(e.target.value) : null }).eq('id', u.id), `Area di "${u.nome}" aggiornata.`)}>
-                      <option value="">Nessuna area</option>
-                      {aree.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                    </select>
-                  </td>
+                      <select value={u.area_id ?? ''} aria-label="Area" onChange={(e) =>
+                        esegui(supabase.from('uffici').update({ area_id: e.target.value ? Number(e.target.value) : null }).eq('id', u.id), `Area di "${u.nome}" aggiornata.`)}>
+                        <option value="">Nessuna area</option>
+                        {aree.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                      </select>
+                    </td>
+                  )}
                   <td>{u.attivo ? 'Attivo' : 'Disattivato'}</td>
                   <td className="azioni">
                     <button className="link" onClick={() => esegui(supabase.from('uffici').update({ attivo: !u.attivo }).eq('id', u.id), `Ufficio "${u.nome}" ${u.attivo ? 'disattivato' : 'riattivato'}.`)}>

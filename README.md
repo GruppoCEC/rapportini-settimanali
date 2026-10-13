@@ -12,9 +12,10 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 - **Roma e Milano** sono sezioni separate, ognuna con la propria riunione del lunedì.
 - **Chi vede cosa**:
   - ufficio: solo il proprio;
-  - responsabile d'area: la sua area;
   - amministratore di città: la sua città;
   - amministratore generale: tutto.
+
+  Aree e responsabili d'area sono predisposti ma disattivati (`AREE_ATTIVE` in `src/lib/contesto.ts`).
 
 ## Stato del progetto
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { configurato, supabase } from './lib/supabase'
-import type { Contesto } from './lib/contesto'
+import { AREE_ATTIVE, type Contesto } from './lib/contesto'
 import { isAmministratore, ufficiCompilabili } from './lib/permessi'
 import { NOMI_RUOLO, type Area, type Citta, type Metrica, type Ufficio, type Utente } from './lib/tipi'
 import Accesso from './pagine/Accesso'
@@ -106,7 +106,12 @@ export default function App() {
     )
   }
 
-  const ctx: Contesto = { ...dati, utente, cittaId: cittaScelta, ricaricaBase }
+  const ctx: Contesto = {
+    ...dati, utente, cittaId: cittaScelta, ricaricaBase,
+    // aree disattivate: il sito si comporta come se nessun ufficio ne avesse una
+    aree: AREE_ATTIVE ? dati.aree : [],
+    uffici: AREE_ATTIVE ? dati.uffici : dati.uffici.map((u) => ({ ...u, area_id: null })),
+  }
   const nomeCitta = dati.citta.find((c) => c.id === cittaScelta)?.nome ?? ''
   const compilabili = ufficiCompilabili(utente, dati.uffici, cittaScelta)
   const vedeInsieme = utente.ruolo !== 'ufficio'

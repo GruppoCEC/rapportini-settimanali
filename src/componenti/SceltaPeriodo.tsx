@@ -1,7 +1,7 @@
 // Scelta del periodo per cruscotto e statistiche: una settimana oppure un mese.
 import {
   aggiungiSettimane, etichettaSettimana, lunediDi, meseDellaSettimana, notaMeseSettimana,
-  nomeMese, oggiISO, settimanaPredefinita, settimaneDelMese,
+  nomeMese, oggiISO, settimaneDelMese, ultimaSettimanaConclusa,
 } from '../lib/settimane'
 
 export interface Periodo {
@@ -10,7 +10,7 @@ export interface Periodo {
 }
 
 export function periodoPredefinito(): Periodo {
-  return { tipo: 'settimana', settimana: settimanaPredefinita() }
+  return { tipo: 'settimana', settimana: ultimaSettimanaConclusa() }
 }
 
 /** Primo e ultimo lunedì del periodo */

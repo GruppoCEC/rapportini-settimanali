@@ -278,3 +278,20 @@ kbd { background: #eef0f4; border: 1px solid var(--bordo); border-bottom-width: 
   .presentazione-marchio { display: none; }
 }
 .striscia-demo { background: #fff6dc; color: #7a5200; text-align: center; font-size: 0.85rem; padding: 0.3rem; font-weight: 600; }
+
+/* Riunione: griglia di grafici piccoli nella pagina di ogni ufficio */
+.dia-ufficio { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.45fr); }
+.dia-titolo-grafici { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.dia-titolo-grafici h3 { margin: 0; }
+.segno-risultato { color: #2a78d6; font-weight: 700; }
+.segno-obiettivo { color: #898781; font-weight: 700; }
+.griglia-mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+.mini { background: white; border: 1px solid var(--bordo); border-radius: 10px; padding: 0.5rem 0.6rem 0.3rem; min-width: 0; }
+.mini-testa { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; font-size: 0.85em; margin-bottom: 0.2rem; }
+.mini-testa span { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 900px) { .griglia-mini { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-height: 820px) {
+  .presentazione-corpo { padding-top: 1rem; padding-bottom: 1rem; }
+  .tabella-dia th, .tabella-dia td { padding: 0.35rem 0.6rem; }
+  .dia-ufficio h3 { margin-bottom: 0.3rem; }
+}

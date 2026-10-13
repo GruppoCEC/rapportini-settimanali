@@ -2,13 +2,13 @@
 // Si avanza con le frecce della tastiera (o i pulsanti), Esc per uscire.
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
-  classifica, classificaQuota, quotaDaTotali, raggiungimento, serieSettimanale, sommaTotali,
+  classifica, classificaQuota, quotaDaTotali, raggiungimento, serieQuota, serieSettimanale, sommaTotali,
   statoCompilazione, totaliPerUfficio, type Totali,
 } from '../lib/aggregazioni'
 import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../lib/calcoli'
-import { type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
+import { AREE_ATTIVE, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { caricaNote, caricaRilevazioni, type Nota } from '../lib/dati'
-import { aggiungiSettimane, etichettaSettimana, intervalloSettimana, settimanaPredefinita } from '../lib/settimane'
+import { aggiungiSettimane, etichettaSettimana, intervalloSettimana, ultimaSettimanaConclusa } from '../lib/settimane'
 import type { Rilevazione, Ufficio } from '../lib/tipi'
 import { BadgeStato, CellaQuota, CellaRisultato } from '../componenti/Celle'
 import { GraficoAndamento, GraficoClassifica } from '../componenti/Grafici'
@@ -22,7 +22,7 @@ interface Diapositiva {
 }
 
 export default function Riunione({ ctx }: { ctx: Contesto }) {
-  const [settimana, setSettimana] = useState(settimanaPredefinita())
+  const [settimana, setSettimana] = useState(ultimaSettimanaConclusa())
   const [areaFiltro, setAreaFiltro] = useState<number | 'tutte'>('tutte')
   const [presentazione, setPresentazione] = useState<{ dati: Rilevazione[]; note: Nota[] } | null>(null)
   const [stato, setStato] = useState<'pronto' | 'caricamento'>('pronto')
@@ -69,7 +69,7 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
           <li>totali della città;</li>
           <li>classifiche per ogni attività;</li>
           <li>quota di mercato;</li>
-          <li>confronto tra aree;</li>
+          {AREE_ATTIVE && <li>confronto tra aree;</li>}
           <li>una pagina per ogni ufficio, con le sue note.</li>
         </ul>
         <p className="piccolo">Durante la presentazione: <kbd>→</kbd> o <kbd>spazio</kbd> avanti, <kbd>←</kbd> indietro, <kbd>Esc</kbd> per uscire.</p>
@@ -96,6 +96,14 @@ function Presentazione({ ctx, uffici, settimana, titolo, dati, note, onEsci }: {
   ctx: Contesto; uffici: Ufficio[]; settimana: string; titolo: string; dati: Rilevazione[]; note: Nota[]; onEsci: () => void
 }) {
   const [indice, setIndice] = useState(0)
+  // I grafici piccoli si adattano all'altezza dello schermo (proiettore, portatile…)
+  const [altezzaSchermo, setAltezzaSchermo] = useState(window.innerHeight)
+  useEffect(() => {
+    const aggiorna = () => setAltezzaSchermo(window.innerHeight)
+    window.addEventListener('resize', aggiorna)
+    return () => window.removeEventListener('resize', aggiorna)
+  }, [])
+  const altezzaMini = Math.round(Math.max(100, Math.min(210, (altezzaSchermo - 420) / 3)))
   const attivita = ctx.metriche.filter((m) => m.tipo === 'attivita')
   const settimane = Array.from({ length: SETTIMANE_STORICO }, (_, i) => aggiungiSettimane(settimana, i - SETTIMANE_STORICO + 1))
   const precedente = aggiungiSettimane(settimana, -1)
@@ -224,13 +232,31 @@ function Presentazione({ ctx, uffici, settimana, titolo, dati, note, onEsci }: {
     const nota = note.find((n) => n.ufficio_id === u.id)
     const suoi = dati.filter((r) => r.ufficio_id === u.id)
     const s = stati.find((x) => x.u.id === u.id)!.s
-    const andamento = serieSettimanale(suoi, 'incarichi', settimane)
+    // Andamento delle ultime settimane: un grafico piccolo per ogni attività + quota di mercato
+    const miniGrafici = [
+      ...attivita.map((m) => {
+        const serie = serieSettimanale(suoi, m.codice, settimane)
+        const ultimo = serie.at(-1)!
+        return {
+          nome: m.nome,
+          valore: ultimo.risultato === null ? '—' : `${ultimo.risultato}${ultimo.obiettivo !== null ? ` / ${ultimo.obiettivo}` : ''}`,
+          grafico: <GraficoAndamento compatto altezza={altezzaMini} etichette={etichetteBrevi} nomeSerie={m.nome}
+            risultati={serie.map((x) => x.risultato)} obiettivi={serie.map((x) => x.obiettivo)} />,
+        }
+      }),
+      {
+        nome: 'Quota di mercato',
+        valore: formattaPercentuale(quotaDaTotali(t)),
+        grafico: <GraficoAndamento compatto altezza={altezzaMini} etichette={etichetteBrevi} nomeSerie="Quota di mercato"
+          percentuale rigaRiferimento={OBIETTIVO_QUOTA} risultati={serieQuota(suoi, settimane)} />,
+      },
+    ]
     diapositive.push({
       titolo: u.nome,
       contenuto: (
         <div className="dia-ufficio">
           <div>
-            <p className="dia-nota">{nomeArea(ctx, u.area_id)} · <BadgeStato stato={s} /></p>
+            <p className="dia-nota">{AREE_ATTIVE && <>{nomeArea(ctx, u.area_id)} · </>}<BadgeStato stato={s} /></p>
             <table className="tabella-dati tabella-dia">
               <thead><tr><th>Attività</th><th>Obiettivo</th><th>Risultato</th><th>Esito</th></tr></thead>
               <tbody>
@@ -251,12 +277,22 @@ function Presentazione({ ctx, uffici, settimana, titolo, dati, note, onEsci }: {
             <p className="dia-quota">Quota di mercato: <strong>{formattaPercentuale(quotaDaTotali(t))}</strong>
               {t?.get('portafoglio')?.risultato != null && <span className="piccolo"> · portafoglio {t.get('portafoglio')!.risultato}, incarichi in zona {t.get('incarichi_zona')?.risultato ?? '—'}</span>}
             </p>
-          </div>
-          <div>
-            <h3>Incarichi · ultime {SETTIMANE_STORICO} settimane</h3>
-            <GraficoAndamento etichette={etichetteBrevi} risultati={andamento.map((x) => x.risultato)} obiettivi={andamento.map((x) => x.obiettivo)} nomeSerie="Incarichi" altezza={220} />
             <h3>Note dell'ufficio</h3>
             <p className="dia-testo-nota">{nota?.testo ?? <span className="piccolo">Nessuna nota per questa settimana.</span>}</p>
+          </div>
+          <div>
+            <div className="dia-titolo-grafici">
+              <h3>Andamento ultime {SETTIMANE_STORICO} settimane</h3>
+              <span className="piccolo"><span className="segno-risultato">━</span> risultato · <span className="segno-obiettivo">┅</span> obiettivo</span>
+            </div>
+            <div className="griglia-mini">
+              {miniGrafici.map((g) => (
+                <div key={g.nome} className="mini">
+                  <div className="mini-testa"><strong>{g.nome}</strong><span>{g.valore}</span></div>
+                  {g.grafico}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       ),

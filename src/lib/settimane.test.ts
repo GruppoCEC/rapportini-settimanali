@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   aggiungiSettimane, etichettaSettimana, intervalloSettimana, lunediDi, meseDellaSettimana, notaMeseSettimana,
-  oggiISO, settimanaNelMese, settimanaPredefinita, settimaneDelMese,
+  oggiISO, settimanaNelMese, settimanaPredefinita, settimaneDelMese, ultimaSettimanaConclusa,
 } from './settimane'
 
 describe('lunedì della settimana', () => {
@@ -43,6 +43,11 @@ describe('settimana proposta all\'apertura', () => {
   it('gli altri giorni propone la settimana in corso', () => {
     expect(settimanaPredefinita('2026-10-13')).toBe('2026-10-12')
     expect(settimanaPredefinita('2026-10-18')).toBe('2026-10-12')
+  })
+  it('cruscotto e riunione partono dall\'ultima settimana conclusa', () => {
+    expect(ultimaSettimanaConclusa('2026-10-13')).toBe('2026-10-05')
+    expect(ultimaSettimanaConclusa('2026-10-12')).toBe('2026-10-05')
+    expect(ultimaSettimanaConclusa('2026-10-18')).toBe('2026-10-05')
   })
   it('usa la data locale', () => {
     expect(oggiISO(new Date(2026, 9, 12, 23, 30))).toBe('2026-10-12')

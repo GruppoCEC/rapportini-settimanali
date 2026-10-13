@@ -59,7 +59,6 @@ export default function Accesso() {
             <ul>
               <li><code>davide</code> · amministratore generale</li>
               <li><code>admin-milano</code> · amministratore di Milano</li>
-              <li><code>resp-roma-nord</code> · responsabile d'area</li>
               <li><code>somalia</code> · un ufficio</li>
             </ul>
           </div>

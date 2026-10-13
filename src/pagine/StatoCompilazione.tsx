@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { nomeDaEmail } from '../lib/account'
 import { statoCompilazione, type StatoCompilazione as Stato } from '../lib/aggregazioni'
-import { type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
+import { AREE_ATTIVE, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { caricaRilevazioni } from '../lib/dati'
 import { isAmministratore } from '../lib/permessi'
 import { settimanaPredefinita } from '../lib/settimane'
@@ -75,12 +75,12 @@ export default function StatoCompilazione({ ctx }: { ctx: Contesto }) {
         </div>
         <div className="tabella-scorrevole">
           <table className="tabella-riepilogo tabella-stato">
-            <thead><tr><th>Ufficio</th><th>Area</th><th>Stato</th><th>Attività</th><th>Ultimo salvataggio</th>{admin && <th>Email promemoria</th>}</tr></thead>
+            <thead><tr><th>Ufficio</th>{AREE_ATTIVE && <th>Area</th>}<th>Stato</th><th>Attività</th><th>Ultimo salvataggio</th>{admin && <th>Email promemoria</th>}</tr></thead>
             <tbody>
               {righe.map((r) => (
                 <tr key={r.ufficio.id}>
                   <th scope="row">{r.ufficio.nome}</th>
-                  <td>{nomeArea(ctx, r.ufficio.area_id)}</td>
+                  {AREE_ATTIVE && <td>{nomeArea(ctx, r.ufficio.area_id)}</td>}
                   <td><BadgeStato stato={r.stato} /></td>
                   <td className="numero">{r.compilate} / {attivita.length}</td>
                   <td className="piccolo">{r.ultima

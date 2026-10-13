@@ -68,6 +68,11 @@ export function settimanaPredefinita(oggi: string = oggiISO()): string {
   return oggi === lunedi ? aggiungiSettimane(lunedi, -1) : lunedi
 }
 
+/** Ultima settimana già conclusa (quella prima della settimana in corso): base per cruscotto e riunione */
+export function ultimaSettimanaConclusa(oggi: string = oggiISO()): string {
+  return aggiungiSettimane(lunediDi(oggi), -1)
+}
+
 export function nomeMese(mese: string): string {
   const [a, m] = mese.split('-').map(Number)
   return `${MESI[m - 1]} ${a}`
