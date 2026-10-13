@@ -1,12 +1,17 @@
 // =====================================================================
-// CREAZIONE IN BLOCCO DEGLI ACCOUNT DEGLI UFFICI
+// ACCOUNT DEGLI UFFICI IN BLOCCO
 //
-//   node scripts/crea-account.mjs            → prova: controlla l'elenco, non crea nulla
-//   node scripts/crea-account.mjs --esegui   → crea davvero gli account
+//   node scripts/crea-account.mjs                          → prova: controlla l'elenco, non crea nulla
+//   node scripts/crea-account.mjs --esegui                 → crea gli account mancanti
+//   node scripts/crea-account.mjs --reimposta-password     → prova: mostra chi riceverebbe una nuova password
+//   node scripts/crea-account.mjs --reimposta-password --esegui
+//                                                          → nuove password per gli account già esistenti
 //
 // Legge import/account.csv (ufficio;citta;nome_utente;email_promemoria;note)
 // e scrive import/CREDENZIALI.csv con nome utente, password e un messaggio
-// pronto da inviare a ogni ufficio. Gli account già esistenti vengono saltati.
+// pronto da inviare a ogni ufficio.
+// Password: nome dell'ufficio + 4 cifre casuali (es. somalia-4821): riconoscibile
+// per l'ufficio, ma non indovinabile dai colleghi.
 //
 // Serve la chiave SEGRETA di Supabase nel file .env.local (mai su GitHub, mai in chat):
 //   VITE_SUPABASE_URL=https://xxxx.supabase.co
@@ -17,8 +22,10 @@ import { randomInt } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 const ESEGUI = process.argv.includes('--esegui')
+const REIMPOSTA = process.argv.includes('--reimposta-password')
 const SITO = 'https://gruppocec.github.io/rapportini-settimanali/'
 const CITTA = { roma: 1, milano: 2 }
+const BOM = '﻿'   // fa leggere bene gli accenti a Excel
 
 // ---------- configurazione ----------
 const env = { ...process.env }
@@ -30,14 +37,14 @@ if (existsSync('.env.local')) {
 }
 const url = env.VITE_SUPABASE_URL
 const chiave = env.SUPABASE_SERVICE_KEY
-if (!url || !chiave) {
+if (!url || !chiave || chiave === 'INCOLLA_QUI') {
   console.error('Mancano VITE_SUPABASE_URL e/o SUPABASE_SERVICE_KEY nel file .env.local (vedi le istruzioni in cima a questo file).')
   process.exit(1)
 }
 const db = createClient(url, chiave, { auth: { persistSession: false, autoRefreshToken: false } })
 
 // ---------- elenco ----------
-const righe = readFileSync('import/account.csv', 'utf8').split(/\r?\n/).filter((r) => r.trim())
+const righe = readFileSync('import/account.csv', 'utf8').replace(BOM, '').split(/\r?\n/).filter((r) => r.trim())
 const [intestazione, ...dati] = righe
 if (!/^ufficio;citta;nome_utente;email_promemoria/i.test(intestazione)) {
   console.error('import/account.csv: la prima riga deve essere "ufficio;citta;nome_utente;email_promemoria;note"')
@@ -48,14 +55,13 @@ const voci = dati.map((r, i) => {
   return { riga: i + 2, ufficio, citta, cittaId: CITTA[citta.toLowerCase()], nomeUtente: nomeUtente.toLowerCase(), email: email || null }
 })
 
-const PAROLE = ['sole', 'mare', 'casa', 'luna', 'vento', 'fiore', 'monte', 'lago', 'porto', 'ponte',
-  'stella', 'faro', 'nuvola', 'bosco', 'prato', 'torre', 'piazza', 'fiume', 'isola', 'onda']
-const password = () => `${PAROLE[randomInt(PAROLE.length)]}${randomInt(10, 100)}${PAROLE[randomInt(PAROLE.length)]}`
+/** Nome utente senza trattini + 4 cifre casuali: "circonvallazione-appia" → "circonvallazioneappia-4821" */
+const password = (nomeUtente) => `${nomeUtente.replace(/[^a-z0-9]/g, '')}-${String(randomInt(0, 10000)).padStart(4, '0')}`
 
 // ---------- controlli ----------
 const [{ data: uffici, error: e1 }, { data: utenti, error: e2 }] = await Promise.all([
   db.from('uffici').select('id, nome, citta_id'),
-  db.from('utenti').select('nome_utente, ufficio_id, ruolo'),
+  db.from('utenti').select('nome_utente, email, ruolo, ufficio_id, auth_id'),
 ])
 if (e1 || e2) { console.error('Impossibile leggere il database:', (e1 ?? e2).message); process.exit(1) }
 
@@ -69,7 +75,7 @@ for (const v of voci) {
   if (visti.has(v.nomeUtente)) problemi.push(`riga ${v.riga}: nome utente "${v.nomeUtente}" ripetuto`)
   visti.add(v.nomeUtente)
   if (v.email && !/^[^@\s,]+@[^@\s,]+\.[^@\s,]+$/.test(v.email)) problemi.push(`riga ${v.riga}: email "${v.email}" non valida`)
-  v.esiste = utenti.some((u) => u.nome_utente === v.nomeUtente)
+  v.utente = utenti.find((u) => u.nome_utente === v.nomeUtente)
   v.ufficioHaAccount = v.ufficioRec && utenti.some((u) => u.ufficio_id === v.ufficioRec.id && u.ruolo === 'ufficio')
 }
 if (problemi.length) {
@@ -77,7 +83,47 @@ if (problemi.length) {
   process.exit(1)
 }
 
-const daCreare = voci.filter((v) => !v.esiste)
+// ---------- credenziali ----------
+function scriviCredenziali(risultati) {
+  const cella = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`
+  const messaggio = (v) => `Ciao! Da questa settimana i rapportini si inseriscono sulla piattaforma: ${SITO}  Nome utente: ${v.nomeUtente}  Password: ${v.password}  (puoi cambiarla cliccando sul nome dell'ufficio in alto a destra). Scadenza: domenica sera.`
+  const csv = ['Ufficio;Città;Nome utente;Password;Email promemoria;Esito;Messaggio da inviare']
+  for (const v of risultati) {
+    csv.push([v.ufficio, v.citta, v.nomeUtente, v.password ?? '', v.email ?? '', v.esito, v.password ? messaggio(v) : ''].map(cella).join(';'))
+  }
+  writeFileSync('import/CREDENZIALI.csv', BOM + csv.join('\r\n'))
+  const ok = risultati.filter((v) => v.password).length
+  console.log(`\nFatto per ${ok} account su ${risultati.length}. Credenziali in import/CREDENZIALI.csv (aprilo con Excel o Numbers).`)
+  console.log('Le password non sono salvate da nessun\'altra parte: conserva quel file in un posto sicuro.')
+}
+
+// ---------- nuove password per account esistenti ----------
+if (REIMPOSTA) {
+  const daAggiornare = voci.filter((v) => v.utente?.ruolo === 'ufficio')
+  console.log(`${daAggiornare.length} account ufficio esistenti riceveranno una nuova password (es. ${password(daAggiornare[0]?.nomeUtente ?? 'somalia')}).`)
+  if (!ESEGUI) {
+    console.log('\nQuesta era una PROVA: nessuna password cambiata. Per cambiarle:  node scripts/crea-account.mjs --reimposta-password --esegui')
+    process.exit(0)
+  }
+  let tutti = null   // elenco degli account di accesso, letto solo se serve
+  const risultati = []
+  for (const v of daAggiornare) {
+    let id = v.utente.auth_id
+    if (!id) {
+      tutti ??= (await db.auth.admin.listUsers({ page: 1, perPage: 1000 })).data.users
+      id = tutti.find((u) => u.email === v.utente.email)?.id
+    }
+    const pw = password(v.nomeUtente)
+    const { error } = id ? await db.auth.admin.updateUserById(id, { password: pw }) : { error: { message: 'account di accesso non trovato' } }
+    risultati.push(error ? { ...v, esito: `ERRORE: ${error.message}` } : { ...v, password: pw, esito: 'password aggiornata' })
+    console.log(error ? `✗ ${v.ufficio}: ${error.message}` : `✓ ${v.ufficio}`)
+  }
+  scriviCredenziali(risultati)
+  process.exit(0)
+}
+
+// ---------- creazione degli account mancanti ----------
+const daCreare = voci.filter((v) => !v.utente)
 console.log(`${voci.length} uffici nell'elenco: ${daCreare.length} account da creare, ${voci.length - daCreare.length} già esistenti (saltati).`)
 console.log(`Senza email per i promemoria: ${daCreare.filter((v) => !v.email).map((v) => v.ufficio).join(', ') || 'nessuno'}`)
 const doppi = daCreare.filter((v) => v.ufficioHaAccount)
@@ -88,10 +134,9 @@ if (!ESEGUI) {
   process.exit(0)
 }
 
-// ---------- creazione ----------
 const risultati = []
 for (const v of daCreare) {
-  const pw = password()
+  const pw = password(v.nomeUtente)
   // 1) scheda utente: l'email tecnica di accesso la genera il database dal nome utente
   const { data: nuovo, error: errUtente } = await db.from('utenti').insert({
     nome_utente: v.nomeUtente, nome: `Ufficio ${v.ufficio}`, ruolo: 'ufficio', ufficio_id: v.ufficioRec.id, email_promemoria: v.email,
@@ -107,15 +152,4 @@ for (const v of daCreare) {
   risultati.push({ ...v, password: pw, esito: 'creato' })
   console.log(`✓ ${v.ufficio} → ${v.nomeUtente}`)
 }
-
-// ---------- credenziali ----------
-const cella = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`
-const messaggio = (v) => `Ciao! Da questa settimana i rapportini si inseriscono sulla piattaforma: ${SITO}  Nome utente: ${v.nomeUtente}  Password: ${v.password}  (puoi cambiarla cliccando sul nome dell'ufficio in alto a destra). Scadenza: domenica sera.`
-const csv = ['Ufficio;Città;Nome utente;Password;Email promemoria;Esito;Messaggio da inviare']
-for (const v of risultati) {
-  csv.push([v.ufficio, v.citta, v.nomeUtente, v.password ?? '', v.email ?? '', v.esito, v.password ? messaggio(v) : ''].map(cella).join(';'))
-}
-writeFileSync('import/CREDENZIALI.csv', '﻿' + csv.join('\r\n'))   // ﻿: Excel legge bene gli accenti
-const ok = risultati.filter((v) => v.esito === 'creato').length
-console.log(`\nCreati ${ok} account su ${daCreare.length}. Credenziali in import/CREDENZIALI.csv (aprilo con Excel o Numbers).`)
-console.log('Le password non sono salvate da nessun\'altra parte: conserva quel file in un posto sicuro.')
+scriviCredenziali(risultati)

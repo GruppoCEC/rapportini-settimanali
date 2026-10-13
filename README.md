@@ -25,7 +25,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 | 2 | Database, regole di sicurezza, "Inserisci settimana" | Codice pronto: da provare con 2 uffici pilota |
 | 3 | Cruscotto, stato compilazione, promemoria, amministrazione | Codice pronto |
 | 4 | Grafici di andamento e modalità riunione | Codice pronto: da provare sul proiettore |
-| 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.541 valori (gen–ott 2026) |
+| 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.635 valori (gen–ott 2026) |
 | 6 | Avvio per tutti gli uffici | Da fare |
 
 **Vederlo subito con dati inventati**: `npm install`, poi `npm run demo`.
@@ -71,4 +71,6 @@ npm test           # esegue tutti i test
 npm run build      # prepara il sito per la pubblicazione
 npm run sql:unico  # rigenera supabase/TUTTO_IN_UNO.sql
 node scripts/importa-storico.mjs  # legge gli Excel in import/ e prepara resoconto e file SQL
+node scripts/crea-account.mjs     # crea in blocco gli account da import/account.csv (prima prova, poi --esegui)
+node scripts/ricarica-storico.mjs # sostituisce nel database i dati importati dagli Excel (prima prova, poi --esegui)
 ```

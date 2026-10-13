@@ -9,9 +9,12 @@
 //
 // Regole:
 //   - si importano solo obiettivi e risultati (esiti, totali e percentuali si ricalcolano);
-//   - "n° settimana" del mese: la 1ª va dal giorno 1 alla prima domenica, poi da lunedì a domenica
-//     (regola indicata da Davide). Le settimane spezzate a cavallo di due mesi si riuniscono
-//     nella settimana lun-dom della piattaforma: attività sommate, dati di zona = mese più recente;
+//   - "n° settimana" del mese (regola ricavata dai file, 13/10/2026): la 1ª è la prima settimana
+//     intera, cioè la settimana lun-dom che ha il giovedì nel mese. Se un ufficio ha compilato una
+//     settimana in più a fine mese (es. "5ª di settembre" = 28/9–4/10), quella va alla settimana
+//     seguente e il mese dopo slitta di una (la sua "1ª" diventa 5–11/10), purché non sfori;
+//   - uffici con "settimane": "primo" in regole.json (es. Lanciani): la 1ª va dal giorno 1 alla
+//     prima domenica; i due pezzi di una settimana a cavallo di due mesi si riuniscono;
 //   - si importano solo settimane già concluse (le altre sono avanzi dell'anno prima);
 //   - i dati già presenti sulla piattaforma NON vengono sovrascritti.
 // =====================================================================
@@ -48,6 +51,35 @@ function lunediSettimanaExcel(anno, mese, n) {
   const ultimo = new Date(Date.UTC(anno, mese, 0))
   return lunedi <= ultimo ? iso(lunedi) : null
 }
+/**
+ * Regola standard con "settimana in più": restituisce la funzione (mese, n) → lunedì | null.
+ * Una settimana in più a fine mese (n = settimane del mese + 1) passa alla prima settimana del mese
+ * dopo, e il mese dopo slitta di una, solo se così facendo non sfora a sua volta.
+ */
+function mappaSettimaneStandard(anno, dati, note) {
+  const maxRis = {}
+  for (const d of dati) if (d.risultato !== null) maxRis[d.mese] = Math.max(maxRis[d.mese] ?? 0, d.settimanaExcel)
+  const scarto = {}, inPiuOk = {}
+  for (let m = 1; m <= 12; m++) {
+    const n = settimaneDelMese(anno, m).length
+    if ((maxRis[m] ?? 0) + (scarto[m] ?? 0) === n + 1 && m < 12) {
+      const nDopo = settimaneDelMese(anno, m + 1).length
+      if ((maxRis[m + 1] ?? 0) + 1 <= nDopo) {
+        inPiuOk[m] = true
+        scarto[m + 1] = 1
+        note.push(`${MESI[m - 1]} ha una ${n + 1}ª settimana: è la settimana ${intervallo(settimaneDelMese(anno, m + 1)[0])}, e le settimane di ${MESI[m]} slittano di una`)
+      }
+    }
+  }
+  return (mese, n) => {
+    const elenco = settimaneDelMese(anno, mese)
+    const i = n - 1 + (scarto[mese] ?? 0)
+    if (i < elenco.length) return elenco[i]
+    if (i === elenco.length && inPiuOk[mese]) return settimaneDelMese(anno, mese + 1)[0]
+    return null
+  }
+}
+
 const oggi = new Date()
 const lunediCorrente = (() => { const d = new Date(Date.UTC(oggi.getFullYear(), oggi.getMonth(), oggi.getDate())); return iso(new Date(+d - ((d.getUTCDay() + 6) % 7) * GIORNO)) })()
 const intervallo = (lunedi) => {
@@ -78,8 +110,12 @@ for (const cartella of readdirSync(CARTELLA, { withFileTypes: true }).filter((d)
     const scartateFuture = new Map()  // mese → numero di valori
     const fuoriMese = []
     let riunite = 0
+    const noteSettimane = []
+    const settimanaDi = regola?.settimane === 'primo'
+      ? (mese, n) => lunediSettimanaExcel(anno, mese, n)
+      : mappaSettimaneStandard(anno, dati, noteSettimane)
     for (const d of dati) {
-      const lunedi = lunediSettimanaExcel(anno, d.mese, d.settimanaExcel)
+      const lunedi = settimanaDi(d.mese, d.settimanaExcel)
       if (!lunedi) {
         fuoriMese.push(`${MESI[d.mese - 1]}: ${d.settimanaExcel}ª settimana (${d.etichetta}) ma il mese non ha così tante settimane`)
         continue
@@ -102,6 +138,8 @@ for (const cartella of readdirSync(CARTELLA, { withFileTypes: true }).filter((d)
       }
       righe.set(chiave, { settimana: lunedi, metrica: d.codice, mese: d.mese, obiettivo: ZONA.has(d.codice) ? null : d.obiettivo, risultato: d.risultato })
     }
+    for (const t of noteSettimane) anomalie.unshift({ riga: 0, testo: t, slittamento: true })
+    if (regola?.settimane === 'primo') anomalie.unshift({ riga: 0, testo: 'regola particolare: settimane dal giorno 1 alla prima domenica (come compilato in questo file)' })
     if (riunite) anomalie.push({ riga: 0, testo: `${riunite} valori di settimane a cavallo di due mesi riuniti nella stessa settimana lun-dom (attività sommate)`, riunione: true })
     const elenco = [...righe.values()].map(({ mese, ...x }) => x).sort((a, b) => a.settimana.localeCompare(b.settimana) || a.metrica.localeCompare(b.metrica))
     const settimaneConDati = [...new Set(elenco.filter((r) => r.risultato !== null).map((r) => r.settimana))].sort()
@@ -133,8 +171,12 @@ r.push(`Generato il ${new Date().toLocaleString('it-IT')} da \`scripts/importa-s
 r.push('## In sintesi', '')
 r.push(`- **${daCaricare.length} uffici** (${daCaricare.filter((u) => u.cittaId === 1).length} Roma, ${daCaricare.filter((u) => u.cittaId === 2).length} Milano), **${totaleValori.toLocaleString('it-IT')} valori** da importare${quasiIdentici.length ? ` (${uffici.length - daCaricare.length} file esclusi, vedi sotto)` : ''}.`)
 r.push(`- Si importano solo le **settimane concluse**: fino a quella iniziata il ${new Date(+new Date(`${lunediCorrente}T00:00:00Z`) - 7 * GIORNO).toLocaleDateString('it-IT')}.`)
-r.push('- **Settimane dell\'Excel**: la 1ª va dal giorno 1 del mese alla prima domenica, le successive da lunedì a domenica (regola indicata da Davide). Ad esempio la 1ª di febbraio 2026 è solo domenica 1, la 2ª il 2–8 febbraio, la 5ª il 23–28 febbraio.')
-r.push('- La piattaforma ragiona per **settimane intere** (lunedì–domenica): i due pezzi di una settimana a cavallo di due mesi (es. 26–31 gennaio e 1 febbraio) finiscono nella stessa settimana. Le attività si sommano; per i dati di zona vale il valore più recente.')
+r.push('- **Settimane dell\'Excel** (regola ricavata dai file): la 1ª settimana del mese è la prima settimana intera, lunedì–domenica, col giovedì nel mese. Ad esempio la 1ª di febbraio 2026 è il 2–8 febbraio e la 1ª di ottobre il 28 settembre – 4 ottobre.')
+r.push('- Se un ufficio ha compilato una **settimana in più** a fine mese (es. una "5ª di settembre"), quella è la settimana seguente (28 settembre – 4 ottobre) e la sua "1ª di ottobre" diventa il 5–11 ottobre.')
+const conSlittamento = uffici.filter((u) => u.anomalie.some((a) => a.slittamento))
+if (conSlittamento.length) r.push(`  Uffici con settimane slittate: ${conSlittamento.map((u) => u.nome).join(', ')}.`)
+const conPrimo = Object.entries(REGOLE).filter(([, v]) => v?.settimane === 'primo').map(([k]) => k)
+if (conPrimo.length) r.push(`- Seguono invece la regola "dal giorno 1 alla prima domenica": ${conPrimo.join(', ')}. Le mezze settimane a cavallo di due mesi si riuniscono.`)
 r.push('- Si importano **solo obiettivi e risultati**: esiti, totali del mese e quote di mercato si ricalcolano, quindi gli errori #DIV/0! e #VALORE! spariscono.')
 r.push('- I dati già inseriti sulla piattaforma **non vengono toccati**: si aggiunge solo ciò che manca.', '')
 
@@ -243,6 +285,8 @@ gruppi.forEach((g, i) => {
   s.push('group by u.nome order by u.nome;')
   writeFileSync(join(CARTELLA, 'sql', `IMPORTA_${i + 1}.sql`), s.join('\n') + '\n')
 })
+
+writeFileSync(join(CARTELLA, 'sql', 'righe.json'), JSON.stringify(daCaricare.flatMap((u) => u.righe.map((x) => ({ ufficio: u.nome, citta_id: u.cittaId, ...x })))))
 
 console.log(`\nFatto: ${daCaricare.length} uffici da caricare (${uffici.length - daCaricare.length} esclusi), ${totaleValori} valori.`)
 console.log(`Resoconto: ${join(CARTELLA, 'REPORT_IMPORT.md')}`)

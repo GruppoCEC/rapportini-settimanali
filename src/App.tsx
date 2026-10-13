@@ -69,6 +69,14 @@ export default function App() {
   }, [email, versioneBase])
 
   const ricaricaBase = useCallback(() => setVersioneBase((v) => v + 1), [])
+
+  // Quando si torna sulla scheda del browser, si ricaricano uffici e account:
+  // così compaiono subito eventuali uffici aggiunti nel frattempo (es. da un import)
+  useEffect(() => {
+    const alRitorno = () => { if (document.visibilityState === 'visible') ricaricaBase() }
+    document.addEventListener('visibilitychange', alRitorno)
+    return () => document.removeEventListener('visibilitychange', alRitorno)
+  }, [ricaricaBase])
   const vaiA = (p: Pagina) => {
     setPagina(p)
     try { localStorage.setItem(CHIAVE_PAGINA, p) } catch { /* memoria del browser non disponibile */ }
