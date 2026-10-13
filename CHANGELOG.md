@@ -9,6 +9,7 @@
   - Ora 33 uffici su 47 hanno la settimana 5–11 ottobre (prima 26). Gli altri 14 non l'avevano ancora compilata negli Excel salvati il 12/10.
 - Nuovo `scripts/ricarica-storico.mjs`: sostituisce i dati importati dagli Excel senza toccare quelli inseriti sulla piattaforma.
 - La piattaforma ricarica l'elenco degli uffici quando si torna sulla sua scheda del browser.
+- **Obiettivi ripresi dalla settimana precedente**: in una settimana nuova gli obiettivi sono già compilati con quelli dell'ultima settimana che li aveva, con un avviso, e restano modificabili prima di salvare.
 
 ## 0.3.1 — 13 ottobre 2026
 

@@ -15,7 +15,7 @@ Se l'hai dimenticata, chiedi all'amministratore.
 ## Inserire i dati della settimana
 
 1. Apri **Inserisci settimana**. La settimana proposta è quella da compilare: il lunedì è la settimana appena chiusa.
-2. Per ogni attività scrivi **obiettivo** e **risultato**. L'esito si calcola da solo, in verde se l'obiettivo è raggiunto e in rosso se no.
+2. Per ogni attività scrivi il **risultato**. Gli **obiettivi** sono già compilati con quelli della settimana prima: cambiali solo se questa settimana sono diversi. L'esito si calcola da solo, in verde se l'obiettivo è raggiunto e in rosso se no.
    Se in un'attività non hai fatto nulla, scrivi **0**: la casella vuota vuol dire "non ancora inserito".
 3. Nei **dati di zona** trovi già i valori della settimana prima: cambia solo quelli variati.
    La quota di mercato si calcola da sola.

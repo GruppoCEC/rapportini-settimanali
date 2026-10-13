@@ -31,6 +31,7 @@ export default function InserisciSettimana({ uffici, metriche }: Props) {
   const [nota, setNota] = useState('')
   const [notaOriginale, setNotaOriginale] = useState('')
   const [proposteDa, setProposteDa] = useState<string | null>(null)   // settimana da cui sono copiati i dati di zona
+  const [obiettiviDa, setObiettiviDa] = useState<string | null>(null)  // settimana da cui sono copiati gli obiettivi
   const [ultimoSalvataggio, setUltimoSalvataggio] = useState<{ quando: string; chi: string | null } | null>(null)
   const [stato, setStato] = useState<'caricamento' | 'pronto' | 'salvataggio'>('caricamento')
   const [messaggio, setMessaggio] = useState<{ tipo: 'ok' | 'errore'; testo: string } | null>(null)
@@ -97,11 +98,28 @@ export default function InserisciSettimana({ uffici, metriche }: Props) {
         }
       }
 
+      // Obiettivi non ancora inseriti → riprendi quelli dell'ultima settimana che li aveva (modificabili)
+      let obDa: string | null = null
+      const obiettiviVuoti = attivita.every((m) => salvate[m.codice].obiettivo === '')
+      if (obiettiviVuoti && attivita.length > 0) {
+        const precedenti = await supabase.from('rilevazioni')
+          .select('metrica, obiettivo, settimana')
+          .eq('ufficio_id', ufficioId).lt('settimana', settimana)
+          .in('metrica', attivita.map((m) => m.codice)).not('obiettivo', 'is', null)
+          .order('settimana', { ascending: false }).limit(attivita.length * 4)
+        if (annullato) return
+        const righePrec = (precedenti.data ?? []) as Rilevazione[]
+        obDa = righePrec[0]?.settimana ?? null
+        // solo la settimana più recente: gli obiettivi si riprendono tutti insieme, senza mescolare settimane
+        for (const r of righePrec) if (r.settimana === obDa) proposte[r.metrica].obiettivo = testo(r.obiettivo)
+      }
+
       setOriginali(salvate)
       setCaselle(proposte)
       setNota(notaDb.data?.testo ?? '')
       setNotaOriginale(notaDb.data?.testo ?? '')
       setProposteDa(da)
+      setObiettiviDa(obDa)
       setStato('pronto')
     })()
     return () => { annullato = true }
@@ -185,6 +203,11 @@ export default function InserisciSettimana({ uffici, metriche }: Props) {
       <fieldset className="scheda" disabled={stato !== 'pronto'}>
         <h2>Attività della settimana</h2>
         <p className="piccolo">Se in un'attività non hai fatto nulla scrivi <strong>0</strong>: la casella vuota vuol dire "non ancora inserito".</p>
+        {obiettiviDa && (
+          <p className="avviso">
+            Obiettivi ripresi dalla settimana {intervalloSettimana(obiettiviDa)}: cambiali se questa settimana sono diversi, poi salva.
+          </p>
+        )}
         <table className="tabella-dati">
           <thead>
             <tr><th>Attività</th><th>Obiettivo</th><th>Risultato</th><th>Esito</th></tr>
