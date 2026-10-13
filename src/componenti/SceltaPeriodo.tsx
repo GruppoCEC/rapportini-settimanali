@@ -1,8 +1,9 @@
 // Scelta del periodo per cruscotto e statistiche: una settimana oppure un mese.
 import {
-  aggiungiSettimane, etichettaSettimana, lunediDi, meseDellaSettimana, notaMeseSettimana,
-  nomeMese, oggiISO, settimaneDelMese, ultimaSettimanaConclusa,
+  aggiungiSettimane, etichettaSettimana, lunediDi, meseDellaSettimana, nomeMese, oggiISO,
+  settimaneDelMese, ultimaSettimanaConclusa,
 } from '../lib/settimane'
+import { Icona } from './Interfaccia'
 
 export interface Periodo {
   tipo: 'settimana' | 'mese'
@@ -20,10 +21,11 @@ export function estremiPeriodo(p: Periodo): { da: string; a: string; settimane: 
   return { da: settimane[0], a: settimane[settimane.length - 1], settimane }
 }
 
+/** "Settimana 5 – 11 ottobre 2026" oppure "Ottobre 2026" */
 export function descriviPeriodo(p: Periodo): string {
-  return p.tipo === 'settimana'
-    ? etichettaSettimana(p.settimana)
-    : `Mese di ${nomeMese(meseDellaSettimana(p.settimana))}`
+  if (p.tipo === 'settimana') return etichettaSettimana(p.settimana)
+  const m = nomeMese(meseDellaSettimana(p.settimana))
+  return m.charAt(0).toUpperCase() + m.slice(1)
 }
 
 export default function SceltaPeriodo({ periodo, onCambia }: { periodo: Periodo; onCambia: (p: Periodo) => void }) {
@@ -39,22 +41,16 @@ export default function SceltaPeriodo({ periodo, onCambia }: { periodo: Periodo;
     : meseDellaSettimana(periodo.settimana) >= meseDellaSettimana(ultima)
 
   return (
-    <div className="scelta-periodo">
-      <div className="interruttore" role="group" aria-label="Periodo">
+    <div className="comandi">
+      <div className="segmentato" role="group" aria-label="Periodo">
         {(['settimana', 'mese'] as const).map((t) => (
-          <button key={t} className={periodo.tipo === t ? 'attivo' : ''} onClick={() => onCambia({ ...periodo, tipo: t })}>
+          <button key={t} className={periodo.tipo === t ? 'attivo' : ''} aria-pressed={periodo.tipo === t} onClick={() => onCambia({ ...periodo, tipo: t })}>
             {t === 'settimana' ? 'Settimana' : 'Mese'}
           </button>
         ))}
       </div>
-      <div className="scelta-settimana">
-        <button className="freccia" aria-label="Periodo precedente" onClick={() => sposta(-1)}>‹</button>
-        <div className="scelta-settimana-testo">
-          <strong>{periodo.tipo === 'settimana' ? etichettaSettimana(periodo.settimana) : nomeMese(meseDellaSettimana(periodo.settimana))}</strong>
-          <span>{periodo.tipo === 'settimana' ? notaMeseSettimana(periodo.settimana) : `${settimaneDelMese(meseDellaSettimana(periodo.settimana)).length} settimane`}</span>
-        </div>
-        <button className="freccia" aria-label="Periodo successivo" disabled={avantiDisabilitato} onClick={() => sposta(1)}>›</button>
-      </div>
+      <button className="btn btn-icona" aria-label="Periodo precedente" onClick={() => sposta(-1)}><Icona nome="caret-left" /></button>
+      <button className="btn btn-icona" aria-label="Periodo successivo" disabled={avantiDisabilitato} onClick={() => sposta(1)}><Icona nome="caret-right" /></button>
     </div>
   )
 }

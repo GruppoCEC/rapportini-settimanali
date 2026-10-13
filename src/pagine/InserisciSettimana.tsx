@@ -7,10 +7,12 @@ import { esito, formattaEsito, formattaPercentuale, leggiNumero, OBIETTIVO_QUOTA
 import { intervalloSettimana, settimanaPredefinita } from '../lib/settimane'
 import type { Metrica, Rilevazione, Ufficio } from '../lib/tipi'
 import SceltaSettimana from '../componenti/SceltaSettimana'
+import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 
 interface Props {
   uffici: Ufficio[]      // uffici che l'utente può compilare (di solito uno solo)
   metriche: Metrica[]
+  onSalvato?: () => void
 }
 
 /** Quanto scritto nelle caselle (come testo, per poter mostrare anche gli errori) */
@@ -23,7 +25,7 @@ function caselleVuote(metriche: Metrica[]): Caselle {
   return Object.fromEntries(metriche.map((m) => [m.codice, { obiettivo: '', risultato: '' }]))
 }
 
-export default function InserisciSettimana({ uffici, metriche }: Props) {
+export default function InserisciSettimana({ uffici, metriche, onSalvato }: Props) {
   const [ufficioId, setUfficioId] = useState(uffici[0].id)
   const [settimana, setSettimana] = useState(settimanaPredefinita())
   const [caselle, setCaselle] = useState<Caselle>(() => caselleVuote(metriche))
@@ -36,6 +38,8 @@ export default function InserisciSettimana({ uffici, metriche }: Props) {
   const [stato, setStato] = useState<'caricamento' | 'pronto' | 'salvataggio'>('caricamento')
   const [messaggio, setMessaggio] = useState<{ tipo: 'ok' | 'errore'; testo: string } | null>(null)
   const [versione, setVersione] = useState(0)   // aumenta dopo ogni salvataggio per ricaricare
+  const [dialogo, chiedi] = useConferma()
+  const [toast, mostraToast] = useToast()
 
   const attivita = metriche.filter((m) => m.tipo === 'attivita')
   const zona = metriche.filter((m) => m.tipo === 'zona')
@@ -130,8 +134,8 @@ export default function InserisciSettimana({ uffici, metriche }: Props) {
     setMessaggio(null)
   }
 
-  function conPermesso(azione: () => void) {
-    if (modificato && !window.confirm('Hai modifiche non salvate. Vuoi abbandonarle?')) return
+  async function conPermesso(azione: () => void) {
+    if (modificato && !await chiedi({ titolo: 'Modifiche non salvate', testo: 'Hai modifiche non salvate. Vuoi abbandonarle?', conferma: 'Abbandona', pericolo: true })) return
     setMessaggio(null)
     azione()
   }
@@ -171,110 +175,137 @@ export default function InserisciSettimana({ uffici, metriche }: Props) {
       setMessaggio({ tipo: 'errore', testo: `Salvataggio non riuscito: ${errore.message}. I dati sono ancora nelle caselle: riprova.` })
       return
     }
-    setMessaggio({ tipo: 'ok', testo: `Dati salvati alle ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}.` })
+    const testoOk = `Dati salvati alle ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}.`
+    setMessaggio({ tipo: 'ok', testo: testoOk })
+    mostraToast(testoOk)
     setVersione((v) => v + 1)
+    onSalvato?.()
   }
 
   const quota = quotaMercato(num(caselle.portafoglio?.risultato ?? ''), num(caselle.incarichi_zona?.risultato ?? ''))
   const ufficio = uffici.find((u) => u.id === ufficioId)!
 
+  const disattivo = stato !== 'pronto'
+
   return (
-    <div className="pagina-inserimento">
-      <div className="scheda intestazione-inserimento">
-        {uffici.length > 1 ? (
-          <label className="scelta-ufficio">
-            Ufficio
-            <select value={ufficioId} onChange={(e) => { const v = Number(e.target.value); conPermesso(() => setUfficioId(v)) }}>
+    <div className="pagina entra">
+      <div className="intestazione">
+        <div className="intestazione-titoli">
+          <span className="kicker">Inserisci settimana</span>
+          {uffici.length > 1 ? (
+            <select className="select-titolo" aria-label="Ufficio" value={ufficioId}
+              onChange={(e) => { const v = Number(e.target.value); conPermesso(() => setUfficioId(v)) }}>
               {uffici.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
             </select>
-          </label>
-        ) : (
-          <h1 className="nome-ufficio">{ufficio.nome}</h1>
-        )}
+          ) : (
+            <h1 className="titolo-pagina">{ufficio.nome}</h1>
+          )}
+          {ultimoSalvataggio && (
+            <span className="piccolo">
+              Ultimo salvataggio: {new Date(ultimoSalvataggio.quando).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}
+              {ultimoSalvataggio.chi ? ` da ${nomeDaEmail(ultimoSalvataggio.chi)}` : ''}
+            </span>
+          )}
+        </div>
         <SceltaSettimana settimana={settimana} onCambia={(s) => conPermesso(() => setSettimana(s))} />
-        {ultimoSalvataggio && (
-          <p className="piccolo">
-            Ultimo salvataggio: {new Date(ultimoSalvataggio.quando).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}
-            {ultimoSalvataggio.chi ? ` da ${nomeDaEmail(ultimoSalvataggio.chi)}` : ''}
-          </p>
-        )}
       </div>
 
-      <fieldset className="scheda" disabled={stato !== 'pronto'}>
-        <h2>Attività della settimana</h2>
-        <p className="piccolo">Se in un'attività non hai fatto nulla scrivi <strong>0</strong>: la casella vuota vuol dire "non ancora inserito".</p>
-        {obiettiviDa && (
-          <p className="avviso">
-            Obiettivi ripresi dalla settimana {intervalloSettimana(obiettiviDa)}: cambiali se questa settimana sono diversi, poi salva.
-          </p>
-        )}
-        <table className="tabella-dati">
-          <thead>
-            <tr><th>Attività</th><th>Obiettivo</th><th>Risultato</th><th>Esito</th></tr>
-          </thead>
-          <tbody>
-            {attivita.map((m) => {
-              const c = caselle[m.codice]
-              const e = esito(num(c.obiettivo), num(c.risultato))
-              return (
-                <tr key={m.codice}>
-                  <th scope="row">{m.nome}</th>
-                  {(['obiettivo', 'risultato'] as const).map((campo) => (
-                    <td key={campo}>
-                      <input inputMode="numeric" aria-label={`${m.nome} – ${campo}`} value={c[campo]}
-                        className={caselleErrate.includes(`${m.codice}.${campo}`) ? 'non-valido' : ''}
-                        onChange={(ev) => cambia(m.codice, campo, ev.target.value)} />
+      <div className="due-colonne">
+        <section className="scheda entra entra-1">
+          <h2 className="titolo-icona"><span className="icona-quadrata icona-blu"><Icona nome="briefcase" /></span>Attività della settimana</h2>
+          <p className="piccolo">Se in un'attività non hai fatto nulla scrivi <strong>0</strong>: la casella vuota vuol dire "non ancora inserito".</p>
+          {obiettiviDa && (
+            <p className="avviso compare"><Icona nome="info" />
+              <span>Obiettivi ripresi dalla settimana {intervalloSettimana(obiettiviDa)}: cambiali se questa settimana sono diversi, poi salva.</span>
+            </p>
+          )}
+          <table className="tabella tabella-inserimento">
+            <thead>
+              <tr><th>Attività</th><th className="destra">Obiettivo</th><th className="destra">Risultato</th><th className="destra">Esito</th></tr>
+            </thead>
+            <tbody>
+              {attivita.map((m) => {
+                const c = caselle[m.codice]
+                const e = esito(num(c.obiettivo), num(c.risultato))
+                return (
+                  <tr key={m.codice}>
+                    <th scope="row">{m.nome}</th>
+                    {(['obiettivo', 'risultato'] as const).map((campo) => (
+                      <td key={campo} className={`destra ${campo}`}>
+                        <input inputMode="numeric" aria-label={`${m.nome} – ${campo}`} value={c[campo]} disabled={disattivo}
+                          className={caselleErrate.includes(`${m.codice}.${campo}`) ? 'non-valido' : ''}
+                          onChange={(ev) => cambia(m.codice, campo, ev.target.value)} />
+                      </td>
+                    ))}
+                    <td className="destra">
+                      <span className={`pillola-esito ${e === null ? '' : e >= 0 ? 'positivo' : 'negativo'}`}>{formattaEsito(e)}</span>
                     </td>
-                  ))}
-                  <td className={`esito ${e === null ? '' : e >= 0 ? 'positivo' : 'negativo'}`}>{formattaEsito(e)}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </fieldset>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </section>
 
-      <fieldset className="scheda" disabled={stato !== 'pronto'}>
-        <h2>Dati di zona</h2>
-        {proposteDa && (
-          <p className="avviso">
-            Valori proposti dalla settimana {intervalloSettimana(proposteDa)}: controllali, cambia quelli variati e salva.
-          </p>
-        )}
-        <table className="tabella-dati tabella-zona">
-          <tbody>
-            {zona.map((m) => (
-              <tr key={m.codice}>
-                <th scope="row">{m.nome}</th>
-                <td>
-                  <input inputMode="numeric" aria-label={m.nome} value={caselle[m.codice].risultato}
+        <div className="colonna entra entra-2">
+          <section className="scheda">
+            <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="map-pin-area" /></span>Dati di zona</h2>
+            {proposteDa && (
+              <p className="avviso compare"><Icona nome="info" />
+                <span>Valori proposti dalla settimana {intervalloSettimana(proposteDa)}: controllali, cambia quelli variati e salva.</span>
+              </p>
+            )}
+            <div className="griglia-zona">
+              {zona.map((m) => (
+                <div key={m.codice} className="campo">
+                  <label htmlFor={`zona-${m.codice}`}>{m.nome}</label>
+                  <input id={`zona-${m.codice}`} inputMode="numeric" value={caselle[m.codice].risultato} disabled={disattivo}
                     className={caselleErrate.includes(`${m.codice}.risultato`) ? 'non-valido' : ''}
                     onChange={(ev) => cambia(m.codice, 'risultato', ev.target.value)} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className={`quota ${quota === null ? '' : quota >= OBIETTIVO_QUOTA ? 'positivo' : 'negativo'}`}>
-          <span>Quota di mercato</span>
-          <strong>{formattaPercentuale(quota)}</strong>
-          <span className="piccolo">obiettivo {formattaPercentuale(OBIETTIVO_QUOTA)} · Portafoglio ÷ (Portafoglio + Incarichi in zona)</span>
-        </div>
-      </fieldset>
+                </div>
+              ))}
+            </div>
+            {(() => {
+              const classe = quota === null ? '' : quota >= OBIETTIVO_QUOTA ? 'positivo' : 'negativo'
+              return (
+                <div className="quota-box">
+                  <div className="quota-riga">
+                    <span className="etichetta-maiuscola">Quota di mercato</span>
+                    <strong className={`quota-numero ${classe}`}>{formattaPercentuale(quota)}</strong>
+                    {quota !== null && <span className={`quota-segno ${classe}`}>{quota >= OBIETTIVO_QUOTA ? '✓ sopra l\'obiettivo' : '✗ sotto l\'obiettivo'}</span>}
+                  </div>
+                  <div className="scala-quota">
+                    <div className={`riempimento ${classe}`} style={{ width: `${quota === null ? 0 : Math.min(100, quota / (OBIETTIVO_QUOTA * 2) * 100)}%` }} />
+                    <div className="tacca" />
+                  </div>
+                  <div className="scala-didascalia"><span>0%</span><span>obiettivo {formattaPercentuale(OBIETTIVO_QUOTA)} · Portafoglio ÷ (Portafoglio + Incarichi in zona)</span><span>{formattaPercentuale(OBIETTIVO_QUOTA * 2).replace(',0', '')}</span></div>
+                </div>
+              )
+            })()}
+          </section>
 
-      <fieldset className="scheda" disabled={stato !== 'pronto'}>
-        <h2>Note della settimana <span className="piccolo">(facoltative, mostrate in riunione)</span></h2>
-        <textarea rows={3} maxLength={2000} value={nota} placeholder="Es. acquisito incarico importante in via…"
-          onChange={(e) => { setNota(e.target.value); setMessaggio(null) }} />
-      </fieldset>
+          <section className="scheda">
+            <h2 className="titolo-icona"><span className="icona-quadrata icona-ambra"><Icona nome="note-pencil" /></span>Note della settimana <span className="piccolo">(facoltative, mostrate in riunione)</span></h2>
+            <textarea rows={3} maxLength={2000} value={nota} disabled={disattivo} aria-label="Note della settimana" placeholder="Es. acquisito incarico importante in via…"
+              onChange={(e) => { setNota(e.target.value); setMessaggio(null) }} />
+          </section>
+        </div>
+      </div>
 
       <div className="barra-salvataggio">
-        {messaggio && <span className={messaggio.tipo === 'ok' ? 'ok' : 'errore'} role="status">{messaggio.testo}</span>}
-        {!messaggio && modificato && <span className="piccolo">Modifiche non salvate</span>}
-        <button onClick={salva} disabled={stato !== 'pronto' || !modificato}>
+        {messaggio && (
+          <span className={`messaggio-stato ${messaggio.tipo}`} role="status">
+            <Icona nome={messaggio.tipo === 'ok' ? 'check-circle' : 'warning-circle'} />{messaggio.testo}
+          </span>
+        )}
+        {!messaggio && modificato && stato === 'pronto' && <span className="non-salvato"><span className="pallino" />Modifiche non salvate</span>}
+        <button className="btn btn-primario" onClick={salva} disabled={stato !== 'pronto' || !modificato}>
+          <Icona nome={stato === 'salvataggio' ? 'circle-notch' : 'floppy-disk'} className={stato === 'salvataggio' ? 'gira' : ''} />
           {stato === 'salvataggio' ? 'Salvataggio…' : stato === 'caricamento' ? 'Caricamento…' : 'Salva'}
         </button>
       </div>
+      {dialogo}
+      {toast}
     </div>
   )
 }

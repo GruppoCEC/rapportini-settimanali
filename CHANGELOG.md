@@ -1,5 +1,22 @@
 # Storia delle versioni
 
+## 0.4.0 — 13 ottobre 2026 (nuova grafica)
+
+- **Nuova veste grafica** dal design scelto da Davide (`docs/DESIGN.md`): colori blu e arancio, caratteri Manrope e Bricolage Grotesque, card bianche, icone e semaforo verde/ambra/rosso con i simboli ✓ ≈ ✗.
+- **Testata nuova**: selettore Roma/Milano a pillola, settimana da compilare, quanti uffici hanno compilato (per un ufficio: lo stato della sua settimana), utente con iniziali, menu a schede con icone.
+- **Accesso** su due colonne, con il pulsante per vedere la password.
+- **Cruscotto** con riquadri, percentuale e barra colorata; riga del totale città in blu.
+- **Riunione** ridisegnata:
+  - copertina con anello e mosaico degli uffici;
+  - tabellone dei totali con barre, confronto con la settimana scorsa e mini-andamento;
+  - classifiche a barre;
+  - pagina di ogni ufficio con riquadri e valori scritti sui grafici.
+- Grafici ridisegnati (area azzurra, obiettivo arancio tratteggiato), senza più la libreria Chart.js.
+- Numeri e barre si animano all'apertura di una pagina (non per chi ha chiesto meno animazioni al sistema).
+- Le conferme usano una finestra del sito invece di quella del browser. Dopo il salvataggio compare il messaggio "Dati salvati alle…".
+- I promemoria email non sono ancora annunciati nel sito (testata, pagina di accesso, stato compilazione). Si attivano con `PROMEMORIA_ATTIVI = true` in `src/lib/contesto.ts`, dopo il passo 8 della guida.
+- Nessuna modifica a database, permessi e calcoli.
+
 ## 0.3.2 — 13 ottobre 2026
 
 - **Storico ricaricato con le regole delle settimane ricavate dai file.** La regola "1ª settimana = dal giorno 1 alla prima domenica" non corrispondeva a come compilavano quasi tutti gli uffici: in febbraio, marzo e maggio 46–47 uffici hanno riempito la "1ª settimana" con numeri da settimana intera.

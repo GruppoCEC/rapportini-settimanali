@@ -7,6 +7,12 @@ import type { Area, Citta, Metrica, Ufficio, Utente } from './tipi'
  */
 export const AREE_ATTIVE = false
 
+/**
+ * Promemoria via email (venerdì 16:00 e domenica 10:00): finché non sono configurati
+ * (passo 8 di docs/GUIDA_SETUP.md) il sito non li annuncia. Dopo la configurazione: true.
+ */
+export const PROMEMORIA_ATTIVI = false
+
 export interface Contesto {
   utente: Utente
   citta: Citta[]

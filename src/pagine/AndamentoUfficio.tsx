@@ -6,7 +6,8 @@ import { type Contesto, ufficiVisibili } from '../lib/contesto'
 import { caricaRilevazioni } from '../lib/dati'
 import { aggiungiSettimane, intervalloSettimana, lunediDi, meseDellaSettimana, nomeMese, oggiISO, settimaneDelMese } from '../lib/settimane'
 import { useDati } from '../lib/useDati'
-import { GraficoAndamento } from '../componenti/Grafici'
+import { GraficoAndamento, LegendaGrafico } from '../componenti/Grafici'
+import { useProgresso } from '../componenti/Interfaccia'
 import { Caricamento, CellaQuota, CellaRisultato, Legenda } from '../componenti/Celle'
 
 const SETTIMANE_GRAFICO = 12
@@ -44,6 +45,8 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
     [ufficioId, da, ultima],
   )
 
+  const t = useProgresso(`${ufficioId}-${voce}-${caricamento}`)
+
   if (!ufficioId) return <div className="scheda"><p>Nessun ufficio da mostrare.</p></div>
 
   const attivita = ctx.metriche.filter((m) => m.tipo === 'attivita')
@@ -60,23 +63,22 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
   const isZona = zona.some((m) => m.codice === voce)
 
   return (
-    <div className="pagina">
-      <div className="scheda barra-filtri">
+    <div className="pagina pagina-ampia entra">
+      <div className="intestazione-titoli">
+        <span className="kicker">{ctx.utente.ruolo === 'ufficio' ? 'Il mio ufficio' : 'Andamento uffici'}</span>
         {uffici.length > 1 ? (
-          <label>Ufficio
-            <select value={ufficioId} onChange={(e) => setUfficioId(Number(e.target.value))}>
-              {uffici.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-            </select>
-          </label>
-        ) : <h1>{ufficio?.nome}</h1>}
+          <select className="select-titolo" style={{ alignSelf: 'flex-start' }} aria-label="Ufficio" value={ufficioId} onChange={(e) => setUfficioId(Number(e.target.value))}>
+            {uffici.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+          </select>
+        ) : <h1 className="titolo-pagina">{ufficio?.nome}</h1>}
       </div>
 
       {caricamento || errore || !dati ? <Caricamento errore={errore} /> : (
         <>
-          <div className="scheda">
-            <div className="titolo-con-azioni">
+          <section className="scheda">
+            <div className="scheda-titolo">
               <h2>Andamento ultime {SETTIMANE_GRAFICO} settimane</h2>
-              <select value={voce} onChange={(e) => setVoce(e.target.value)} aria-label="Voce del grafico" className="select-compatta">
+              <select value={voce} onChange={(e) => setVoce(e.target.value)} aria-label="Voce del grafico">
                 <optgroup label="Attività">{attivita.map((m) => <option key={m.codice} value={m.codice}>{m.nome}</option>)}</optgroup>
                 <optgroup label="Zona">
                   <option value={QUOTA}>Quota di mercato</option>
@@ -84,37 +86,38 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
                 </optgroup>
               </select>
             </div>
+            <LegendaGrafico obiettivo={voce !== QUOTA && !isZona} />
             {voce === QUOTA ? (
-              <GraficoAndamento etichette={settimaneGrafico.map(etichettaBreve)} risultati={serieQuota(dati, settimaneGrafico)}
+              <GraficoAndamento t={t} etichette={settimaneGrafico.map(etichettaBreve)} risultati={serieQuota(dati, settimaneGrafico)}
                 nomeSerie="Quota di mercato" percentuale rigaRiferimento={OBIETTIVO_QUOTA} />
             ) : (
-              <GraficoAndamento etichette={settimaneGrafico.map(etichettaBreve)} nomeSerie={nomeVoce}
-                risultati={serie!.map((t) => t.risultato)} obiettivi={isZona ? undefined : serie!.map((t) => t.obiettivo)} />
+              <GraficoAndamento t={t} etichette={settimaneGrafico.map(etichettaBreve)} nomeSerie={nomeVoce}
+                risultati={serie!.map((x) => x.risultato)} obiettivi={isZona ? undefined : serie!.map((x) => x.obiettivo)} />
             )}
             <p className="piccolo">Settimane dal {intervalloSettimana(settimaneGrafico[0]).split(' – ')[0]} a oggi. Passa sopra il grafico per vedere i valori.</p>
-          </div>
+          </section>
 
-          <div className="scheda">
+          <section className="scheda entra entra-1">
             <h2>Riepilogo mese per mese</h2>
             <div className="tabella-scorrevole">
-              <table className="tabella-riepilogo">
+              <table className="tabella" style={{ minWidth: 720 }}>
                 <thead>
-                  <tr><th></th>{mesi.map((m) => <th key={m}>{nomeMese(m).replace(/ \d+$/, '')}</th>)}</tr>
+                  <tr><th></th>{mesi.map((m) => <th key={m} className="destra">{nomeMese(m).replace(/ \d+$/, '').replace(/^./, (c) => c.toUpperCase())}</th>)}</tr>
                 </thead>
                 <tbody>
                   {attivita.map((m) => (
-                    <tr key={m.codice}><th scope="row">{m.nome}</th>{totaliMese.map((t, i) => <CellaRisultato key={i} totale={t.get(m.codice)} />)}</tr>
+                    <tr key={m.codice}><th scope="row">{m.nome}</th>{totaliMese.map((x, i) => <CellaRisultato key={i} totale={x.get(m.codice)} />)}</tr>
                   ))}
                   <tr className="separatore"><th colSpan={mesi.length + 1}>Zona (valore a fine mese)</th></tr>
                   {zona.map((m) => (
-                    <tr key={m.codice}><th scope="row">{m.nome}</th>{totaliMese.map((t, i) => <td key={i} className="numero">{t.get(m.codice)?.risultato ?? '—'}</td>)}</tr>
+                    <tr key={m.codice}><th scope="row">{m.nome}</th>{totaliMese.map((x, i) => <td key={i} className="destra">{x.get(m.codice)?.risultato?.toLocaleString('it-IT') ?? '—'}</td>)}</tr>
                   ))}
-                  <tr><th scope="row">Quota di mercato</th>{totaliMese.map((t, i) => <CellaQuota key={i} quota={quotaDaTotali(t)} />)}</tr>
+                  <tr><th scope="row" style={{ fontWeight: 600 }}>Quota di mercato</th>{totaliMese.map((x, i) => <CellaQuota key={i} quota={quotaDaTotali(x)} />)}</tr>
                 </tbody>
               </table>
             </div>
             <Legenda />
-          </div>
+          </section>
         </>
       )}
     </div>

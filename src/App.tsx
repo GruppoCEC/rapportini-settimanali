@@ -5,7 +5,7 @@ import type { Session } from '@supabase/supabase-js'
 import { configurato, supabase } from './lib/supabase'
 import { AREE_ATTIVE, type Contesto } from './lib/contesto'
 import { isAmministratore, ufficiCompilabili } from './lib/permessi'
-import { NOMI_RUOLO, type Area, type Citta, type Metrica, type Ufficio, type Utente } from './lib/tipi'
+import { type Area, type Citta, type Metrica, type Ufficio, type Utente } from './lib/tipi'
 import Accesso from './pagine/Accesso'
 import Account from './pagine/Account'
 import Amministrazione from './pagine/Amministrazione'
@@ -14,6 +14,7 @@ import Cruscotto from './pagine/Cruscotto'
 import InserisciSettimana from './pagine/InserisciSettimana'
 import Riunione from './pagine/Riunione'
 import StatoCompilazione from './pagine/StatoCompilazione'
+import Testata, { type VoceMenu } from './componenti/Testata'
 
 type Pagina = 'inserisci' | 'andamento' | 'cruscotto' | 'compilazione' | 'riunione' | 'amministrazione' | 'account'
 
@@ -36,6 +37,7 @@ export default function App() {
     try { return (localStorage.getItem(CHIAVE_PAGINA) as Pagina) || 'inserisci' } catch { return 'inserisci' }
   })
   const [versioneBase, setVersioneBase] = useState(0)
+  const [aggiornamento, setAggiornamento] = useState(0)   // dopo ogni salvataggio, la testata ricalcola chi ha compilato
 
   // Sessione di accesso (resta valida anche chiudendo il browser)
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function App() {
     return (
       <Centro titolo="Qualcosa non ha funzionato">
         <p>Non è stato possibile caricare i dati: {errore}</p>
-        <button onClick={() => location.reload()}>Riprova</button>
+        <p><button className="btn btn-primario" onClick={() => location.reload()}>Riprova</button></p>
       </Centro>
     )
   }
@@ -109,7 +111,7 @@ export default function App() {
       <Centro titolo="Accesso non autorizzato">
         <p>Questo account non è attivo sulla piattaforma.</p>
         <p>Chiedi all'amministratore della tua città di verificarlo.</p>
-        <button className="secondario" onClick={() => supabase.auth.signOut()}>Esci</button>
+        <p><button className="btn btn-secondario" onClick={() => supabase.auth.signOut()}>Esci</button></p>
       </Centro>
     )
   }
@@ -120,59 +122,35 @@ export default function App() {
     aree: AREE_ATTIVE ? dati.aree : [],
     uffici: AREE_ATTIVE ? dati.uffici : dati.uffici.map((u) => ({ ...u, area_id: null })),
   }
-  const nomeCitta = dati.citta.find((c) => c.id === cittaScelta)?.nome ?? ''
   const compilabili = ufficiCompilabili(utente, dati.uffici, cittaScelta)
   const vedeInsieme = utente.ruolo !== 'ufficio'
 
   // Voci di menu in base al ruolo
-  const menu: { id: Pagina; etichetta: string }[] = [
-    ...(compilabili.length > 0 ? [{ id: 'inserisci' as Pagina, etichetta: 'Inserisci settimana' }] : []),
-    { id: 'andamento', etichetta: vedeInsieme ? 'Andamento uffici' : 'Il mio ufficio' },
+  const menu: (VoceMenu & { id: Pagina })[] = [
+    ...(compilabili.length > 0 ? [{ id: 'inserisci' as Pagina, etichetta: 'Inserisci settimana', icona: 'pencil-simple-line' }] : []),
+    { id: 'andamento', etichetta: vedeInsieme ? 'Andamento uffici' : 'Il mio ufficio', icona: 'chart-line-up' },
     ...(vedeInsieme ? [
-      { id: 'cruscotto' as Pagina, etichetta: 'Cruscotto' },
-      { id: 'compilazione' as Pagina, etichetta: 'Stato compilazione' },
-      { id: 'riunione' as Pagina, etichetta: 'Riunione' },
+      { id: 'cruscotto' as Pagina, etichetta: 'Cruscotto', icona: 'gauge' },
+      { id: 'compilazione' as Pagina, etichetta: 'Stato compilazione', icona: 'list-checks' },
+      { id: 'riunione' as Pagina, etichetta: 'Riunione', icona: 'presentation-chart' },
     ] : []),
-    ...(isAmministratore(utente) ? [{ id: 'amministrazione' as Pagina, etichetta: 'Amministrazione' }] : []),
+    ...(isAmministratore(utente) ? [{ id: 'amministrazione' as Pagina, etichetta: 'Amministrazione', icona: 'gear-six' }] : []),
   ]
   const attiva: Pagina = pagina === 'account' || menu.some((v) => v.id === pagina) ? pagina : menu[0].id
 
   return (
     <div className="app">
-      <header className="testata">
-        <div className="testata-sinistra">
-          <span className="logo">Rapportini Settimanali</span>
-          {utente.ruolo === 'admin_generale' ? (
-            <select className="scelta-citta" value={cittaScelta} aria-label="Città"
-              onChange={(e) => setCittaScelta(Number(e.target.value))}>
-              {dati.citta.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          ) : (
-            <span className="etichetta-citta">{nomeCitta}</span>
-          )}
-        </div>
-        <div className="testata-destra">
-          <button className="link chi" title={NOMI_RUOLO[utente.ruolo]} onClick={() => vaiA('account')}>{utente.nome || utente.nome_utente}</button>
-          <button className="link" onClick={() => supabase.auth.signOut()}>Esci</button>
-        </div>
-      </header>
-
       {import.meta.env.VITE_DEMO && <div className="striscia-demo">Versione dimostrativa · dati inventati, si azzerano ricaricando la pagina</div>}
-      <nav className="menu" aria-label="Sezioni">
-        {menu.map((v) => (
-          <button key={v.id} className={attiva === v.id ? 'attivo' : ''} aria-current={attiva === v.id ? 'page' : undefined} onClick={() => vaiA(v.id)}>
-            {v.etichetta}
-          </button>
-        ))}
-      </nav>
+      <Testata ctx={ctx} menu={menu} attiva={attiva} onVai={(p) => vaiA(p as Pagina)} onCitta={setCittaScelta}
+        onEsci={() => supabase.auth.signOut()} aggiornamento={aggiornamento} />
 
-      <main className="contenuto">
-        {attiva === 'inserisci' && <InserisciSettimana key={cittaScelta} uffici={compilabili} metriche={dati.metriche} />}
-        {attiva === 'andamento' && <AndamentoUfficio key={cittaScelta} ctx={ctx} />}
-        {attiva === 'cruscotto' && <Cruscotto key={cittaScelta} ctx={ctx} />}
-        {attiva === 'compilazione' && <StatoCompilazione key={cittaScelta} ctx={ctx} />}
-        {attiva === 'riunione' && <Riunione key={cittaScelta} ctx={ctx} />}
-        {attiva === 'amministrazione' && <Amministrazione key={cittaScelta} ctx={ctx} />}
+      <main className="contenuto" key={`${attiva}-${cittaScelta}`}>
+        {attiva === 'inserisci' && <InserisciSettimana uffici={compilabili} metriche={dati.metriche} onSalvato={() => setAggiornamento((n) => n + 1)} />}
+        {attiva === 'andamento' && <AndamentoUfficio ctx={ctx} />}
+        {attiva === 'cruscotto' && <Cruscotto ctx={ctx} />}
+        {attiva === 'compilazione' && <StatoCompilazione ctx={ctx} />}
+        {attiva === 'riunione' && <Riunione ctx={ctx} />}
+        {attiva === 'amministrazione' && <Amministrazione ctx={ctx} />}
         {attiva === 'account' && <Account ctx={ctx} />}
       </main>
     </div>
@@ -182,7 +160,7 @@ export default function App() {
 function Centro({ titolo, children }: { titolo: string; children?: React.ReactNode }) {
   return (
     <div className="centro">
-      <div className="scheda scheda-stretta">
+      <div className="scheda entra">
         <h1>{titolo}</h1>
         {children}
       </div>
