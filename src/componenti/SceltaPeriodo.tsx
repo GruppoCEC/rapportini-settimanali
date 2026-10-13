@@ -1,6 +1,6 @@
 // Scelta del periodo per cruscotto e statistiche: una settimana oppure un mese.
 import {
-  aggiungiSettimane, etichettaSettimana, intervalloSettimana, lunediDi, meseDellaSettimana,
+  aggiungiSettimane, etichettaSettimana, lunediDi, meseDellaSettimana, notaMeseSettimana,
   nomeMese, oggiISO, settimanaPredefinita, settimaneDelMese,
 } from '../lib/settimane'
 
@@ -22,7 +22,7 @@ export function estremiPeriodo(p: Periodo): { da: string; a: string; settimane: 
 
 export function descriviPeriodo(p: Periodo): string {
   return p.tipo === 'settimana'
-    ? `${etichettaSettimana(p.settimana)} (${intervalloSettimana(p.settimana)})`
+    ? etichettaSettimana(p.settimana)
     : `Mese di ${nomeMese(meseDellaSettimana(p.settimana))}`
 }
 
@@ -51,7 +51,7 @@ export default function SceltaPeriodo({ periodo, onCambia }: { periodo: Periodo;
         <button className="freccia" aria-label="Periodo precedente" onClick={() => sposta(-1)}>‹</button>
         <div className="scelta-settimana-testo">
           <strong>{periodo.tipo === 'settimana' ? etichettaSettimana(periodo.settimana) : nomeMese(meseDellaSettimana(periodo.settimana))}</strong>
-          <span>{periodo.tipo === 'settimana' ? intervalloSettimana(periodo.settimana) : `${settimaneDelMese(meseDellaSettimana(periodo.settimana)).length} settimane`}</span>
+          <span>{periodo.tipo === 'settimana' ? notaMeseSettimana(periodo.settimana) : `${settimaneDelMese(meseDellaSettimana(periodo.settimana)).length} settimane`}</span>
         </div>
         <button className="freccia" aria-label="Periodo successivo" disabled={avantiDisabilitato} onClick={() => sposta(1)}>›</button>
       </div>

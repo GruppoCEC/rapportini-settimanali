@@ -121,7 +121,7 @@ function Presentazione({ ctx, uffici, settimana, titolo, dati, note, onEsci }: {
     contenuto: (
       <div className="dia-copertina">
         <h1>{titolo}</h1>
-        <p className="dia-sottotitolo">{etichettaSettimana(settimana)} · {intervalloSettimana(settimana)}</p>
+        <p className="dia-sottotitolo">{etichettaSettimana(settimana)}</p>
         <p className="dia-grande">{uffici.length - mancanti.length} uffici su {uffici.length} hanno inserito i dati</p>
         {mancanti.length > 0 && <p className="dia-mancanti">Mancano: {mancanti.join(', ')}</p>}
       </div>

@@ -20,11 +20,11 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 
 | Fase | Contenuto | Stato |
 |---|---|---|
-| 1 | Account, sito online, accesso | Codice pronto: da mettere online con [docs/GUIDA_SETUP.md](docs/GUIDA_SETUP.md) |
+| 1 | Account, sito online, accesso | ✅ Online dal 12/10/2026: https://gruppocec.github.io/rapportini-settimanali/ |
 | 2 | Database, regole di sicurezza, "Inserisci settimana" | Codice pronto: da provare con 2 uffici pilota |
 | 3 | Cruscotto, stato compilazione, promemoria, amministrazione | Codice pronto |
 | 4 | Grafici di andamento e modalità riunione | Codice pronto: da provare sul proiettore |
-| 5 | Import dello storico dagli Excel | Da fare: servono i file |
+| 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.541 valori (gen–ott 2026) |
 | 6 | Avvio per tutti gli uffici | Da fare |
 
 **Vederlo subito con dati inventati**: `npm install`, poi `npm run demo`.
@@ -69,4 +69,5 @@ npm run dev        # avvia il sito in locale sul database vero (serve .env.local
 npm test           # esegue tutti i test
 npm run build      # prepara il sito per la pubblicazione
 npm run sql:unico  # rigenera supabase/TUTTO_IN_UNO.sql
+node scripts/importa-storico.mjs  # legge gli Excel in import/ e prepara resoconto e file SQL
 ```

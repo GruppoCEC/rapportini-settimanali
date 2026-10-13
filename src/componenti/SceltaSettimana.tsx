@@ -1,5 +1,5 @@
 // Selettore della settimana: frecce avanti/indietro e ritorno alla settimana proposta.
-import { aggiungiSettimane, etichettaSettimana, intervalloSettimana, lunediDi, oggiISO, settimanaPredefinita } from '../lib/settimane'
+import { aggiungiSettimane, etichettaSettimana, lunediDi, notaMeseSettimana, oggiISO, settimanaPredefinita } from '../lib/settimane'
 
 interface Props {
   settimana: string
@@ -15,7 +15,7 @@ export default function SceltaSettimana({ settimana, onCambia }: Props) {
         onClick={() => onCambia(aggiungiSettimane(settimana, -1))}>‹</button>
       <div className="scelta-settimana-testo">
         <strong>{etichettaSettimana(settimana)}</strong>
-        <span>{intervalloSettimana(settimana)}</span>
+        {notaMeseSettimana(settimana) && <span>{notaMeseSettimana(settimana)}</span>}
       </div>
       <button className="freccia" aria-label="Settimana successiva" disabled={settimana >= ultima}
         onClick={() => onCambia(aggiungiSettimane(settimana, 1))}>›</button>

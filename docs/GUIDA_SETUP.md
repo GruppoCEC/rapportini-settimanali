@@ -77,7 +77,8 @@ funzione che gira su Supabase.
 
 ## Passo 6 — Il tuo account da amministratore generale
 
-1. **SQL Editor → New query**. Incolla queste righe, **cambia le due email** con le vostre e clicca **Run**:
+1. **SQL Editor → New query**. Incolla queste righe, **cambia le due email** con le vostre e clicca **Run**.
+   Copia solo le righe di testo: **non** le righe con <code>```sql</code> e <code>```</code>, che servono solo a impaginare la guida.
 
    ```sql
    -- Modello delle email tecniche di accesso: {utente} viene sostituito dal nome utente
@@ -101,9 +102,9 @@ li creerai dalla pagina **Amministrazione** della piattaforma.
 
 ## Passo 7 — Collegare il sito a Supabase e pubblicarlo
 
-1. In Supabase apri **Project Settings** (l'ingranaggio) → **API Keys** (o **Data API**). Ti servono:
-   - **Project URL**, del tipo `https://abcdefgh.supabase.co`
-   - la chiave **publishable** (`sb_publishable_…`) oppure, se c'è solo quella, la chiave **anon public**
+1. In Supabase ti servono due valori:
+   - **Project URL**, del tipo `https://abcdefgh.supabase.co`. Lo trovi in **Project Settings → Data API**, oppure cliccando **Connect** in alto nella pagina del progetto. In alternativa ricavalo dalla barra degli indirizzi del browser: in `supabase.com/dashboard/project/abcdefgh` il codice finale `abcdefgh` dà `https://abcdefgh.supabase.co`.
+   - la chiave **publishable** (`sb_publishable_…`), in **Project Settings → API Keys**. Se c'è solo quella, usa la chiave **anon public**.
 2. Su GitHub apri il repository → **Settings → Secrets and variables → Actions** → scheda **Variables** →
    **New repository variable**. Creane tre:
 

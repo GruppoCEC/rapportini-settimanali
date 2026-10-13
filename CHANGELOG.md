@@ -1,5 +1,34 @@
 # Storia delle versioni
 
+## 0.3.0 — 13 ottobre 2026 (Fase 5: import dello storico)
+
+`node scripts/importa-storico.mjs` legge gli Excel in `import/<Città> <anno>/` e prepara `import/REPORT_IMPORT.md` e `import/sql/IMPORTA_n.sql`, senza toccare il database.
+
+Gestisce:
+- colonne spostate;
+- mesi scritti come testo o come data;
+- tabelle senza nome del mese;
+- tabelle ripetute;
+- file che contengono due anni (si tiene l'ultimo);
+- etichette fantasma;
+- dati di zona nella colonna sbagliata;
+- valori testuali tipo "1 box";
+- 12 modi diversi di scrivere "+90".
+
+Inoltre:
+- si importano solo le settimane concluse (quelle future sono avanzi del 2025);
+- i file quasi identici vengono esclusi;
+- i dati già presenti sulla piattaforma non vengono mai sovrascritti;
+- i file SQL si possono rieseguire senza creare doppioni.
+
+Settimane:
+- regola dell'Excel indicata da Davide: la 1ª settimana va dal giorno 1 alla prima domenica;
+- le settimane spezzate tra due mesi si riuniscono nella settimana lunedì–domenica della piattaforma;
+- regole particolari in `import/regole.json`: Imm. Garbatella solo da ottobre, Espero con le tabelle 2025 sovrascritte;
+- la riga "In contatto" viene ignorata.
+
+Piattaforma: le settimane non sono più numerate ("2ª settimana di ottobre") ma indicate con le date ("Settimana 5 – 11 ottobre 2026"). Per le settimane a cavallo di due mesi compare in quale mese contano nei totali.
+
 ## 0.2.0 — 12 ottobre 2026 (Fasi 3 e 4: codice pronto)
 
 **Accesso cambiato su richiesta di Davide**: nome utente e password per ogni ufficio, al posto del link via email.

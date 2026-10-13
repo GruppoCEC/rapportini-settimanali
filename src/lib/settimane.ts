@@ -85,7 +85,14 @@ export function intervalloSettimana(lunedi: string): string {
   return `${gi} – ${gf} ${mf} ${af}`
 }
 
-/** Es. "2ª settimana di ottobre 2026" */
+/** Es. "Settimana 5 – 11 ottobre 2026" (senza numerazione: negli Excel la 1ª settimana
+ *  partiva dal giorno 1 del mese, qui le settimane sono sempre intere lunedì–domenica) */
 export function etichettaSettimana(lunedi: string): string {
-  return `${settimanaNelMese(lunedi)}ª settimana di ${nomeMese(meseDellaSettimana(lunedi))}`
+  return `Settimana ${intervalloSettimana(lunedi)}`
+}
+
+/** Per le settimane a cavallo di due mesi: in quale mese contano nei totali (null se non a cavallo) */
+export function notaMeseSettimana(lunedi: string): string | null {
+  if (lunedi.slice(0, 7) === aggiungiGiorni(lunedi, 6).slice(0, 7)) return null
+  return `a cavallo di due mesi: conta nei totali di ${nomeMese(meseDellaSettimana(lunedi))}`
 }
