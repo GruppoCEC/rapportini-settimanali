@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, formattaAnzianita, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
+  aggiungiMesi, formattaAnzianita, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   righeDelMese, sommaTotali, statoMensile, STAFF, titoloMese, totaleUfficio, ultimoGiornoDelMese, variazione,
 } from './mensile'
 import type { Persona, Ufficio, ValoreMensile, VoceMensile } from './tipi'
@@ -115,6 +115,25 @@ describe('totali', () => {
     expect(variazione(100, undefined)).toBeNull()
     expect(formattaVariazione(0.125)).toBe('+12,5%')
     expect(formattaVariazione(-0.03)).toBe('−3,0%')
+  })
+})
+
+describe('riepilogo dell\'anno', () => {
+  it('somma i mesi voce per voce, lo staff è quello dell\'ultimo mese', () => {
+    expect(mesiDellAnno('2026', '2026-03-01')).toEqual(['2026-01-01', '2026-02-01', '2026-03-01'])
+    expect(mesiDellAnno('2025', '2026-09-01')).toHaveLength(12)
+    const persone = [persona(1, 'collaboratore', '2020-01-01'), persona(2, 'collaboratore', '2020-01-01', '2026-02-20'), persona(3, 'marketer', '2026-03-01')]
+    const valori = [
+      val(1, 'colloqui', 3, '2026-01-01'), val(2, 'colloqui', 4, '2026-01-01'),
+      val(1, 'colloqui', 5, '2026-02-01'), val(2, 'colloqui', 9, '2026-02-01'),   // la persona 2 esce a febbraio: i suoi 9 non contano
+      val(1, 'colloqui', 1, '2026-03-01'), val(3, 'colloqui', 2, '2026-03-01'),
+    ]
+    const { totale, mesiCompilati, perMese } = totaleAnnoUfficio(persone, valori, mesiDellAnno('2026', '2026-03-01'), voci)
+    expect(totale.get('colloqui')).toBe(3 + 4 + 5 + 1 + 2)
+    expect(totale.get('proposte_vendita')).toBeNull()
+    expect(totale.get(STAFF)).toBe(2)                 // a marzo: persone 1 e 3
+    expect(mesiCompilati).toBe(3)
+    expect(perMese[1].get(STAFF)).toBe(1)             // a febbraio la persona 2 non conta già più
   })
 })
 

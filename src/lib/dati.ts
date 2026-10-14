@@ -96,6 +96,12 @@ export async function caricaValoriMensili(mese: string, ufficiIds: number[]): Pr
     .order('ufficio_id').order('persona_id').order('voce').range(da, a))
 }
 
+/** I numeri di più mesi (es. un anno intero), caricati in parallelo mese per mese */
+export async function caricaValoriMesi(mesi: string[], ufficiIds: number[]): Promise<ValoreMensile[]> {
+  const perMese = await Promise.all(mesi.map((m) => caricaValoriMensili(m, ufficiIds)))
+  return perMese.flat()
+}
+
 /** Totali di gruppo dello stesso mese dell'anno prima, scritti a mano (voce → valore) */
 export async function caricaConfronto(mese: string): Promise<Map<string, number | null>> {
   const { data, error } = await supabase.from('confronto_anno_prima').select('voce, valore').eq('mese', mese)

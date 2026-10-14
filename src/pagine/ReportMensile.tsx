@@ -4,11 +4,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Contesto } from '../lib/contesto'
 import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
-import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaValoriMensili, caricaVociMensili, mensileAperto } from '../lib/dati'
+import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaValoriMensili, caricaValoriMesi, caricaVociMensili, mensileAperto } from '../lib/dati'
 import { AvvisoProva } from './RapportinoMensile'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
-  punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, dataOra, scadenzaPassata, scadenzaProposta, ultimoRitardo,
+  punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, dataOra, scadenzaPassata, scadenzaProposta, ultimoRitardo,
   indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleUfficio, variazione,
   vociDelRapportino, type TotaliMese,
 } from '../lib/mensile'
@@ -23,7 +23,7 @@ import {
   annotazioniIndicatori, TitoloStampa, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
 } from '../componenti/TabellaMensile'
 
-type Scheda = 'panoramica' | 'rapportini' | 'personale'
+type Scheda = 'panoramica' | 'rapportini' | 'personale' | 'anno'
 
 interface DatiUfficio {
   ufficio: Ufficio
@@ -89,27 +89,28 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
           <span className="kicker">Report mensile</span>
           <h1 className="titolo-pagina">{titolo}</h1>
         </div>
-        <SceltaMese mese={mese} onCambia={setMese} />
+        {scheda !== 'anno' && <SceltaMese mese={mese} onCambia={setMese} />}
       </div>
       <div className="comandi non-stampa">
         <div className="segmentato" role="tablist">
-          {(['panoramica', 'rapportini', 'personale'] as Scheda[]).map((s) => (
+          {(['panoramica', 'rapportini', 'personale', 'anno'] as Scheda[]).map((s) => (
             <button key={s} role="tab" aria-selected={scheda === s} className={scheda === s ? 'attivo' : ''} onClick={() => setScheda(s)}>
-              <Icona nome={{ panoramica: 'table', rapportini: 'storefront', personale: 'users-three' }[s]} />
-              {{ panoramica: 'Panoramica', rapportini: 'Singoli rapportini', personale: 'Personale' }[s]}
+              <Icona nome={{ panoramica: 'table', rapportini: 'storefront', personale: 'users-three', anno: 'calendar-dots' }[s]} />
+              {{ panoramica: 'Panoramica', rapportini: 'Singoli rapportini', personale: 'Personale', anno: 'Riepilogo anno' }[s]}
             </button>
           ))}
         </div>
-        <button className="btn btn-secondario" onClick={() => window.print()} disabled={!dati.dati}><Icona nome="printer" />Stampa</button>
+        <button className="btn btn-secondario" onClick={() => window.print()} disabled={scheda !== 'anno' && !dati.dati}><Icona nome="printer" />Stampa</button>
       </div>
 
-      {!dati.dati ? <Caricamento errore={dati.errore} /> : (
+      {scheda === 'anno' && <RiepilogoAnno uffici={uffici} titolo={generale ? 'Gruppo' : titolo} ctx={ctx} />}
+      {scheda !== 'anno' && (!dati.dati ? <Caricamento errore={dati.errore} /> : (
         <>
           {scheda === 'panoramica' && <Panoramica dati={dati.dati} mese={mese} titolo={titolo} generale={generale} ctx={ctx} onSalvato={dati.ricarica} />}
           {scheda === 'rapportini' && <SingoliRapportini dati={dati.dati} mese={mese} />}
           {scheda === 'personale' && <ListePersonale dati={dati.dati} mese={mese} generale={generale} ctx={ctx} onSalvato={dati.ricarica} />}
         </>
-      )}
+      ))}
     </div>
   )
 }
@@ -304,6 +305,112 @@ function GestioneScadenza({ dati, mese, modificabile, onSalvato }: { dati: DatiM
       )}
       {toast}
     </section>
+  )
+}
+
+// ---------------------------------------------------------------- Riepilogo dell'anno (riunione di gennaio)
+
+const PRIMO_ANNO = 2026   // il rapportino mensile è sulla piattaforma dal 2026
+
+function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: string; ctx: Contesto }) {
+  const ultimo = mesePredefinito()                     // si riepilogano solo i mesi già conclusi
+  const anni = Array.from({ length: Number(ultimo.slice(0, 4)) - PRIMO_ANNO + 1 }, (_, i) => String(PRIMO_ANNO + i)).reverse()
+  const [anno, setAnno] = useState(anni[0] ?? ultimo.slice(0, 4))
+  const mesi = mesiDellAnno(anno, ultimo)
+  const ids = uffici.map((u) => u.id)
+
+  const dati = useDati(async () => {
+    const [voci, persone, valori] = await Promise.all([caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids)])
+    return {
+      voci,
+      righe: uffici.map((ufficio) => ({
+        ufficio,
+        ...totaleAnnoUfficio(persone.filter((p) => p.ufficio_id === ufficio.id), valori.filter((v) => v.ufficio_id === ufficio.id), mesi, voci),
+      })),
+    }
+  }, [anno, ids.join(','), ultimo])
+
+  const periodo = mesi.length === 0 ? '' : mesi.length === 12
+    ? `gennaio – dicembre ${anno}`
+    : `${titoloMese(mesi[0]).split(' ')[0].toLowerCase()} – ${titoloMese(mesi[mesi.length - 1]).toLowerCase()}, anno in corso`
+
+  return (
+    <>
+      <div className="comandi non-stampa">
+        <label className="campo campo-anno"><span className="etichetta">Anno</span>
+          <select value={anno} onChange={(e) => setAnno(e.target.value)}>{anni.map((a) => <option key={a} value={a}>{a}</option>)}</select>
+        </label>
+        <p className="avviso"><Icona nome="info" /><span>Ogni voce è la <strong>somma dei mesi</strong>{periodo ? ` da ${periodo}` : ''}. Lo staff è quello dell'ultimo mese.</span></p>
+      </div>
+      {mesi.length === 0 ? <div className="scheda"><p className="piccolo">Nessun mese concluso nel {anno}.</p></div>
+        : !dati.dati ? <Caricamento errore={dati.errore} /> : (() => {
+          const { voci: tutte, righe } = dati.dati
+          const voci = vociDelRapportino(tutte)
+          const colonne = [STAFF, ...voci.map((v) => v.codice)]
+          const totale = sommaTotali(righe.map((r) => r.totale))
+          const blocchi = [1, 2].map((b) => righe.filter((r) => (r.ufficio.blocco_mensile ?? 1) === b)).filter((b) => b.length > 0)
+          const piuCitta = new Set(righe.map((r) => r.ufficio.citta_id)).size > 1
+          const ultimoMese = titoloMese(mesi[mesi.length - 1]).toLowerCase()
+          const cella = (t: TotaliMese, c: string) => <td key={c} className={`destra ${t.get(c) == null ? 'cella-vuota' : ''}`}>{formattaNumero(t.get(c))}</td>
+          return (
+            <>
+              <section className="scheda scheda-stampa">
+                <h2 className="non-stampa">Totali dell'anno per ufficio <span className="piccolo">{periodo}</span></h2>
+                <div className="tabella-scorrevole">
+                  <table className="tabella tabella-mensile tabella-report">
+                    <TestataVoci voci={voci} prime={['Ufficio', 'Staff']}
+                      titoloStampa={<TitoloStampa titolo={`Riepilogo dell'anno · ${titolo}`} sottotitolo={periodo} info={`Staff = persone in servizio a ${ultimoMese}`} />} />
+                    <tbody>
+                      {blocchi.map((b, i) => [
+                        i > 0 && <tr key={`sep${i}`} className="separatore-blocco"><td colSpan={colonne.length + 1} /></tr>,
+                        ...b.map((r) => (
+                          <tr key={r.ufficio.id}>
+                            <th scope="row" className="ufficio-fisso">
+                              {r.ufficio.nome}{piuCitta && r.ufficio.citta_id !== ctx.citta[0]?.id && <span className="sigla-citta">{nomeCittaBreve(ctx, r.ufficio.citta_id)}</span>}
+                              {r.mesiCompilati < mesi.length && <span className="mesi-compilati">{r.mesiCompilati} mesi su {mesi.length}</span>}
+                            </th>
+                            {colonne.map((c) => cella(r.totale, c))}
+                          </tr>
+                        )),
+                      ])}
+                      <tr className="riga-totale-mese">
+                        <th scope="row" className="ufficio-fisso">Totale {titolo === 'Gruppo' ? 'gruppo' : titolo}</th>
+                        {colonne.map((c) => <td key={c} className="destra">{formattaNumero(totale.get(c))}</td>)}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="legenda-stampa">"n mesi su {mesi.length}" accanto all'ufficio: nell'anno ha compilato solo quei mesi, quindi i suoi totali sono parziali.</p>
+              </section>
+
+              <section className="scheda scheda-stampa">
+                <h2 className="non-stampa">Totale {titolo === 'Gruppo' ? 'del gruppo' : `di ${titolo}`} mese per mese</h2>
+                <div className="tabella-scorrevole">
+                  <table className="tabella tabella-mensile tabella-report">
+                    <TestataVoci voci={voci} prime={['Mese', 'Staff']}
+                      titoloStampa={<TitoloStampa titolo={`Andamento mese per mese · ${titolo}`} sottotitolo={periodo} />} />
+                    <tbody>
+                      {mesi.map((m, i) => {
+                        const delMese = sommaTotali(righe.map((r) => r.perMese[i]))
+                        return (
+                          <tr key={m}>
+                            <th scope="row" className="ufficio-fisso">{titoloMese(m).split(' ')[0]}</th>
+                            {colonne.map((c) => cella(delMese, c))}
+                          </tr>
+                        )
+                      })}
+                      <tr className="riga-totale-mese">
+                        <th scope="row" className="ufficio-fisso">Totale {anno}</th>
+                        {colonne.map((c) => <td key={c} className="destra">{formattaNumero(totale.get(c))}</td>)}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </>
+          )
+        })()}
+    </>
   )
 }
 

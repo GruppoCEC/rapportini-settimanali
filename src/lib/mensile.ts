@@ -211,6 +211,23 @@ export function totaleUfficio(persone: Persona[], valori: ValoreMensile[], mese:
   return totali
 }
 
+/** I mesi di un anno da riepilogare: gennaio … dicembre, ma non oltre `ultimo` (anno in corso) */
+export function mesiDellAnno(anno: string, ultimo: string = mesePredefinito()): string[] {
+  return Array.from({ length: 12 }, (_, i) => `${anno}-${String(i + 1).padStart(2, '0')}-01`).filter((m) => m <= ultimo)
+}
+
+/**
+ * Riepilogo dell'anno di un ufficio: ogni voce è la somma dei totali dei mesi (stesse regole del mese:
+ * chi esce non conta nel mese in cui esce). Lo staff è quello dell'ultimo mese, non una somma.
+ */
+export function totaleAnnoUfficio(persone: Persona[], valori: ValoreMensile[], mesi: string[], voci: VoceMensile[]) {
+  const perMese = mesi.map((m) => totaleUfficio(persone, valori, m, voci))
+  const totale = sommaTotali(perMese.map((t) => new Map([...t].filter(([k]) => k !== STAFF))))
+  totale.set(STAFF, perMese.length ? perMese[perMese.length - 1].get(STAFF) ?? null : null)
+  const mesiCompilati = perMese.filter((t) => [...t].some(([k, v]) => k !== STAFF && v !== null)).length
+  return { totale, perMese, mesiCompilati }
+}
+
 /** Somma di più totali (uffici → gruppo) */
 export function sommaTotali(elenco: TotaliMese[]): TotaliMese {
   const somma: TotaliMese = new Map()

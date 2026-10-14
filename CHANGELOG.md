@@ -1,5 +1,14 @@
 # Storia delle versioni
 
+## 0.5.1 — 14 ottobre 2026
+
+- **Riepilogo anno** (Report mensile → Riepilogo anno), per la riunione di chiusura dell'anno a gennaio:
+  - **totali dell'anno per ufficio**: stessa tabella della Panoramica (ordine e due tabelle del file di gruppo); ogni voce è la somma dei mesi, con il totale di gruppo. Lo staff è quello dell'ultimo mese. Accanto all'ufficio compare "n mesi su N" se non ha compilato tutti i mesi;
+  - **andamento mese per mese**: il totale di gruppo di ogni mese, da gennaio, e il totale dell'anno;
+  - per l'anno in corso si sommano solo i mesi conclusi (es. gennaio – settembre);
+  - si stampa con la stessa grafica delle altre schede.
+- Le stesse regole del mese: chi esce dall'ufficio non conta nel mese in cui esce; App. vendita fix e Gestione incarichi restano come nel report.
+
 ## 0.5.0 — 14 ottobre 2026 (rapportino mensile, "Work in progress")
 
 **Rapportino mensile**, al posto del file Excel che gli uffici mandano per email a fine mese.

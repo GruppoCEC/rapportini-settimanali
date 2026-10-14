@@ -600,6 +600,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .cella-inizio .piccolo { display: block; font-size: 11px; }
 .tag-simbolo { min-width: 26px; justify-content: center; }
 .legenda-stampa { font-size: 12px; color: var(--testo-tenue); }
+.mesi-compilati { margin-left: 6px; font-size: 10px; font-weight: 700; color: var(--secondario-700); white-space: nowrap; }
 .sigla-citta { margin-left: 6px; font-size: 10px; font-weight: 800; letter-spacing: .06em; color: var(--secondario-700); }
 .riepilogo-mese { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: -24px; }
 .barra-confronto { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px 18px; }
