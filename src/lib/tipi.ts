@@ -31,6 +31,8 @@ export interface Ufficio {
   citta_id: number
   area_id: number | null
   attivo: boolean
+  blocco_mensile?: number           // report mensile: 1 = prima tabella, 2 = seconda (come nel file di gruppo)
+  ordine_mensile?: number | null    // report mensile: posizione nella tabella
 }
 
 export interface Metrica {
@@ -55,4 +57,42 @@ export const NOMI_RUOLO: Record<Ruolo, string> = {
   responsabile: 'Responsabile d\'area',
   admin_citta: 'Amministratore di città',
   admin_generale: 'Amministratore generale',
+}
+
+// ---------------------------------------------------------------- Rapportino mensile
+
+export type RuoloPersona = 'responsabile' | 'funzionario' | 'coordinatrice' | 'marketer'
+
+export interface Persona {
+  id: number
+  ufficio_id: number
+  nome: string
+  ruolo: RuoloPersona
+  data_inizio: string         // 'AAAA-MM-GG'
+  data_fine: string | null    // vuota finché la persona è in ufficio
+}
+
+/** Una colonna del rapportino mensile (es. gruppo "Proposte", sotto "vendita") */
+export interface VoceMensile {
+  codice: string
+  gruppo: string
+  sotto: string | null
+  ordine: number
+}
+
+export interface ValoreMensile {
+  persona_id: number
+  ufficio_id: number
+  mese: string                // 'AAAA-MM-01'
+  voce: string
+  valore: number | null
+  aggiornato_da?: string | null
+  aggiornato_il?: string
+}
+
+export const NOMI_RUOLO_PERSONA: Record<RuoloPersona, string> = {
+  responsabile: 'Responsabile',
+  funzionario: 'Funzionario',
+  coordinatrice: 'Coordinatrice',
+  marketer: 'Marketer',
 }

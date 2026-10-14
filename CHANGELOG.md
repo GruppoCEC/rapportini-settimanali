@@ -1,5 +1,28 @@
 # Storia delle versioni
 
+## 0.5.0 — in prova, non ancora online (ramo `mensile`)
+
+**Rapportino mensile**, al posto del file Excel che gli uffici mandano per email a fine mese.
+
+- **Inserisci mese** (uffici, e amministratori che compilano):
+  - una riga per persona, con le stesse 19 colonne del file "Rapportino vuoto NUOVO" (portafoglio, acquisizioni, appuntamenti, incarichi, … incarichi scaduti), vendita e locazione separate;
+  - totale dell'ufficio e **staff** (numero di persone in servizio nel mese) calcolati da soli;
+  - si apre sul mese appena concluso; con Invio si passa alla casella sotto, come in Excel.
+- **Personale dell'ufficio**: nome, ruolo (responsabile, funzionario, coordinatrice, marketer) e **data di inizio**.
+  - Si inserisce una volta e vale per tutti i mesi.
+  - Chi lascia l'ufficio si chiude con "Ha lasciato": i suoi numeri passati restano.
+- **Report mensile** (amministratori), con tre schede:
+  - **Panoramica**: il riepilogo di gruppo come il file "Modello rapportino mensile gruppo", Roma e Milano insieme, uffici **nell'ordine del file** e nelle sue due tabelle. In fondo ci sono il totale, la riga dello stesso mese dell'anno prima (scritta a mano dall'amministratore generale) e la variazione %. Accanto a ogni ufficio lo stato: completo, parziale o mancante;
+  - **Singoli rapportini**: il rapportino di ogni ufficio, persona per persona;
+  - **Personale**: liste separate di funzionari, coordinatrici e marketer, con ufficio, data di inizio, anzianità e numeri del mese. La colonna "Punteggio" è pronta per i criteri che verranno definiti.
+  - Pulsante **Stampa**: A4 orizzontale; il report di gruppo con 47 uffici sta in una pagina.
+- L'amministratore di città vede solo la sua città, l'ufficio solo il proprio rapportino. Le regole sono nel database e sono verificate dai test automatici.
+- **Amministrazione → Uffici**: tabella (1ª o 2ª) e posizione di ogni ufficio nel report mensile.
+- **Backup in Excel**: due fogli in più, "Mensile" e "Personale".
+- Il menu "Inserisci settimana / Inserisci mese" e le voci un po' più strette, così il menu degli amministratori sta su una riga.
+- Nota: nel file Excel di gruppo la formula del TOTALE non contava Villa Lais; la piattaforma conta tutti gli uffici.
+- Database: nuovo file `supabase/migrations/005_mensile.sql`, che aggiunge solo tabelle nuove (`persone`, `voci_mensili`, `valori_mensili`, `confronto_anno_prima`) e due colonne su `uffici`.
+
 ## 0.4.2 — 14 ottobre 2026
 
 - **Amministratori di città che sono anche un ufficio** (Beato Angelico e Ticinese a Milano):

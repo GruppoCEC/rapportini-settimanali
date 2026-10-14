@@ -65,6 +65,25 @@ describe('backup in Excel', () => {
     expect(note.getCell(5).value).toBe('Nuovo incarico in via Mogadiscio')
   })
 
+  it('con il rapportino mensile aggiunge i fogli Mensile e Personale', () => {
+    const wb = creaBackup({
+      ...dati,
+      mensile: {
+        voci: [{ codice: 'colloqui', gruppo: 'Colloqui', sotto: null, ordine: 1 }, { codice: 'proposte_vendita', gruppo: 'Proposte', sotto: 'vendita', ordine: 2 }],
+        persone: [{ id: 7, ufficio_id: 1, nome: 'Anna Rossi', ruolo: 'funzionario', data_inizio: '2023-03-01', data_fine: null }],
+        valori: [
+          { persona_id: 7, ufficio_id: 1, mese: '2026-09-01', voce: 'colloqui', valore: 5 },
+          { persona_id: 7, ufficio_id: 1, mese: '2026-09-01', voce: 'proposte_vendita', valore: 0 },
+        ],
+      },
+    })
+    expect(wb.worksheets.map((w) => w.name).slice(-2)).toEqual(['Mensile', 'Personale'])
+    const mensile = wb.getWorksheet('Mensile')!
+    expect(mensile.getRow(1).values).toEqual([undefined, 'Mese', 'Città', 'Ufficio', 'Persona', 'Ruolo', 'Colloqui', 'Proposte vendita'])
+    expect(mensile.getRow(2).values).toEqual([undefined, 'Settembre 2026', 'Roma', 'Somalia', 'Anna Rossi', 'Funzionario', 5, 0])
+    expect(wb.getWorksheet('Personale')!.getRow(2).getCell(3).value).toBe('Anna Rossi')
+  })
+
   it('il foglio Dati riporta chi ha modificato e l\'esito', () => {
     const ws = creaBackup(dati).getWorksheet('Dati')!
     const prima = ws.getRow(2).values as unknown[]

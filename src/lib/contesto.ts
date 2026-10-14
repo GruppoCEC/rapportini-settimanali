@@ -13,6 +13,12 @@ export const AREE_ATTIVE = false
  */
 export const PROMEMORIA_ATTIVI = false
 
+/**
+ * Rapportino mensile (pagine "Rapportino mensile" e "Report mensile").
+ * Richiede le tabelle di supabase/migrations/005_mensile.sql: con false le pagine spariscono dal menu.
+ */
+export const MENSILE_ATTIVO = true
+
 export interface Contesto {
   utente: Utente
   citta: Citta[]

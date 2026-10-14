@@ -246,3 +246,76 @@ describe('Calcoli', () => {
     expect(righe.map((r) => r.ufficio_id)).toEqual([romaA])
   })
 })
+
+describe('Rapportino mensile', () => {
+  let pA: number, pB: number, pM: number
+  const valore = (persona: number, voce: string, v: number, ufficio?: number) =>
+    `insert into valori_mensili (persona_id, ufficio_id, mese, voce, valore) values (${persona}, ${ufficio ?? 'null'}, '2026-09-01', '${voce}', ${v})
+     on conflict (persona_id, mese, voce) do update set valore = excluded.valore`
+
+  beforeAll(async () => {
+    pB = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaB}, 'Bruno Bianchi', 'funzionario', '2020-01-01') returning id`)
+    pM = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${milanoA}, 'Marta Meli', 'coordinatrice', '2024-05-01') returning id`)
+    await db.exec(`${valore(pB, 'colloqui', 4)}; ${valore(pM, 'colloqui', 2)}`)
+  })
+
+  it('l\'ufficio registra il proprio personale e i suoi numeri', async () => {
+    const [p] = await come<{ id: number; nome: string; aggiornato_da: string }>('a@test.it',
+      `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, '  Anna   Rossi ', 'funzionario', '2023-03-01') returning id, nome, aggiornato_da`, [romaA])
+    pA = p.id
+    expect(p.nome).toBe('Anna Rossi')
+    expect(p.aggiornato_da).toBe('a@test.it')
+    await come('a@test.it', valore(pA, 'colloqui', 5, romaA))
+    await come('a@test.it', valore(pA, 'proposte_vendita', 1))           // l'ufficio si ricava dalla persona
+    const righe = await come<{ ufficio_id: number }>('a@test.it', `select ufficio_id from valori_mensili`)
+    expect(righe.map((r) => Number(r.ufficio_id))).toEqual([romaA, romaA])
+    expect(await come('a@test.it', `select * from persone`)).toHaveLength(1)
+  })
+
+  it('l\'ufficio non vede né modifica il personale e i numeri degli altri', async () => {
+    await rifiutata('a@test.it', `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, 'Intruso', 'marketer', '2026-01-01')`, [romaB])
+    await rifiutata('a@test.it', valore(pB, 'colloqui', 99, romaA))      // anche dichiarando il proprio ufficio
+    expect(await come('a@test.it', `update persone set nome = 'X' where id = $1 returning *`, [pB])).toHaveLength(0)
+    expect(await come('a@test.it', `delete from valori_mensili where persona_id = $1 returning *`, [pB])).toHaveLength(0)
+    const b = (await db.query<{ valore: number }>(`select valore from valori_mensili where persona_id = $1`, [pB])).rows[0]
+    expect(b.valore).toBe(4)
+  })
+
+  it('l\'amministratore di Milano vede e compila solo Milano', async () => {
+    const persone = await come<{ nome: string }>('adminmi@test.it', `select nome from persone order by nome`)
+    expect(persone.map((p) => p.nome)).toEqual(['Marta Meli'])
+    await come('adminmi@test.it', valore(pM, 'colloqui', 3))
+    await rifiutata('adminmi@test.it', valore(pA, 'colloqui', 1))
+  })
+
+  it('l\'amministratore generale vede tutto il gruppo', async () => {
+    const r = await come<{ n: number }>('davide@test.it', `select count(distinct ufficio_id)::int as n from valori_mensili`)
+    expect(r[0].n).toBe(3)
+  })
+
+  it('il confronto con l\'anno prima lo scrive e lo legge solo l\'amministratore generale', async () => {
+    await come('davide@test.it', `insert into confronto_anno_prima (mese, voce, valore) values ('2026-09-01', 'staff', 210), ('2026-09-01', 'colloqui', 340)`)
+    expect(await come('davide@test.it', `select * from confronto_anno_prima`)).toHaveLength(2)
+    await rifiutata('adminmi@test.it', `insert into confronto_anno_prima (mese, voce, valore) values ('2026-08-01', 'staff', 1)`)
+    await rifiutata('a@test.it', `insert into confronto_anno_prima (mese, voce, valore) values ('2026-08-01', 'staff', 1)`)
+    expect(await come('adminmi@test.it', `select * from confronto_anno_prima`)).toHaveLength(0)
+  })
+
+  it('controlli: mese dal giorno 1, persona non spostabile, salvataggi identici ignorati', async () => {
+    await rifiutata('a@test.it', `insert into valori_mensili (persona_id, mese, voce, valore) values ($1, '2026-09-15', 'kiron', 1)`, [pA])
+    await rifiutata('davide@test.it', `update persone set ufficio_id = $1 where id = $2`, [romaB, pA])
+    await rifiutata('a@test.it', `insert into persone (ufficio_id, nome, ruolo, data_inizio, data_fine) values ($1, 'Date', 'marketer', '2026-05-01', '2026-04-01')`, [romaA])
+    const conta = async () => (await db.query<{ n: number }>(`select count(*)::int as n from storico_modifiche where tabella = 'valori_mensili'`)).rows[0].n
+    const prima = await conta()
+    await come('a@test.it', valore(pA, 'colloqui', 5))
+    expect(await conta()).toBe(prima)
+    await come('a@test.it', valore(pA, 'colloqui', 6))
+    expect(await conta()).toBe(prima + 1)
+  })
+
+  it('tutti vedono le 19 colonne del rapportino, nessuno estraneo', async () => {
+    expect(await come('a@test.it', `select * from voci_mensili`)).toHaveLength(19)
+    expect(await come('estraneo@test.it', `select * from voci_mensili`)).toHaveLength(0)
+    expect(await come('estraneo@test.it', `select * from persone`)).toHaveLength(0)
+  })
+})

@@ -1,11 +1,11 @@
 // Amministrazione della città: account (nome utente + password), uffici e (se attive) aree.
 import { useState } from 'react'
 import { gestioneAccount, generaPassword, suggerisciNomeUtente } from '../lib/account'
-import { AREE_ATTIVE, type Contesto, nomeArea } from '../lib/contesto'
+import { AREE_ATTIVE, MENSILE_ATTIVO, type Contesto, nomeArea } from '../lib/contesto'
 import { supabase } from '../lib/supabase'
 import { NOMI_RUOLO, type Ruolo, type Utente } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
-import { caricaTuttoPerBackup } from '../lib/dati'
+import { caricaMensilePerBackup, caricaTuttoPerBackup } from '../lib/dati'
 import { Caricamento } from '../componenti/Celle'
 import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 
@@ -319,8 +319,8 @@ function SezioneUffici({ ctx }: { ctx: Contesto }) {
       <section className="scheda">
         <h2>Uffici ({uffici.filter((u) => u.attivo).length} attivi)</h2>
         <div className="tabella-scorrevole">
-          <table className="tabella tabella-admin" style={{ maxWidth: 760 }}>
-            <thead><tr><th>Nome</th>{AREE_ATTIVE && <th>Area</th>}<th>Stato</th><th>Azioni</th></tr></thead>
+          <table className="tabella tabella-admin" style={{ maxWidth: 900 }}>
+            <thead><tr><th>Nome</th>{AREE_ATTIVE && <th>Area</th>}{MENSILE_ATTIVO && <th>Report mensile</th>}<th>Stato</th><th>Azioni</th></tr></thead>
             <tbody>
               {uffici.map((u) => (
                 <tr key={u.id} className={u.attivo ? '' : 'disattivo'}>
@@ -339,6 +339,23 @@ function SezioneUffici({ ctx }: { ctx: Contesto }) {
                       </select>
                     </td>
                   )}
+                  {MENSILE_ATTIVO && (
+                    <td>
+                      <div className="posizione-report">
+                        <select value={u.blocco_mensile ?? 1} aria-label="Tabella del report mensile" onChange={(e) =>
+                          esegui(supabase.from('uffici').update({ blocco_mensile: Number(e.target.value) }).eq('id', u.id), `"${u.nome}" spostato nella ${e.target.value === '1' ? 'prima' : 'seconda'} tabella del report mensile.`)}>
+                          <option value={1}>1ª tabella</option>
+                          <option value={2}>2ª tabella</option>
+                        </select>
+                        <input inputMode="numeric" defaultValue={u.ordine_mensile ?? ''} key={`${u.id}-${u.ordine_mensile}`} placeholder="n." aria-label="Posizione nel report mensile" onBlur={(e) => {
+                          const testo = e.target.value.trim()
+                          const v = testo === '' ? null : Number(testo)
+                          if (v !== null && !(Number.isInteger(v) && v > 0)) { setEsito({ tipo: 'errore', testo: 'La posizione deve essere un numero intero da 1 in su.' }); return }
+                          if (v !== (u.ordine_mensile ?? null)) esegui(supabase.from('uffici').update({ ordine_mensile: v }).eq('id', u.id), `Posizione di "${u.nome}" nel report mensile aggiornata.`)
+                        }} />
+                      </div>
+                    </td>
+                  )}
                   <td><span className={`tag ${u.attivo ? 'tag-accento' : 'tag-neutro'}`}>{u.attivo ? 'Attivo' : 'Disattivato'}</span></td>
                   <td>
                     <button className="btn btn-fantasma" onClick={() => esegui(supabase.from('uffici').update({ attivo: !u.attivo }).eq('id', u.id), `Ufficio "${u.nome}" ${u.attivo ? 'disattivato' : 'riattivato'}.`)}>
@@ -350,6 +367,7 @@ function SezioneUffici({ ctx }: { ctx: Contesto }) {
             </tbody>
           </table>
         </div>
+        {MENSILE_ATTIVO && <p className="piccolo" style={{ maxWidth: 760 }}>Report mensile: in quale tabella compare l'ufficio e in che posizione (1 = primo). La numerazione è unica per Roma e Milano, come nel file di gruppo. Gli uffici senza posizione vanno in fondo alla loro tabella.</p>}
         <p className="piccolo" style={{ maxWidth: 760 }}>Il nome si modifica direttamente nella casella. Gli uffici non si eliminano, per non perdere lo storico: un ufficio disattivato sparisce da cruscotto, riunione e promemoria.</p>
       </section>
       {toast}
@@ -432,10 +450,11 @@ function SezioneBackup({ ctx }: { ctx: Contesto }) {
     setEsito(null)
     try {
       setStato('raccolta')
-      const [dati, { creaBackup, nomeFileBackup }] = await Promise.all([caricaTuttoPerBackup(), import('../lib/backup')])
+      const [dati, mensile, { creaBackup, nomeFileBackup }] = await Promise.all([
+        caricaTuttoPerBackup(), MENSILE_ATTIVO ? caricaMensilePerBackup() : Promise.resolve(null), import('../lib/backup')])
       setStato('file')
       const adesso = new Date()
-      const wb = creaBackup({ ...dati, citta: ctx.citta, uffici: ctx.uffici, generatoDa: ctx.utente.nome || ctx.utente.nome_utente, adesso })
+      const wb = creaBackup({ ...dati, mensile, citta: ctx.citta, uffici: ctx.uffici, generatoDa: ctx.utente.nome || ctx.utente.nome_utente, adesso })
       const contenuto = await wb.xlsx.writeBuffer()
       const url = URL.createObjectURL(new Blob([contenuto], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
       const a = document.createElement('a')
@@ -465,6 +484,7 @@ function SezioneBackup({ ctx }: { ctx: Contesto }) {
           <li><Icona nome="storefront" />un foglio per ogni ufficio, impostato come i vecchi rapportini: mesi uno sotto l'altro, 5 settimane con obiettivo, risultato ed esito, totale del mese, dati di zona, quota di mercato e note;</li>
           <li><Icona nome="table" />il foglio "Dati" con tutti i valori, uno per riga, da filtrare e ordinare;</li>
           <li><Icona nome="note" />i fogli "Note", "Uffici" e "Account" (senza password).</li>
+          {MENSILE_ATTIVO && <li><Icona nome="calendar-check" />i fogli "Mensile" (i numeri dei rapportini mensili, persona per persona) e "Personale".</li>}
         </ul>
         <p className="piccolo">Il file si crea nel browser e va nella cartella Download. Conviene scaricarlo una volta al mese e conservarlo in un posto sicuro: contiene i dati di tutti gli uffici.</p>
         <div>

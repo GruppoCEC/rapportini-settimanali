@@ -6,6 +6,7 @@
 // =====================================================================
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { aggiungiSettimane, lunediDi, oggiISO, settimanaPredefinita } from '../src/lib/settimane'
+import { aggiungiMesi, inServizio, mesePredefinito, ultimoGiornoDelMese } from '../src/lib/mensile'
 
 export const configurato = true
 
@@ -25,7 +26,16 @@ const nomiUffici: [string, number, number][] = [
   ['EUR', 1, 3], ['Garbatella', 1, 3], ['Ostiense', 1, 3],
   ['Brera', 2, 4], ['Navigli', 2, 4], ['Porta Romana', 2, 4], ['Isola', 2, 5], ['Città Studi', 2, 5], ['Lambrate', 2, 5],
 ]
-const uffici = nomiUffici.map(([nome, citta_id, area_id], i) => ({ id: i + 1, nome, citta_id, area_id, attivo: true }))
+// Ordine del report mensile come nel file di gruppo: non alfabetico, Roma e Milano mescolate, due tabelle
+const ORDINE_MENSILE = [
+  ['Trieste', 'Somalia', 'Parioli', 'Brera', 'Prati', 'Monti', 'Navigli', 'Flaminio', 'Trastevere', 'Isola', 'San Giovanni', 'Porta Romana', 'Garbatella', 'Città Studi', 'Lambrate'],
+  ['EUR', 'Ostiense'],
+]
+const uffici = nomiUffici.map(([nome, citta_id, area_id], i) => {
+  const blocco = ORDINE_MENSILE.findIndex((b) => b.includes(nome))
+  return { id: i + 1, nome, citta_id, area_id, attivo: true, blocco_mensile: blocco + 1, ordine_mensile: ORDINE_MENSILE[blocco].indexOf(nome) + 1 }
+})
+let prossimoIdPersona = 10001   // distinti dagli id assegnati durante la prova (da 100 in su)
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-')
 
 const utenti: any[] = [
@@ -82,7 +92,69 @@ for (const u of uffici) {
   }
 }
 
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, metriche, rilevazioni, note_settimana: note }
+// ---------------------------------------------------------------- rapportino mensile inventato
+const voci_mensili = [
+  ['portafoglio_vendita', 'Portafoglio immobili', 'vendita'], ['portafoglio_locazione', 'Portafoglio immobili', 'locazione'],
+  ['acquisizioni', 'Acquisizioni', null], ['appuntamenti_vendita', 'Appuntamenti', 'vendita'], ['appuntamenti_locazione', 'Appuntamenti', 'locazione'],
+  ['incarichi_vendita', 'Incarichi', 'vendita'], ['incarichi_locazione', 'Incarichi', 'locazione'], ['gestione_incarichi', 'Gestione incarichi', null],
+  ['ribassi', 'Ribassi', null], ['kiron', 'Kiron', null], ['colloqui', 'Colloqui', null],
+  ['proposte_vendita', 'Proposte', 'vendita'], ['proposte_locazione', 'Proposte', 'locazione'],
+  ['accettazioni_vendita', 'Accettazioni', 'vendita'], ['accettazioni_locazione', 'Accettazioni', 'locazione'],
+  ['vendite_effettuate', 'Vendite effettuate', null], ['richieste_vendita', 'Richieste', 'vendita'], ['richieste_locazione', 'Richieste', 'locazione'],
+  ['incarichi_scaduti', 'Incarichi scaduti', null],
+].map(([codice, gruppo, sotto], i) => ({ codice, gruppo, sotto, ordine: i + 1, attiva: true }))
+// Valori tipici di un mese per un funzionario [min, max]
+const TIPICI: Record<string, [number, number]> = {
+  portafoglio_vendita: [2, 14], portafoglio_locazione: [0, 4], acquisizioni: [0, 4], appuntamenti_vendita: [6, 36], appuntamenti_locazione: [0, 10],
+  incarichi_vendita: [0, 4], incarichi_locazione: [0, 2], gestione_incarichi: [0, 9], ribassi: [0, 4], kiron: [0, 3], colloqui: [0, 8],
+  proposte_vendita: [0, 4], proposte_locazione: [0, 2], accettazioni_vendita: [0, 3], accettazioni_locazione: [0, 2], vendite_effettuate: [0, 2],
+  richieste_vendita: [2, 22], richieste_locazione: [0, 8], incarichi_scaduti: [0, 3],
+}
+const NOMI = ['Giulia', 'Marco', 'Francesca', 'Luca', 'Chiara', 'Alessandro', 'Sara', 'Matteo', 'Valentina', 'Andrea', 'Martina', 'Davide', 'Elena', 'Simone', 'Federica', 'Paolo', 'Silvia', 'Stefano', 'Laura', 'Roberto', 'Alessia', 'Giorgio', 'Ilaria', 'Fabio']
+const COGNOMI = ['Rossi', 'Russo', 'Ferrari', 'Esposito', 'Bianchi', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno', 'Gallo', 'Conti', 'De Luca', 'Mancini', 'Costa', 'Giordano', 'Rizzo', 'Lombardi', 'Moretti', 'Barbieri', 'Fontana', 'Santoro', 'Mariani']
+const meseDaCompilare = mesePredefinito()
+const mesiDemo = Array.from({ length: 6 }, (_, i) => aggiungiMesi(meseDaCompilare, i - 5))
+const persone: any[] = []
+const valori_mensili: any[] = []
+const confronto_anno_prima: any[] = []
+const dataTra = (annoMin: number, annoMax: number) => `${tra(annoMin, annoMax)}-${String(tra(1, 12)).padStart(2, '0')}-${String(tra(1, 28)).padStart(2, '0')}`
+for (const u of uffici) {
+  const ruoli = ['responsabile', ...Array(tra(2, 4)).fill('funzionario'), ...(caso() < 0.75 ? ['coordinatrice'] : []), ...(caso() < 0.55 ? ['marketer'] : [])]
+  for (const ruolo of ruoli) {
+    persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo,
+      data_inizio: ruolo === 'responsabile' ? dataTra(2008, 2018) : dataTra(2015, 2025), data_fine: null })
+  }
+  // Qualche cambio di personale: un'uscita due mesi fa e un ingresso nel mese da compilare
+  if (u.id % 4 === 0) persone.find((p) => p.ufficio_id === u.id && p.ruolo === 'funzionario').data_fine = ultimoGiornoDelMese(aggiungiMesi(meseDaCompilare, -2))
+  if (u.id % 5 === 2) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo: 'funzionario', data_inizio: `${meseDaCompilare.slice(0, 8)}${String(tra(1, 20)).padStart(2, '0')}`, data_fine: null })
+}
+for (const mese of mesiDemo) {
+  for (const u of uffici) {
+    // Situazione del mese da compilare: 2 uffici mancanti (Parioli, Città Studi), 1 parziale (Trastevere)
+    if (mese === meseDaCompilare && (u.id === 3 || u.id === 16)) continue
+    const parziale = mese === meseDaCompilare && u.id === 7
+    const da = utenti.find((x) => x.ufficio_id === u.id && x.ruolo === 'ufficio')!.email
+    const ts = new Date(`${aggiungiMesi(mese, 1).slice(0, 8)}0${tra(1, 5)}T${tra(10, 18)}:${tra(10, 59)}:00`).toISOString()
+    persone.filter((p) => p.ufficio_id === u.id && inServizio(p, mese)).forEach((p, n) => {
+      const peso = p.ruolo === 'funzionario' ? 1 : p.ruolo === 'responsabile' ? 0.7 : 0.35
+      for (const [voce, [min, max]] of Object.entries(TIPICI)) {
+        if (parziale && n > 1) continue
+        valori_mensili.push({ persona_id: p.id, ufficio_id: u.id, mese, voce, valore: Math.round(tra(min, max) * peso), aggiornato_da: da, aggiornato_il: ts })
+      }
+    })
+  }
+}
+// Totali di gruppo "dell'anno prima" per gli ultimi 3 mesi, come se li avesse scritti l'amministratore
+for (const mese of mesiDemo.slice(-3)) {
+  const delMese = valori_mensili.filter((v) => v.mese === mese)
+  for (const voce of Object.keys(TIPICI)) {
+    const somma = delMese.filter((v) => v.voce === voce).reduce((t, v) => t + v.valore, 0)
+    confronto_anno_prima.push({ mese: aggiungiMesi(mese, -12), voce, valore: Math.round(somma * (0.75 + caso() * 0.4)) })
+  }
+  confronto_anno_prima.push({ mese: aggiungiMesi(mese, -12), voce: 'staff', valore: persone.filter((p) => inServizio(p, mese)).length - tra(0, 6) })
+}
+
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima }
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
 const CHIAVE = 'rapportini.demo.utente'
@@ -107,7 +179,8 @@ function visibile(tabella: string, riga: any): boolean {
     case 'uffici': return ufficiLeggibili().has(riga.id) || gestisce(riga.citta_id)
     case 'aree': return riga.citta_id === me.citta_id || gestisce(riga.citta_id)
     case 'utenti': return riga.email === me.email || gestisce(riga.citta_id)
-    case 'rilevazioni': case 'note_settimana': return ufficiLeggibili().has(riga.ufficio_id)
+    case 'rilevazioni': case 'note_settimana': case 'persone': case 'valori_mensili': return ufficiLeggibili().has(riga.ufficio_id)
+    case 'confronto_anno_prima': return me.ruolo === 'admin_generale'
     default: return true
   }
 }
@@ -152,7 +225,9 @@ class Interrogazione {
       if (op.tipo === 'insert' || op.tipo === 'upsert') {
         const inseriti: any[] = []
         for (const r of op.righe!) {
-          if (this.tabella === 'rilevazioni' || this.tabella === 'note_settimana') {
+          if (this.tabella === 'valori_mensili') r.ufficio_id = persone.find((p) => p.id === r.persona_id)?.ufficio_id   // come il trigger del database
+          if (this.tabella === 'confronto_anno_prima' && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
+          if (['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella)) {
             if (!ufficiLeggibili().has(r.ufficio_id) || me.ruolo === 'responsabile' && r.ufficio_id !== me.ufficio_id) {
               return { data: null, error: { message: 'new row violates row-level security policy' } }
             }
@@ -168,6 +243,10 @@ class Interrogazione {
       const colpite = t.filter((r) => visibile(this.tabella, r) && this.filtri.every((f) => f(r)))
       if (op.tipo === 'update') colpite.forEach((r) => Object.assign(r, op.campi))
       else colpite.forEach((r) => t.splice(t.indexOf(r), 1))
+      if (op.tipo === 'delete' && this.tabella === 'persone') {     // come "on delete cascade"
+        const via = new Set(colpite.map((r) => r.id))
+        for (let i = valori_mensili.length - 1; i >= 0; i--) if (via.has(valori_mensili[i].persona_id)) valori_mensili.splice(i, 1)
+      }
       return { data: colpite, error: null }
     }
     let righe = t.filter((r) => visibile(this.tabella, r) && this.filtri.every((f) => f(r)))

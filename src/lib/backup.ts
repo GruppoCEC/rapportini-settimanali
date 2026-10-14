@@ -6,7 +6,8 @@ import ExcelJS from 'exceljs'
 import { nomeDaEmail } from './account'
 import { quotaMercato, totaliPeriodo } from './calcoli'
 import { intervalloSettimana, lunediDi, meseDellaSettimana, nomeMese, oggiISO, settimaneDelMese, aggiungiGiorni } from './settimane'
-import { NOMI_RUOLO, type Citta, type Metrica, type Rilevazione, type Ufficio, type Utente } from './tipi'
+import { NOMI_RUOLO, NOMI_RUOLO_PERSONA, type Citta, type Metrica, type Persona, type Rilevazione, type Ufficio, type Utente, type ValoreMensile, type VoceMensile } from './tipi'
+import { ordinaPersone, ordinaUfficiReport, titoloMese } from './mensile'
 import type { Nota } from './dati'
 
 export interface DatiBackup {
@@ -18,6 +19,7 @@ export interface DatiBackup {
   utenti: Utente[]
   generatoDa: string
   adesso?: Date
+  mensile?: { voci: VoceMensile[]; persone: Persona[]; valori: ValoreMensile[] } | null   // rapportino mensile, se attivo
 }
 
 const BLU_SCURO = 'FF0A2440', BLU = 'FF0057A3', BLU_CHIARO = 'FFE6EEF6', ARANCIO_CHIARO = 'FFFDF1E9'
@@ -65,7 +67,7 @@ export function creaBackup(d: DatiBackup): ExcelJS.Workbook {
   const ufficioDi = new Map(d.uffici.map((u) => [u.id, u]))
   const meseCorrente = meseDellaSettimana(lunediDi(oggiISO(adesso)))
   const ufficiOrdinati = [...d.uffici].sort((a, b) => a.citta_id - b.citta_id || Number(b.attivo) - Number(a.attivo) || a.nome.localeCompare(b.nome))
-  const usati = new Set(['leggimi', 'dati', 'note', 'uffici', 'account'])
+  const usati = new Set(['leggimi', 'dati', 'note', 'uffici', 'account', 'mensile', 'personale'])
 
   // ---------------------------------------------------------------- Leggimi
   const leggimi = wb.addWorksheet('Leggimi', { properties: { tabColor: { argb: BLU_SCURO } } })
@@ -92,6 +94,10 @@ export function creaBackup(d: DatiBackup): ExcelJS.Workbook {
     ['Note', 'Le note settimanali degli uffici.'],
     ['Uffici', 'Elenco degli uffici con città, stato e account.'],
     ['Account', 'Gli account della piattaforma. Le password non ci sono: il sistema le conserva solo in forma cifrata.'],
+    ...(d.mensile ? [
+      ['Mensile', 'I numeri dei rapportini mensili: una riga per persona e mese, con le 19 colonne del rapportino.'],
+      ['Personale', 'Il personale degli uffici con ruolo, data di inizio ed eventuale data di fine.'],
+    ] as [string, string][] : []),
   ]
   for (const [k, v] of fogli) { const r = leggimi.addRow([k, v]); r.getCell(1).font = { bold: true }; r.getCell(2).alignment = { wrapText: true } }
   leggimi.addRow([])
@@ -324,6 +330,40 @@ export function creaBackup(d: DatiBackup): ExcelJS.Workbook {
     x.nome_utente, x.nome ?? '', NOMI_RUOLO[x.ruolo], nomeCitta(x.citta_id),
     x.ufficio_id ? ufficioDi.get(x.ufficio_id)?.nome ?? '' : '', x.email_promemoria ?? '', x.attivo ? 'attivo' : 'disattivato',
   ]))
+
+  // ---------------------------------------------------------------- Rapportino mensile
+  if (d.mensile) {
+    const { voci, persone, valori } = d.mensile
+    const ordineUfficio = new Map(ordinaUfficiReport(d.uffici).map((u, i) => [u.id, i]))
+    const personaDi = new Map(persone.map((p) => [p.id, p]))
+    const righe = new Map<string, { mese: string; persona: Persona; valori: Map<string, number | null> }>()
+    for (const v of valori) {
+      const persona = personaDi.get(v.persona_id)
+      if (!persona) continue
+      const k = `${v.mese}|${v.persona_id}`
+      if (!righe.has(k)) righe.set(k, { mese: v.mese, persona, valori: new Map() })
+      righe.get(k)!.valori.set(v.voce, v.valore)
+    }
+    const ordinate = [...righe.values()].sort((a, b) => a.mese.localeCompare(b.mese)
+      || (ordineUfficio.get(a.persona.ufficio_id) ?? 999) - (ordineUfficio.get(b.persona.ufficio_id) ?? 999) || ordinaPersone(a.persona, b.persona))
+    tabella('Mensile', [
+      { titolo: 'Mese', larghezza: 15 }, { titolo: 'Città', larghezza: 10 }, { titolo: 'Ufficio', larghezza: 22 },
+      { titolo: 'Persona', larghezza: 22 }, { titolo: 'Ruolo', larghezza: 14 },
+      ...voci.map((v) => ({ titolo: v.sotto ? `${v.gruppo} ${v.sotto}` : v.gruppo, larghezza: 12 })),
+    ], ordinate.map((r) => {
+      const u = ufficioDi.get(r.persona.ufficio_id)
+      return [titoloMese(r.mese), nomeCitta(u?.citta_id ?? null), u?.nome ?? '', r.persona.nome, NOMI_RUOLO_PERSONA[r.persona.ruolo],
+        ...voci.map((v) => r.valori.get(v.codice) ?? null)]
+    })).getRow(1).alignment = { wrapText: true, vertical: 'middle' }
+
+    tabella('Personale', [
+      { titolo: 'Città', larghezza: 10 }, { titolo: 'Ufficio', larghezza: 22 }, { titolo: 'Nome', larghezza: 24 }, { titolo: 'Ruolo', larghezza: 14 },
+      { titolo: 'Data di inizio', larghezza: 14, formato: 'dd/mm/yyyy' }, { titolo: 'Data di fine', larghezza: 14, formato: 'dd/mm/yyyy' },
+    ], [...persone].sort((a, b) => (ordineUfficio.get(a.ufficio_id) ?? 999) - (ordineUfficio.get(b.ufficio_id) ?? 999) || ordinaPersone(a, b)).map((p) => {
+      const u = ufficioDi.get(p.ufficio_id)
+      return [nomeCitta(u?.citta_id ?? null), u?.nome ?? '', p.nome, NOMI_RUOLO_PERSONA[p.ruolo], dataUTC(p.data_inizio), p.data_fine ? dataUTC(p.data_fine) : null]
+    }))
+  }
 
   return wb
 }

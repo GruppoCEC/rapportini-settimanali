@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { configurato, supabase } from './lib/supabase'
-import { AREE_ATTIVE, type Contesto } from './lib/contesto'
+import { AREE_ATTIVE, MENSILE_ATTIVO, type Contesto } from './lib/contesto'
 import { isAmministratore, ufficiCompilabili } from './lib/permessi'
 import { type Area, type Citta, type Metrica, type Ufficio, type Utente } from './lib/tipi'
 import Accesso from './pagine/Accesso'
@@ -12,11 +12,13 @@ import Amministrazione from './pagine/Amministrazione'
 import AndamentoUfficio from './pagine/AndamentoUfficio'
 import Cruscotto from './pagine/Cruscotto'
 import InserisciSettimana from './pagine/InserisciSettimana'
+import RapportinoMensile from './pagine/RapportinoMensile'
+import ReportMensile from './pagine/ReportMensile'
 import Riunione from './pagine/Riunione'
 import StatoCompilazione from './pagine/StatoCompilazione'
 import Testata, { type VoceMenu } from './componenti/Testata'
 
-type Pagina = 'inserisci' | 'andamento' | 'cruscotto' | 'compilazione' | 'riunione' | 'amministrazione' | 'account'
+type Pagina = 'inserisci' | 'mensile' | 'andamento' | 'cruscotto' | 'compilazione' | 'riunione' | 'report-mensile' | 'amministrazione' | 'account'
 
 interface DatiBase {
   utente: Utente | null
@@ -128,12 +130,14 @@ export default function App() {
   // Voci di menu in base al ruolo
   const menu: (VoceMenu & { id: Pagina })[] = [
     ...(compilabili.length > 0 ? [{ id: 'inserisci' as Pagina, etichetta: 'Inserisci settimana', icona: 'pencil-simple-line' }] : []),
+    ...(compilabili.length > 0 && MENSILE_ATTIVO ? [{ id: 'mensile' as Pagina, etichetta: 'Inserisci mese', icona: 'calendar-check' }] : []),
     { id: 'andamento', etichetta: vedeInsieme ? 'Andamento uffici' : 'Il mio ufficio', icona: 'chart-line-up' },
     ...(vedeInsieme ? [
       { id: 'cruscotto' as Pagina, etichetta: 'Cruscotto', icona: 'gauge' },
       { id: 'compilazione' as Pagina, etichetta: 'Stato compilazione', icona: 'list-checks' },
       { id: 'riunione' as Pagina, etichetta: 'Riunione', icona: 'presentation-chart' },
     ] : []),
+    ...(isAmministratore(utente) && MENSILE_ATTIVO ? [{ id: 'report-mensile' as Pagina, etichetta: 'Report mensile', icona: 'printer' }] : []),
     ...(isAmministratore(utente) ? [{ id: 'amministrazione' as Pagina, etichetta: 'Amministrazione', icona: 'gear-six' }] : []),
   ]
   const attiva: Pagina = pagina === 'account' || menu.some((v) => v.id === pagina) ? pagina : menu[0].id
@@ -146,10 +150,12 @@ export default function App() {
 
       <main className="contenuto" key={`${attiva}-${cittaScelta}`}>
         {attiva === 'inserisci' && <InserisciSettimana uffici={compilabili} metriche={dati.metriche} ufficioPredefinito={utente.ufficio_id} onSalvato={() => setAggiornamento((n) => n + 1)} />}
+        {attiva === 'mensile' && <RapportinoMensile uffici={compilabili} ufficioPredefinito={utente.ufficio_id} />}
         {attiva === 'andamento' && <AndamentoUfficio ctx={ctx} />}
         {attiva === 'cruscotto' && <Cruscotto ctx={ctx} />}
         {attiva === 'compilazione' && <StatoCompilazione ctx={ctx} />}
         {attiva === 'riunione' && <Riunione ctx={ctx} />}
+        {attiva === 'report-mensile' && <ReportMensile ctx={ctx} />}
         {attiva === 'amministrazione' && <Amministrazione ctx={ctx} />}
         {attiva === 'account' && <Account ctx={ctx} />}
       </main>

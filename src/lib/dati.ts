@@ -1,7 +1,7 @@
 // Lettura dei dati dal database. Le regole di accesso filtrano già
 // automaticamente: ognuno riceve solo le righe che può vedere.
 import { supabase } from './supabase'
-import type { Metrica, Rilevazione, Utente } from './tipi'
+import type { Metrica, Persona, Rilevazione, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
 
@@ -57,4 +57,64 @@ export async function caricaTuttoPerBackup() {
     tutteLeRighe<Metrica>('metriche', '*', 'ordine'),
   ])
   return { rilevazioni, note: note.filter((n) => n.testo.trim() !== ''), utenti, metriche }
+}
+
+// ---------------------------------------------------------------- Rapportino mensile
+
+/** Esegue una richiesta a pagine da 1000 righe e le riunisce */
+async function aPagine<T>(richiesta: (da: number, a: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<T[]> {
+  const righe: T[] = []
+  for (let inizio = 0; ; inizio += PAGINA) {
+    const { data, error } = await richiesta(inizio, inizio + PAGINA - 1)
+    if (error) throw new Error(error.message)
+    righe.push(...(data as T[]))
+    if ((data as T[]).length < PAGINA) return righe
+  }
+}
+
+/** Le colonne del rapportino mensile, nell'ordine del file Excel */
+export async function caricaVociMensili(): Promise<VoceMensile[]> {
+  const { data, error } = await supabase.from('voci_mensili').select('codice, gruppo, sotto, ordine').eq('attiva', true).order('ordine')
+  if (error) throw new Error(error.message)
+  return data as VoceMensile[]
+}
+
+/** Il personale degli uffici indicati (anche chi ha lasciato l'ufficio) */
+export async function caricaPersone(ufficiIds: number[]): Promise<Persona[]> {
+  if (ufficiIds.length === 0) return []
+  return aPagine<Persona>((da, a) => supabase.from('persone')
+    .select('id, ufficio_id, nome, ruolo, data_inizio, data_fine')
+    .in('ufficio_id', ufficiIds).order('id').range(da, a))
+}
+
+/** I numeri di un mese ('AAAA-MM-01') per gli uffici indicati */
+export async function caricaValoriMensili(mese: string, ufficiIds: number[]): Promise<ValoreMensile[]> {
+  if (ufficiIds.length === 0) return []
+  return aPagine<ValoreMensile>((da, a) => supabase.from('valori_mensili')
+    .select('persona_id, ufficio_id, mese, voce, valore, aggiornato_da, aggiornato_il')
+    .eq('mese', mese).in('ufficio_id', ufficiIds)
+    .order('ufficio_id').order('persona_id').order('voce').range(da, a))
+}
+
+/** Totali di gruppo dello stesso mese dell'anno prima, scritti a mano (voce → valore) */
+export async function caricaConfronto(mese: string): Promise<Map<string, number | null>> {
+  const { data, error } = await supabase.from('confronto_anno_prima').select('voce, valore').eq('mese', mese)
+  if (error) throw new Error(error.message)
+  return new Map((data as { voce: string; valore: number | null }[]).map((r) => [r.voce, r.valore]))
+}
+
+/** Tutto il mensile, per il backup (null se le tabelle non esistono ancora nel database) */
+export async function caricaMensilePerBackup() {
+  try {
+    const [voci, persone, valori] = await Promise.all([
+      caricaVociMensili(),
+      tutteLeRighe<Persona>('persone', 'id, ufficio_id, nome, ruolo, data_inizio, data_fine', 'id'),
+      aPagine<ValoreMensile>((da, a) => supabase.from('valori_mensili')
+        .select('persona_id, ufficio_id, mese, voce, valore, aggiornato_da, aggiornato_il')
+        .order('mese').order('persona_id').order('voce').range(da, a)),
+    ])
+    return { voci, persone, valori }
+  } catch {
+    return null
+  }
 }
