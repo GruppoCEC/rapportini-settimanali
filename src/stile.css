@@ -613,6 +613,12 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .solo-stampa { display: none; }
 .solo-stampa-blocco { display: none; }
 
+/* Scheda punteggi (da stampare e completare a penna) */
+.tabella-punteggi { max-width: 1000px; }
+.tabella-punteggi tbody th { font-weight: 600; }
+.tabella-punteggi .colonna-penna { width: 34%; border-left: 2px dashed var(--bordo-input); }
+.tabella-punteggi td.cella-punteggio { font-weight: 800; color: var(--primario-800); }
+
 /* Gara a punti dei collaboratori */
 .griglia-punti { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 12px 20px; }
 .campo-punti .etichetta { font-size: 12px; }
@@ -655,51 +661,65 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabella-mensile-modifica .casella-con-fix input.input-fix:focus-visible { background: var(--secondario-100); outline: 1px solid var(--secondario-500); outline-offset: 0; }
 .tabella-mensile-modifica .casella-con-fix input.input-fix.non-valido { background: var(--ko-bg); color: var(--ko-fg); }
 
-/* ---------------------------------------------------------------- Stampa (report mensile su A4 orizzontale) */
+/* ---------------------------------------------------------------- Stampa (report mensile su A4)
+   Caratteri grandi e leggibili come negli Excel: il report di gruppo occupa 2 pagine orizzontali
+   con l'intestazione ripetuta; la scheda punteggi esce in A4 verticale. */
+@page { size: A4 landscape; margin: 8mm; }
+@page verticale { size: A4 portrait; margin: 10mm; }
 @media print {
-  @page { size: A4 landscape; margin: 5mm 8mm; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; transition: none !important; }
   body { background: #fff; }
   .testata-fascia, .striscia-demo, .non-stampa, .barra-salvataggio, .toast, .dialogo-sfondo { display: none !important; }
+  .app, .contenuto, .pagina { min-height: 0 !important; }
   .contenuto { max-width: none; padding: 0; }
   .pagina { gap: 0; }
   .scheda { border: 0; padding: 0; border-radius: 0; gap: 0; }
   .scheda-stampa + .scheda-stampa { break-before: page; }
   .tabella-scorrevole { overflow: visible; }
-  .tabella-mensile { font-size: 7.5pt; width: 100%; }
-  .tabella-mensile th, .tabella-mensile td { padding: 2px 3px !important; border: .5pt solid #B8B5AD !important; min-width: 0 !important; }
-  .tabella-mensile thead th { font-size: 6.5pt; letter-spacing: 0; color: #000; }
-  .tabella-mensile tbody th, .tabella-mensile tbody th.ufficio-fisso { font-size: 7.5pt; line-height: 1.05; white-space: nowrap; max-width: none; }
-  .tabella-mensile td { font-size: 7.5pt; line-height: 1.05; }
-  .tabella-mensile td, .tabella-mensile tbody th { padding-top: 0 !important; padding-bottom: 0 !important; }
-  .tabella-mensile .riga-totale-mese th, .tabella-mensile .riga-totale-mese td { padding-top: 2px !important; padding-bottom: 2px !important; }
-  .riga-anno-prima th .piccolo, .riga-totale-mese th .piccolo { display: inline; margin-left: 4px; }
-  .app, .contenuto, .pagina { min-height: 0 !important; }
-  .tabella-mensile thead th { hyphens: manual; -webkit-hyphens: manual; }
-  .tabella-mensile tbody th.ufficio-fisso { min-width: 0 !important; }
-  .nome-persona span:first-child { display: inline; }
-  .nome-persona .piccolo { display: inline; margin-left: 4px; }
-  .legenda-stampa { display: none; }
-  .titolo-stampa .legenda-titolo { float: right; font: 400 7pt var(--font-testo); color: var(--testo-tenue); margin-top: 6px; }
   .tabella .ufficio-fisso { position: static; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; }
   tr.solo-stampa { display: table-row; }
   .solo-stampa-blocco { display: block; }
-  .legenda-punti { font-size: 7pt; margin-top: 3px; color: var(--testo-2); }
+  .legenda-stampa { display: none; }
+
+  /* Tabelle del mensile */
+  .tabella-mensile { width: 100%; font-size: 10pt; }
+  .tabella-mensile th, .tabella-mensile td { padding: 3px 2px !important; border: .6pt solid #9E9A90 !important; min-width: 0 !important; }
+  .tabella-mensile tbody th { padding-left: 4px !important; padding-right: 4px !important; }
+  .tabella-mensile thead th { font-size: 7.5pt; letter-spacing: 0; color: #000; line-height: 1.15; hyphens: auto; -webkit-hyphens: auto; }
+  .tabella-mensile tbody th, .tabella-mensile tbody th.ufficio-fisso { font-size: 10pt; line-height: 1.2; white-space: nowrap; max-width: none; min-width: 0 !important; }
+  .tabella-mensile td { font-size: 10pt; line-height: 1.2; white-space: nowrap; }
+  .tabella-mensile .riga-totale-mese th, .tabella-mensile .riga-totale-mese td { font-weight: 800; }
   .tabella-mensile thead th.titolo-stampa {
-    text-align: left; font: 800 13pt var(--font-titoli); text-transform: none; letter-spacing: -0.01em;
-    border: 0 !important; padding: 0 0 4px !important; color: var(--primario-900); font-size: 12pt;
+    text-align: left; font: 800 15pt var(--font-titoli); text-transform: none; letter-spacing: -0.01em;
+    border: 0 !important; padding: 0 0 6px !important; color: var(--primario-900);
   }
-  .tabella-report .tag { padding: 0; background: none !important; font-size: 6.5pt; }
-  /* report di gruppo: 47 uffici + totali in una pagina */
-  .tabella-report tbody th, .tabella-report tbody th.ufficio-fisso, .tabella-report td { font-size: 6.5pt; }
-  .tabella-report td { white-space: nowrap; }
-  .tag-movimento { font-size: 6pt; padding: 0 4px; margin: 0 0 0 4px; display: inline; }
-  .legenda-movimenti { font-size: 7pt; margin-top: 3px; }
-  .nome-persona .piccolo { font-size: 6pt; }
-  .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 100%; font-size: 8pt; box-shadow: none !important; }
-  .tabella tr.separatore-blocco td { height: 6px; border-left: 0 !important; border-right: 0 !important; background: #fff; }
+  .titolo-stampa .legenda-titolo { float: right; font: 400 8.5pt var(--font-testo); color: var(--testo-2); margin-top: 8px; }
+  .nome-persona span:first-child { display: inline; }
+  .nome-persona .piccolo, .riga-anno-prima th .piccolo, .riga-totale-mese th .piccolo { display: inline; margin-left: 5px; font-size: 8pt; }
+  .tag-movimento { font-size: 7.5pt; padding: 0 4px; margin: 1px 0 0; display: table; }
+  .cella-inizio .piccolo { display: block; font-size: 7.5pt; }
+  .valore-fix { font-size: .75em; }
+
+  /* Report di gruppo e liste del personale: tante colonne, carattere appena più piccolo */
+  .tabella-report td, .tabella-report tbody th, .tabella-report tbody th.ufficio-fisso { font-size: 9.5pt; }
+  .tabella-report .tag { padding: 0; background: none !important; font-size: 9pt; }
+  .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 2.6em; font-size: 9.5pt; box-shadow: none !important; text-align: right; }
+  .tabella-mensile tbody tr.riga-variazione th, .tabella-mensile tbody tr.riga-anno-prima th { white-space: normal; }
+  .tabella tr.separatore-blocco td { height: 8px; border-left: 0 !important; border-right: 0 !important; background: #fff; }
+
+  .legenda-movimenti, .legenda-punti { font-size: 8.5pt; margin-top: 4px; color: var(--testo-2); }
+
+  /* Scheda punteggi: A4 verticale, righe alte per scrivere a penna */
+  .scheda-punteggi { page: verticale; }
+  .tabella-punteggi { width: 100%; font-size: 12pt; }
+  .tabella-punteggi th, .tabella-punteggi td { border: .6pt solid #9E9A90 !important; padding: 0 8px !important; height: 9.5mm; }
+  .tabella-punteggi thead th { height: auto; padding: 6px 8px !important; font-size: 9pt; color: #000; }
+  .tabella-punteggi thead th.titolo-stampa { border: 0 !important; padding: 0 0 8px !important; font: 800 16pt var(--font-titoli); text-transform: none; letter-spacing: -0.01em; color: var(--primario-900); }
+  .tabella-punteggi tbody th { font-size: 12pt; font-weight: 600; white-space: nowrap; }
+  .tabella-punteggi td { white-space: nowrap; }
+  .tabella-punteggi .colonna-penna { width: 38%; }
 }
 
 /* ---------------------------------------------------------------- Schermi piccoli */

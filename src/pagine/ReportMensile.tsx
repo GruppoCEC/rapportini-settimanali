@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabase'
 import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import type { StatoCompilazione } from '../lib/aggregazioni'
-import { BadgeStato, Caricamento, CLASSE_STATO, ETICHETTA_STATO } from '../componenti/Celle'
+import { BadgeStato, Caricamento } from '../componenti/Celle'
 import { Icona, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
 import {
@@ -154,7 +154,6 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
       <th scope="row" className="ufficio-fisso">
         {u.ufficio.nome}{piuCitta && u.ufficio.citta_id !== ctx.citta[0]?.id && <span className="sigla-citta">{nomeCittaBreve(ctx, u.ufficio.citta_id)}</span>}
       </th>
-      <td className="centro-testo"><span className={`tag tag-simbolo ${CLASSE_STATO[u.stato]}`} title={ETICHETTA_STATO[u.stato]}>{ETICHETTA_STATO[u.stato].charAt(0)}</span></td>
       {colonne.map((c) => <td key={c} className={`destra ${u.totale.get(c) == null ? 'cella-vuota' : ''}`}>{formattaNumero(u.totale.get(c))}</td>)}
     </tr>
   )
@@ -170,25 +169,23 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
       <section className="scheda scheda-stampa">
         <div className="tabella-scorrevole">
           <table className="tabella tabella-mensile tabella-report">
-            <TestataVoci voci={voci} prime={['Ufficio', 'Stato', 'Staff']} titoloStampa={<>
+            <TestataVoci voci={voci} prime={['Ufficio', 'Staff']} titoloStampa={<>
               Report mensile · {titolo} · {titoloMese(mese)}
-              <span className="legenda-titolo">Stato: ✓ completo · ◐ parziale · ✗ mancante — {riepilogo(conta)} su {dati.uffici.length} uffici · Staff = persone in servizio nel mese</span>
+              <span className="legenda-titolo">Rapportini: {riepilogo(conta)} su {dati.uffici.length} uffici · Staff = persone in servizio nel mese</span>
             </>} />
             <tbody>
               {blocchi.map((b, i) => [
-                i > 0 && <tr key={`sep${i}`} className="separatore-blocco"><td colSpan={colonne.length + 2} /></tr>,
+                i > 0 && <tr key={`sep${i}`} className="separatore-blocco"><td colSpan={colonne.length + 1} /></tr>,
                 ...b.map(rigaUfficio),
               ])}
               <tr className="riga-totale-mese">
                 <th scope="row" className="ufficio-fisso">Totale {generale ? 'gruppo' : titolo}</th>
-                <td />
                 {colonne.map((c) => <td key={c} className="destra">{formattaNumero(totale.get(c))}</td>)}
               </tr>
               {generale && (
                 <>
                   <tr className="riga-anno-prima">
                     <th scope="row" className="ufficio-fisso">{titoloMese(meseAnnoPrima)}<span className="piccolo non-stampa">scritto a mano</span></th>
-                    <td />
                     {colonne.map((c) => (
                       <td key={c} className="destra">
                         <input inputMode="numeric" value={annoPrima[c] ?? ''} aria-label={`${titoloMese(meseAnnoPrima)} – ${c}`}
@@ -199,7 +196,6 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
                   </tr>
                   <tr className="riga-variazione">
                     <th scope="row" className="ufficio-fisso">Variazione rispetto al {meseAnnoPrima.slice(0, 4)}</th>
-                    <td />
                     {colonne.map((c) => {
                       const v = variazione(totale.get(c), valoreAnnoPrima(c))
                       // per le voci "meglio se scende" (es. incarichi scaduti) un aumento è in rosso
@@ -269,6 +265,7 @@ const LISTE: { ruolo: RuoloPersona; titolo: string }[] = [
 
 function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMese; mese: string; generale: boolean; ctx: Contesto; onSalvato: () => void }) {
   const [citta, setCitta] = useState<number | 'tutte'>('tutte')
+  const [vista, setVista] = useState<'liste' | 'scheda'>('liste')
   const uffici = dati.uffici.filter((u) => citta === 'tutte' || u.ufficio.citta_id === citta)
   const ordineUfficio = new Map(dati.uffici.map((u, i) => [u.ufficio.id, i]))
   const conPunti = dati.punti.size > 0
@@ -277,12 +274,21 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
     .filter((p) => p.ruolo === RUOLO_GARA && inServizio(p, mese))
     .map((p) => punteggio(u.valori.filter((v) => v.persona_id === p.id), dati.punti))
     .filter((x): x is number => x !== null)))
+  // Persone di un ruolo in servizio nel mese, in ordine di ufficio (come nel file di gruppo), con il punteggio della gara
+  const righeDi = (ruolo: RuoloPersona) => uffici
+    .flatMap((u) => u.persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese))
+      .map((p) => ({ p, u, punti: ruolo === RUOLO_GARA ? punteggio(u.valori.filter((v) => v.persona_id === p.id), dati.punti) : null })))
+    .sort((a, b) => ordineUfficio.get(a.u.ufficio.id)! - ordineUfficio.get(b.u.ufficio.id)! || ordinaPersone(a.p, b.p))
   const testoPunti = vociConPunti(dati.voci).filter((v) => dati.punti.has(v.codice))
     .map((v) => `${v.gruppo}${v.sotto ? ` ${SOTTO_BREVE[v.sotto] ?? v.sotto}` : ''} ${formattaPunti(dati.punti.get(v.codice))}`).join(' · ')
 
   return (
     <>
       <div className="comandi non-stampa">
+        <div className="segmentato">
+          <button className={vista === 'liste' ? 'attivo' : ''} onClick={() => setVista('liste')}><Icona nome="table" />Liste con i numeri</button>
+          <button className={vista === 'scheda' ? 'attivo' : ''} onClick={() => setVista('scheda')}><Icona nome="clipboard-text" />Scheda punteggi</button>
+        </div>
         {generale && (
           <div className="segmentato">
             {(['tutte', ...ctx.citta.map((c) => c.id)] as (number | 'tutte')[]).map((c) => (
@@ -292,16 +298,14 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
             ))}
           </div>
         )}
-        <p className="avviso"><Icona nome="info" /><span>Persone in servizio a {titoloMese(mese).toLowerCase()} con i loro numeri del mese. Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</span></p>
+        <p className="avviso"><Icona nome="info" /><span>Persone in servizio a {titoloMese(mese).toLowerCase()}. Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</span></p>
       </div>
-      <TabellaPunti voci={dati.voci} punti={dati.punti} modificabile={generale} onSalvato={onSalvato} />
-      {LISTE.map(({ ruolo, titolo }) => {
+      {vista === 'scheda' && <SchedaPunteggi righe={righeDi(RUOLO_GARA)} migliore={migliore} mese={mese} conPunti={conPunti} />}
+      {vista === 'liste' && <TabellaPunti voci={dati.voci} punti={dati.punti} modificabile={generale} onSalvato={onSalvato} />}
+      {vista === 'liste' && LISTE.map(({ ruolo, titolo }) => {
         const colonne = vociDelRapportino(dati.voci)
         const gara = ruolo === RUOLO_GARA
-        const righe = uffici
-          .flatMap((u) => u.persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese))
-            .map((p) => ({ p, u, punti: gara ? punteggio(u.valori.filter((v) => v.persona_id === p.id), dati.punti) : null })))
-          .sort((a, b) => ordineUfficio.get(a.u.ufficio.id)! - ordineUfficio.get(b.u.ufficio.id)! || ordinaPersone(a.p, b.p))
+        const righe = righeDi(ruolo)
         const primo = (punti: number | null) => gara && punti !== null && punti === migliore
         return (
           <section key={ruolo} className="scheda scheda-stampa">
@@ -358,6 +362,49 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
 }
 
 const SOTTO_BREVE: Record<string, string> = { vendita: 'vend.', locazione: 'loc.' }
+
+// ---------------------------------------------------------------- Scheda punteggi (da stampare e completare a penna)
+
+function SchedaPunteggi({ righe, migliore, mese, conPunti }: {
+  righe: { p: Persona; u: DatiUfficio; punti: number | null }[]; migliore: number; mese: string; conPunti: boolean
+}) {
+  return (
+    <section className="scheda scheda-stampa scheda-punteggi">
+      <div className="non-stampa">
+        <h2>Scheda punteggi · collaboratori <span className="piccolo">({righe.length})</span></h2>
+        <p className="piccolo">Pensata per la stampa (A4 verticale): nome, data di inizio, ufficio e punteggio del mese, più una colonna vuota da compilare a penna.
+          {!conPunti && ' I punti della gara non sono ancora stati decisi: si scrivono in "Liste con i numeri".'}</p>
+      </div>
+      {righe.length === 0 ? <p className="piccolo">Nessun collaboratore in servizio.</p> : (
+        <div className="tabella-scorrevole">
+          <table className="tabella tabella-punteggi">
+            <thead>
+              <tr className="solo-stampa"><th colSpan={5} className="titolo-stampa">Scheda punteggi collaboratori · {titoloMese(mese)}</th></tr>
+              <tr><th>Collaboratore</th><th>Data di inizio</th><th>Ufficio</th><th className="destra">Punteggio</th><th className="colonna-penna">Annotazioni</th></tr>
+            </thead>
+            <tbody>
+              {righe.map(({ p, u, punti }) => {
+                const primo = punti !== null && punti === migliore
+                return (
+                  <tr key={p.id} className={primo ? 'riga-migliore' : ''}>
+                    <th scope="row">{p.nome}{primo && <span className="tag tag-migliore tag-movimento">★ Punteggio più alto</span>}</th>
+                    <td>{dataItaliana(p.data_inizio)}</td>
+                    <td>{u.ufficio.nome}</td>
+                    <td className={`destra cella-punteggio ${punti === null ? 'cella-vuota' : ''}`}>{formattaPunti(punti)}</td>
+                    <td className="colonna-penna" />
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {righe.some((x) => x.punti !== null && x.punti === migliore) && (
+        <p className="legenda legenda-movimenti non-stampa"><span><span className="quadratino riga-migliore" />giallo = punteggio più alto del mese ({formattaPunti(migliore)} punti)</span></p>
+      )}
+    </section>
+  )
+}
 
 // ---------------------------------------------------------------- Tabella dei punti della gara
 

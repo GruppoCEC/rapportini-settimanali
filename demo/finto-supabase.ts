@@ -25,15 +25,25 @@ const nomiUffici: [string, number, number][] = [
   ['Prati', 1, 2], ['Monti', 1, 2], ['Trastevere', 1, 2], ['San Giovanni', 1, 2],
   ['EUR', 1, 3], ['Garbatella', 1, 3], ['Ostiense', 1, 3],
   ['Brera', 2, 4], ['Navigli', 2, 4], ['Porta Romana', 2, 4], ['Isola', 2, 5], ['Città Studi', 2, 5], ['Lambrate', 2, 5],
+  // altri 30 uffici inventati, per arrivare a 47 come nel gruppo vero (serve a provare la stampa su più pagine)
+  ['Appio', 1, 3], ['Tuscolano', 1, 3], ['Centocelle', 1, 3], ['Pigneto', 1, 2], ['Testaccio', 1, 2], ['Aventino', 1, 2],
+  ['Monteverde', 1, 2], ['Portuense', 1, 3], ['Magliana', 1, 3], ['Talenti', 1, 1], ['Montesacro', 1, 1], ['Nomentano', 1, 1],
+  ['Salario', 1, 1], ['Balduina', 1, 1], ['Monte Mario', 1, 1], ['Prenestino', 1, 3], ['Torpignattara', 1, 3], ['Cinecittà', 1, 3],
+  ['Ostia', 1, 3], ['Aurelio', 1, 2],
+  ['Loreto', 2, 5], ['Sempione', 2, 4], ['Bicocca', 2, 5], ['Niguarda', 2, 5], ['Corvetto', 2, 4], ['Barona', 2, 4],
+  ['Lorenteggio', 2, 4], ['Bovisa', 2, 5], ['Turro', 2, 5], ['Washington', 2, 4],
 ]
 // Ordine del report mensile come nel file di gruppo: non alfabetico, Roma e Milano mescolate, due tabelle
 const ORDINE_MENSILE = [
-  ['Trieste', 'Somalia', 'Parioli', 'Brera', 'Prati', 'Monti', 'Navigli', 'Flaminio', 'Trastevere', 'Isola', 'San Giovanni', 'Porta Romana', 'Garbatella', 'Città Studi', 'Lambrate'],
-  ['EUR', 'Ostiense'],
+  ['Trieste', 'Somalia', 'Parioli', 'Brera', 'Prati', 'Monti', 'Navigli', 'Flaminio', 'Trastevere', 'Isola', 'San Giovanni', 'Porta Romana', 'Garbatella', 'Città Studi', 'Lambrate',
+    'Appio', 'Loreto', 'Tuscolano', 'Centocelle', 'Sempione', 'Pigneto', 'Testaccio', 'Aventino', 'Bicocca', 'Monteverde', 'Portuense', 'Niguarda', 'Magliana',
+    'Talenti', 'Montesacro', 'Corvetto', 'Nomentano', 'Salario', 'Barona', 'Balduina', 'Monte Mario', 'Lorenteggio', 'Prenestino', 'Bovisa', 'Torpignattara', 'Turro', 'Washington'],
+  ['EUR', 'Ostiense', 'Cinecittà', 'Ostia', 'Aurelio'],
 ]
 const uffici = nomiUffici.map(([nome, citta_id, area_id], i) => {
-  const blocco = ORDINE_MENSILE.findIndex((b) => b.includes(nome))
-  return { id: i + 1, nome, citta_id, area_id, attivo: true, blocco_mensile: blocco + 1, ordine_mensile: ORDINE_MENSILE[blocco].indexOf(nome) + 1 }
+  const blocco = Math.max(0, ORDINE_MENSILE.findIndex((b) => b.includes(nome)))
+  const posizione = ORDINE_MENSILE[blocco].indexOf(nome)
+  return { id: i + 1, nome, citta_id, area_id, attivo: true, blocco_mensile: blocco + 1, ordine_mensile: posizione >= 0 ? posizione + 1 : null }
 })
 let prossimoIdPersona = 10001   // distinti dagli id assegnati durante la prova (da 100 in su)
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-')

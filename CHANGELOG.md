@@ -12,10 +12,13 @@
   - Si inserisce una volta e vale per tutti i mesi.
   - Chi lascia l'ufficio si chiude con "Ha lasciato": i suoi numeri passati restano.
 - **Report mensile** (amministratori), con tre schede:
-  - **Panoramica**: il riepilogo di gruppo come il file "Modello rapportino mensile gruppo", Roma e Milano insieme, uffici **nell'ordine del file** e nelle sue due tabelle. In fondo ci sono il totale, la riga dello stesso mese dell'anno prima (scritta a mano dall'amministratore generale) e la variazione %. Accanto a ogni ufficio lo stato: completo, parziale o mancante;
+  - **Panoramica**: il riepilogo di gruppo come il file "Modello rapportino mensile gruppo", Roma e Milano insieme, uffici **nell'ordine del file** e nelle sue due tabelle. In fondo ci sono il totale, la riga dello stesso mese dell'anno prima (scritta a mano dall'amministratore generale) e la variazione %. Sopra la tabella, quanti uffici hanno compilato (completi, parziali, mancanti);
   - **Singoli rapportini**: il rapportino di ogni ufficio, persona per persona;
   - **Personale**: liste separate di collaboratori, coordinatrici e marketer, con ufficio, data di inizio, anzianità e numeri del mese. Per i collaboratori c'è anche il punteggio della gara (vedi sotto).
-  - Pulsante **Stampa**: A4 orizzontale; il report di gruppo con 47 uffici sta in una pagina.
+  - **Scheda punteggi** (Personale → Scheda punteggi): solo i collaboratori, con nome, data di inizio, ufficio, punteggio e una colonna "Annotazioni" vuota da compilare a penna. Si stampa in A4 verticale, con righe alte; il punteggio più alto è in giallo.
+  - Pulsante **Stampa**, con caratteri grandi come negli Excel:
+    - report e liste su A4 orizzontale; il report di gruppo con 47 uffici occupa 2 pagine e ripete titolo e intestazioni in cima alla seconda;
+    - le tabelle sono larghe esattamente quanto il foglio, così il browser non le rimpicciolisce.
 - L'amministratore di città vede solo la sua città, l'ufficio solo il proprio rapportino. Le regole sono nel database e sono verificate dai test automatici.
 - **Cambi di personale evidenziati**: nel rapportino, nel riquadro del personale e nelle liste, chi entra nel mese ha la riga **verde** ("Nuovo ingresso dal …") e chi lascia l'ufficio nel mese la riga **rossa** ("Ha lasciato il …"). Anche in stampa.
 - **App. vendita fix** delle coordinatrici: si scrive nell'angolo in alto a destra della stessa casella degli Appuntamenti vendita, che resta grande come le altre, solo sulla riga delle coordinatrici, e si legge come esponente: 12⁹ = 12 appuntamenti, 9 fix. È un indicatore di qualità: non entra nel totale dell'ufficio, nello stato di compilazione né nel report di gruppo. Compare nel rapportino dell'ufficio e nella lista delle coordinatrici; nel backup Excel ha una colonna sua.
