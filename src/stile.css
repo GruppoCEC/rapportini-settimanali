@@ -630,6 +630,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabella-punteggi tbody th { font-weight: 600; }
 .tabella-punteggi .colonna-penna { width: 34%; border-left: 2px dashed var(--bordo-input); }
 .tabella-punteggi td.cella-punteggio { font-weight: 800; color: var(--primario-800); }
+.tabella-punteggi tr.inizio-ufficio > * { border-top: 3px solid var(--testo); }
 
 /* Gara a punti dei collaboratori */
 .griglia-punti { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 12px 20px; }
@@ -689,7 +690,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
    Caratteri grandi e leggibili come negli Excel: il report di gruppo occupa 2 pagine orizzontali
    con l'intestazione ripetuta; la scheda punteggi esce in A4 verticale. */
 @page {
-  size: A4 landscape; margin: 8mm 8mm 12mm;
+  size: A4 landscape; margin: 10mm 8mm 12mm;
   @bottom-left { content: "Gruppo CEC · Rapportini mensili"; font: 8pt 'Manrope', system-ui, sans-serif; color: #6B6F78; }
   @bottom-right { content: "Pagina " counter(page) " di " counter(pages); font: 8pt 'Manrope', system-ui, sans-serif; color: #6B6F78; }
 }
@@ -733,7 +734,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 
   /* Report di gruppo e liste del personale: tante colonne, carattere appena più piccolo */
   .tabella-report td, .tabella-report tbody th, .tabella-report tbody th.ufficio-fisso { font-size: 9.5pt; }
-  .tabella-report td, .tabella-report tbody th { padding-top: 2px !important; padding-bottom: 2px !important; }
+  .tabella-report td, .tabella-report tbody th { padding-top: 1px !important; padding-bottom: 1px !important; }
   .tabella-report .tag { padding: 0; background: none !important; font-size: 9pt; }
   .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 2.6em; font-size: 9.5pt; box-shadow: none !important; text-align: right; }
   .tabella-mensile tbody tr.riga-variazione th, .tabella-mensile tbody tr.riga-anno-prima th { white-space: normal; }
@@ -750,6 +751,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .tabella-punteggi tbody th { font-size: 12pt; font-weight: 600; white-space: nowrap; }
   .tabella-punteggi td { white-space: nowrap; }
   .tabella-punteggi .colonna-penna { width: 38%; }
+  .tabella-punteggi tr.inizio-ufficio > * { border-top: 2pt solid #201E1D !important; }
   .scheda-uscite { page: verticale; }
   .tabella-uscite th, .tabella-uscite td { height: 8mm; font-size: 11pt; }
   .tabella-uscite tbody th { font-size: 11pt; }
@@ -763,7 +765,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 
   /* ---- Veste grafica delle stampe (solo aspetto: nessun dato cambia) ---- */
   /* Intestazione: marchio, titolo, mese e data di stampa, ripetuta in cima a ogni pagina */
-  .tabella-mensile thead th.titolo-stampa, .tabella-punteggi thead th.titolo-stampa { background: none !important; border: 0 !important; padding: 0 0 8px !important; }
+  .tabella-mensile thead th.titolo-stampa, .tabella-punteggi thead th.titolo-stampa { background: none !important; border: 0 !important; padding: 2mm 0 8px !important; vertical-align: top; }
   .stampa-testata {
     display: flex; align-items: center; gap: 12px; padding-bottom: 7px; border-bottom: 2.5pt solid var(--secondario);
     text-align: left; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--testo);

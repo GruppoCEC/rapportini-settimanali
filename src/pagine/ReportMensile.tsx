@@ -112,8 +112,6 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
 }
 
 const plurale = (n: number, uno: string, tanti: string) => `${n} ${n === 1 ? uno : tanti}`
-const riepilogo = (conta: (s: StatoCompilazione) => number) =>
-  [plurale(conta('completo'), 'completo', 'completi'), plurale(conta('parziale'), 'parziale', 'parziali'), plurale(conta('mancante'), 'mancante', 'mancanti')].join(', ')
 
 const nomeCittaBreve = (ctx: Contesto, id: number) => (ctx.citta.find((c) => c.id === id)?.nome ?? '').slice(0, 2).toUpperCase()
 
@@ -176,8 +174,7 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
         <div className="tabella-scorrevole">
           <table className="tabella tabella-mensile tabella-report">
             <TestataVoci voci={voci} prime={['Ufficio', 'Staff']} titoloStampa={
-              <TitoloStampa titolo={`Report mensile · ${generale ? 'Gruppo' : titolo}`} sottotitolo={titoloMese(mese)}
-                info={<><span>Rapportini: {riepilogo(conta)} su {dati.uffici.length} uffici</span><span>Staff = persone in servizio nel mese</span></>} />} />
+              <TitoloStampa titolo={`Report mensile · ${generale ? 'Gruppo' : titolo}`} sottotitolo={titoloMese(mese)} />} />
             <tbody>
               {blocchi.map((b, i) => [
                 i > 0 && <tr key={`sep${i}`} className="separatore-blocco"><td colSpan={colonne.length + 1} /></tr>,
@@ -214,8 +211,7 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
           </table>
         </div>
         <p className="legenda-stampa">
-          Stato: ✓ completo · ◐ parziale · ✗ mancante — {riepilogo(conta)} su {dati.uffici.length} uffici.
-          Staff = persone in servizio nel mese.
+          Staff = persone in servizio nel mese. Le righe con i trattini sono gli uffici che non hanno ancora compilato.
         </p>
         {generale && (
           <div className="barra-confronto non-stampa">
@@ -545,10 +541,11 @@ function SchedaPunteggi({ righe, migliore, mese, conPunti }: {
               <tr><th>Collaboratore</th><th>Ufficio</th><th>Data di inizio</th><th className="destra">Punteggio</th><th className="colonna-penna">Annotazioni</th></tr>
             </thead>
             <tbody>
-              {righe.map(({ p, u, punti }) => {
+              {righe.map(({ p, u, punti }, i) => {
                 const primo = punti !== null && punti === migliore
+                const nuovoUfficio = i > 0 && righe[i - 1].u.ufficio.id !== u.ufficio.id   // linea spessa a ogni cambio di ufficio
                 return (
-                  <tr key={p.id} className={primo ? 'riga-migliore' : ''}>
+                  <tr key={p.id} className={`${primo ? 'riga-migliore' : ''} ${nuovoUfficio ? 'inizio-ufficio' : ''}`}>
                     <th scope="row">{p.nome}{primo && <span className="tag tag-migliore tag-movimento">★ Punteggio più alto</span>}</th>
                     <td>{u.ufficio.nome}</td>
                     <td>{dataItaliana(p.data_inizio)}</td>

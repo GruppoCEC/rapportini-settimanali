@@ -24,7 +24,8 @@
     - righe delle intestazioni in blu scuro, sottovoci (vend./loc.) in blu medio;
     - righe alternate per seguire i numeri, gruppi del rapportino in arancio chiaro, totale in blu con testo bianco;
     - piè di pagina con "Pagina X di Y";
-    - nella scheda punteggi, in fondo, gli spazi per "Compilata da" e "Data";
+    - nella scheda punteggi una linea spessa a ogni cambio di ufficio e, in fondo, gli spazi per "Compilata da" e "Data";
+    - nel report di gruppo, in alto a destra solo la data di stampa;
     - in "Usciti nell'anno" il riepilogo va sotto la tabella.
 - L'amministratore di città vede solo la sua città, l'ufficio solo il proprio rapportino. Le regole sono nel database e sono verificate dai test automatici.
 - **Cambi di personale evidenziati**: nel rapportino, nel riquadro del personale e nelle liste, chi entra nel mese ha la riga **verde** ("Nuovo ingresso dal …") e chi lascia l'ufficio nel mese la riga **rossa** ("Ha lasciato il …"). Anche in stampa.
