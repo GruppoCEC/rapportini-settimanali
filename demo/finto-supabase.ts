@@ -102,10 +102,17 @@ const voci_mensili = [
   ['accettazioni_vendita', 'Accettazioni', 'vendita'], ['accettazioni_locazione', 'Accettazioni', 'locazione'],
   ['vendite_effettuate', 'Vendite effettuate', null], ['richieste_vendita', 'Richieste', 'vendita'], ['richieste_locazione', 'Richieste', 'locazione'],
   ['incarichi_scaduti', 'Incarichi scaduti', null],
-].map(([codice, gruppo, sotto], i) => ({ codice, gruppo, sotto, ordine: i + 1, solo_ruolo: null as string | null, attiva: true }))
+].map(([codice, gruppo, sotto], i) => ({ codice, gruppo, sotto, ordine: i + 1, solo_ruolo: null as string | null, attiva: true,
+  con_punti: codice !== 'gestione_incarichi', meglio_se_scende: codice === 'incarichi_scaduti' }))
 // Indicatore di qualità delle coordinatrici, fuori dai totali
-voci_mensili.push({ codice: 'appuntamenti_vendita_fix', gruppo: 'App. vendita fix', sotto: null, ordine: 50, solo_ruolo: 'coordinatrice', accanto_a: 'appuntamenti_vendita', attiva: true } as any)
-// Valori tipici di un mese per un funzionario [min, max]
+voci_mensili.push({ codice: 'appuntamenti_vendita_fix', gruppo: 'App. vendita fix', sotto: null, ordine: 50, solo_ruolo: 'coordinatrice', accanto_a: 'appuntamenti_vendita', attiva: true, con_punti: false } as any)
+// Punti di ESEMPIO per la gara dei collaboratori (quelli veri li decide Davide in Report mensile → Personale)
+const punti_mensili: any[] = Object.entries({
+  portafoglio_vendita: 1, portafoglio_locazione: 0.5, acquisizioni: 3, appuntamenti_vendita: 1, appuntamenti_locazione: 0.5,
+  incarichi_vendita: 5, incarichi_locazione: 2, ribassi: 1, kiron: 2, colloqui: 1, proposte_vendita: 4, proposte_locazione: 2,
+  accettazioni_vendita: 6, accettazioni_locazione: 3, vendite_effettuate: 10, richieste_vendita: 0.5, richieste_locazione: 0.5, incarichi_scaduti: -3,
+}).map(([voce, punti]) => ({ voce, punti }))
+// Valori tipici di un mese per un collaboratore [min, max]
 const TIPICI: Record<string, [number, number]> = {
   portafoglio_vendita: [2, 14], portafoglio_locazione: [0, 4], acquisizioni: [0, 4], appuntamenti_vendita: [6, 36], appuntamenti_locazione: [0, 10],
   incarichi_vendita: [0, 4], incarichi_locazione: [0, 2], gestione_incarichi: [0, 9], ribassi: [0, 4], kiron: [0, 3], colloqui: [0, 8],
@@ -121,19 +128,19 @@ const valori_mensili: any[] = []
 const confronto_anno_prima: any[] = []
 const dataTra = (annoMin: number, annoMax: number) => `${tra(annoMin, annoMax)}-${String(tra(1, 12)).padStart(2, '0')}-${String(tra(1, 28)).padStart(2, '0')}`
 for (const u of uffici) {
-  const ruoli = ['responsabile', ...Array(tra(2, 4)).fill('funzionario'), ...(caso() < 0.75 ? ['coordinatrice'] : []), ...(caso() < 0.55 ? ['marketer'] : [])]
+  const ruoli = ['responsabile', ...Array(tra(2, 4)).fill('collaboratore'), ...(caso() < 0.75 ? ['coordinatrice'] : []), ...(caso() < 0.55 ? ['marketer'] : [])]
   for (const ruolo of ruoli) {
     persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo,
       data_inizio: ruolo === 'responsabile' ? dataTra(2008, 2018) : dataTra(2015, 2025), data_fine: null })
   }
   // Qualche cambio di personale: un'uscita due mesi fa e un ingresso nel mese da compilare
-  if (u.id % 4 === 0) persone.find((p) => p.ufficio_id === u.id && p.ruolo === 'funzionario').data_fine = ultimoGiornoDelMese(aggiungiMesi(meseDaCompilare, -2))
+  if (u.id % 4 === 0) persone.find((p) => p.ufficio_id === u.id && p.ruolo === 'collaboratore').data_fine = ultimoGiornoDelMese(aggiungiMesi(meseDaCompilare, -2))
   // e qualche uscita proprio nel mese da compilare (righe rosse)
   if (u.id % 3 === 1) {
     const chi = persone.filter((p) => p.ufficio_id === u.id && p.ruolo !== 'responsabile' && !p.data_fine).pop()
     if (chi) chi.data_fine = `${meseDaCompilare.slice(0, 8)}${String(tra(10, 28)).padStart(2, '0')}`
   }
-  if (u.id % 5 === 2) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo: 'funzionario', data_inizio: `${meseDaCompilare.slice(0, 8)}${String(tra(1, 20)).padStart(2, '0')}`, data_fine: null })
+  if (u.id % 5 === 2) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo: 'collaboratore', data_inizio: `${meseDaCompilare.slice(0, 8)}${String(tra(1, 20)).padStart(2, '0')}`, data_fine: null })
 }
 for (const mese of mesiDemo) {
   for (const u of uffici) {
@@ -143,7 +150,7 @@ for (const mese of mesiDemo) {
     const da = utenti.find((x) => x.ufficio_id === u.id && x.ruolo === 'ufficio')!.email
     const ts = new Date(`${aggiungiMesi(mese, 1).slice(0, 8)}0${tra(1, 5)}T${tra(10, 18)}:${tra(10, 59)}:00`).toISOString()
     persone.filter((p) => p.ufficio_id === u.id && inServizio(p, mese)).forEach((p, n) => {
-      const peso = p.ruolo === 'funzionario' ? 1 : p.ruolo === 'responsabile' ? 0.7 : 0.35
+      const peso = p.ruolo === 'collaboratore' ? 1 : p.ruolo === 'responsabile' ? 0.7 : 0.35
       for (const [voce, [min, max]] of Object.entries(TIPICI)) {
         if (parziale && n > 1) continue
         valori_mensili.push({ persona_id: p.id, ufficio_id: u.id, mese, voce, valore: Math.round(tra(min, max) * peso), aggiornato_da: da, aggiornato_il: ts })
@@ -164,7 +171,7 @@ for (const mese of mesiDemo.slice(-3)) {
   confronto_anno_prima.push({ mese: aggiungiMesi(mese, -12), voce: 'staff', valore: persone.filter((p) => inServizio(p, mese)).length - tra(0, 6) })
 }
 
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima }
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili }
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
 const CHIAVE = 'rapportini.demo.utente'
@@ -191,6 +198,7 @@ function visibile(tabella: string, riga: any): boolean {
     case 'utenti': return riga.email === me.email || gestisce(riga.citta_id)
     case 'rilevazioni': case 'note_settimana': case 'persone': case 'valori_mensili': return ufficiLeggibili().has(riga.ufficio_id)
     case 'confronto_anno_prima': return me.ruolo === 'admin_generale'
+    case 'punti_mensili': return me.ruolo === 'admin_generale' || me.ruolo === 'admin_citta'
     default: return true
   }
 }
@@ -241,7 +249,7 @@ class Interrogazione {
             const riservata = voci_mensili.find((v) => v.codice === r.voce)?.solo_ruolo
             if (riservata && riservata !== persona?.ruolo) return { data: null, error: { message: `La voce ${r.voce} si compila solo per il ruolo ${riservata}` } }
           }
-          if (this.tabella === 'confronto_anno_prima' && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
+          if (['confronto_anno_prima', 'punti_mensili'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
           if (['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella)) {
             if (!ufficiLeggibili().has(r.ufficio_id) || me.ruolo === 'responsabile' && r.ufficio_id !== me.ufficio_id) {
               return { data: null, error: { message: 'new row violates row-level security policy' } }

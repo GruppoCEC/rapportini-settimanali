@@ -74,7 +74,7 @@ async function aPagine<T>(richiesta: (da: number, a: number) => PromiseLike<{ da
 
 /** Le colonne del rapportino mensile, nell'ordine del file Excel */
 export async function caricaVociMensili(): Promise<VoceMensile[]> {
-  const { data, error } = await supabase.from('voci_mensili').select('codice, gruppo, sotto, ordine, solo_ruolo, accanto_a').eq('attiva', true).order('ordine')
+  const { data, error } = await supabase.from('voci_mensili').select('codice, gruppo, sotto, ordine, solo_ruolo, accanto_a, con_punti, meglio_se_scende').eq('attiva', true).order('ordine')
   if (error) throw new Error(error.message)
   return data as VoceMensile[]
 }
@@ -101,6 +101,13 @@ export async function caricaConfronto(mese: string): Promise<Map<string, number 
   const { data, error } = await supabase.from('confronto_anno_prima').select('voce, valore').eq('mese', mese)
   if (error) throw new Error(error.message)
   return new Map((data as { voce: string; valore: number | null }[]).map((r) => [r.voce, r.valore]))
+}
+
+/** Punti della gara dei collaboratori (voce → punti per unità); vuota se non ancora decisi */
+export async function caricaPunti(): Promise<Map<string, number>> {
+  const { data, error } = await supabase.from('punti_mensili').select('voce, punti')
+  if (error) throw new Error(error.message)
+  return new Map((data as { voce: string; punti: number | string }[]).map((r) => [r.voce, Number(r.punti)]))
 }
 
 /** Tutto il mensile, per il backup (null se le tabelle non esistono ancora nel database) */

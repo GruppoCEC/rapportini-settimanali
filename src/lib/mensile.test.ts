@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, formattaAnzianita, indicatori, indicatoriAccanto, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
+  aggiungiMesi, formattaAnzianita, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   righeDelMese, sommaTotali, statoMensile, STAFF, titoloMese, totaleUfficio, ultimoGiornoDelMese, variazione,
 } from './mensile'
 import type { Persona, Ufficio, ValoreMensile, VoceMensile } from './tipi'
@@ -27,10 +27,10 @@ describe('mesi', () => {
 
 describe('persone', () => {
   const persone = [
-    persona(1, 'funzionario', '2020-01-15'),
+    persona(1, 'collaboratore', '2020-01-15'),
     persona(2, 'responsabile', '2018-06-01'),
     persona(3, 'marketer', '2026-09-30'),               // inizia l'ultimo giorno del mese: conta
-    persona(4, 'funzionario', '2019-01-01', '2026-08-31'), // uscita ad agosto: a settembre non c'è
+    persona(4, 'collaboratore', '2019-01-01', '2026-08-31'), // uscita ad agosto: a settembre non c'è
     persona(5, 'coordinatrice', '2026-10-01'),          // inizia a ottobre
   ]
 
@@ -39,7 +39,7 @@ describe('persone', () => {
   })
 
   it('mette le righe in ordine di ruolo e tiene chi ha numeri anche se uscito', () => {
-    expect(righeDelMese(persone, [val(4, 'colloqui', 2)], '2026-09-01').map((p) => p.id)).toEqual([2, 4, 1, 3])   // funzionari dal più anziano
+    expect(righeDelMese(persone, [val(4, 'colloqui', 2)], '2026-09-01').map((p) => p.id)).toEqual([2, 4, 1, 3])   // collaboratori dal più anziano
   })
 
   it('calcola l\'anzianità a fine mese', () => {
@@ -53,11 +53,11 @@ describe('persone', () => {
 
 describe('cambi di personale nel mese', () => {
   it('verde chi entra, rosso chi esce', () => {
-    expect(movimentoNelMese(persona(1, 'funzionario', '2026-09-10'), '2026-09-01')).toBe('entrata')
-    expect(movimentoNelMese(persona(2, 'funzionario', '2020-01-01', '2026-09-30'), '2026-09-01')).toBe('uscita')
+    expect(movimentoNelMese(persona(1, 'collaboratore', '2026-09-10'), '2026-09-01')).toBe('entrata')
+    expect(movimentoNelMese(persona(2, 'collaboratore', '2020-01-01', '2026-09-30'), '2026-09-01')).toBe('uscita')
     expect(movimentoNelMese(persona(3, 'marketer', '2026-09-01', '2026-09-20'), '2026-09-01')).toBe('uscita')
-    expect(movimentoNelMese(persona(4, 'funzionario', '2020-01-01', '2026-10-15'), '2026-09-01')).toBeNull()
-    expect(movimentoNelMese(persona(5, 'funzionario', '2026-08-31'), '2026-09-01')).toBeNull()
+    expect(movimentoNelMese(persona(4, 'collaboratore', '2020-01-01', '2026-10-15'), '2026-09-01')).toBeNull()
+    expect(movimentoNelMese(persona(5, 'collaboratore', '2026-08-31'), '2026-09-01')).toBeNull()
   })
 })
 
@@ -67,9 +67,9 @@ describe('indicatore delle coordinatrici', () => {
     const tutte = [...voci, fix]
     expect(vociDelRapportino(tutte)).toEqual(voci)
     expect(indicatori(tutte, 'coordinatrice')).toEqual([fix])
-    expect(indicatori(tutte, 'funzionario')).toEqual([])
+    expect(indicatori(tutte, 'collaboratore')).toEqual([])
     expect(indicatoriAccanto(tutte, 'colloqui', 'coordinatrice')).toEqual([fix])
-    expect(indicatoriAccanto(tutte, 'colloqui', 'funzionario')).toEqual([])
+    expect(indicatoriAccanto(tutte, 'colloqui', 'collaboratore')).toEqual([])
     const valori = [val(1, 'colloqui', 1), val(1, 'proposte_vendita', 0), val(1, 'appuntamenti_vendita_fix', 12)]
     const t = totaleUfficio(persone, valori, '2026-09-01', tutte)
     expect(t.has('appuntamenti_vendita_fix')).toBe(false)
@@ -78,7 +78,7 @@ describe('indicatore delle coordinatrici', () => {
 })
 
 describe('totali', () => {
-  const persone = [persona(1, 'responsabile', '2020-01-01'), persona(2, 'funzionario', '2021-01-01'), persona(3, 'funzionario', '2026-10-01')]
+  const persone = [persona(1, 'responsabile', '2020-01-01'), persona(2, 'collaboratore', '2021-01-01'), persona(3, 'collaboratore', '2026-10-01')]
 
   it('il totale dell\'ufficio somma le persone e conta lo staff', () => {
     const t = totaleUfficio(persone, [val(1, 'colloqui', 3), val(2, 'colloqui', 4), val(2, 'proposte_vendita', 0), val(1, 'colloqui', 9, '2026-08-01')], '2026-09-01', voci)
@@ -109,8 +109,39 @@ describe('totali', () => {
   })
 })
 
+describe('gara a punti dei collaboratori', () => {
+  const gestione: VoceMensile = { codice: 'gestione_incarichi', gruppo: 'Gestione incarichi', sotto: null, ordine: 3, con_punti: false }
+  it('Gestione incarichi e il fix non danno punti', () => {
+    expect(vociConPunti([...voci, gestione, fix]).map((v) => v.codice)).toEqual(['colloqui', 'proposte_vendita'])
+  })
+  it('punteggio = somma di numero × punti, anche con punti negativi e decimali', () => {
+    const punti = new Map([['colloqui', 2.5], ['proposte_vendita', 4], ['incarichi_scaduti', -3]])
+    expect(punteggio([val(1, 'colloqui', 4), val(1, 'proposte_vendita', 2), val(1, 'incarichi_scaduti', 1), val(1, 'kiron', 9)], punti)).toBe(15)
+    expect(punteggio([], punti)).toBeNull()                                   // nessun numero nel mese
+    expect(punteggio([val(1, 'colloqui', 4)], new Map())).toBeNull()        // punti non ancora decisi
+    expect(formattaPunti(12.5)).toBe('12,5')
+    expect(formattaPunti(-3)).toBe('−3')
+  })
+  it('legge i punti scritti all\'italiana', () => {
+    expect(leggiPunti('2,5')).toBe(2.5)
+    expect(leggiPunti('-3')).toBe(-3)
+    expect(leggiPunti('')).toBeNull()
+    expect(leggiPunti('tre')).toBe('errore')
+  })
+})
+
+describe('colore della variazione', () => {
+  it('per gli incarichi scaduti un aumento è negativo', () => {
+    const scaduti: VoceMensile = { codice: 'incarichi_scaduti', gruppo: 'Incarichi scaduti', sotto: null, ordine: 19, meglio_se_scende: true }
+    expect(variazioneBuona(0.2, scaduti)).toBe(false)
+    expect(variazioneBuona(-0.2, scaduti)).toBe(true)
+    expect(variazioneBuona(0.2, voci[0])).toBe(true)
+    expect(variazioneBuona(-0.2)).toBe(false)
+  })
+})
+
 describe('stato del rapportino', () => {
-  const persone = [persona(1, 'responsabile', '2020-01-01'), persona(2, 'funzionario', '2021-01-01')]
+  const persone = [persona(1, 'responsabile', '2020-01-01'), persona(2, 'collaboratore', '2021-01-01')]
   it('mancante, parziale, completo', () => {
     expect(statoMensile(persone, [], voci)).toBe('mancante')
     expect(statoMensile(persone, [val(1, 'colloqui', null)], voci)).toBe('mancante')

@@ -10,11 +10,11 @@ import type { Persona, RuoloPersona, Ufficio, ValoreMensile, VoceMensile } from 
 /** Chiave dello staff nei totali (non è una colonna da compilare) */
 export const STAFF = 'staff'
 
-export const ORDINE_RUOLI: RuoloPersona[] = ['responsabile', 'funzionario', 'coordinatrice', 'marketer']
+export const ORDINE_RUOLI: RuoloPersona[] = ['responsabile', 'collaboratore', 'coordinatrice', 'marketer']
 
 /** Le due tabelle del rapportino dell'ufficio, come nel file Excel */
 export const GRUPPI_PERSONE: { titolo: string; ruoli: RuoloPersona[] }[] = [
-  { titolo: 'Responsabile e funzionari', ruoli: ['responsabile', 'funzionario'] },
+  { titolo: 'Responsabile e collaboratori', ruoli: ['responsabile', 'collaboratore'] },
   { titolo: 'Coordinatrici e marketer', ruoli: ['coordinatrice', 'marketer'] },
 ]
 
@@ -71,6 +71,44 @@ export function indicatori(voci: VoceMensile[], ruolo?: RuoloPersona): VoceMensi
   return voci.filter((v) => v.solo_ruolo && (!ruolo || v.solo_ruolo === ruolo))
 }
 
+/** Le voci che danno punti nella gara dei collaboratori (tutte quelle del rapportino tranne Gestione incarichi) */
+export function vociConPunti(voci: VoceMensile[]): VoceMensile[] {
+  return vociDelRapportino(voci).filter((v) => v.con_punti !== false)
+}
+
+/** Solo i collaboratori partecipano alla gara a punti */
+export const RUOLO_GARA: RuoloPersona = 'collaboratore'
+
+/**
+ * Punteggio del mese di una persona = somma di (numero × punti della voce).
+ * Vuoto se i punti non sono ancora stati decisi o se la persona non ha numeri nel mese.
+ */
+export function punteggio(valoriPersona: ValoreMensile[], punti: Map<string, number>): number | null {
+  if (punti.size === 0) return null
+  const pieni = valoriPersona.filter((v) => v.valore !== null && punti.has(v.voce))
+  if (pieni.length === 0) return null
+  return Math.round(pieni.reduce((t, v) => t + v.valore! * punti.get(v.voce)!, 0) * 100) / 100
+}
+
+/** Es. "42", "12,5", "−3" */
+export function formattaPunti(n: number | null | undefined): string {
+  if (n == null) return '—'
+  return n.toLocaleString('it-IT', { maximumFractionDigits: 2 }).replace('-', '−')
+}
+
+/** Legge i punti scritti in una casella: "5", "2,5", "-3" → numero; "" → null; altro → 'errore' */
+export function leggiPunti(testo: string): number | null | 'errore' {
+  const t = testo.trim().replace(',', '.').replace('−', '-')
+  if (t === '') return null
+  if (!/^-?\d{1,4}(\.\d{1,2})?$/.test(t)) return 'errore'
+  return Number(t)
+}
+
+/** La variazione è un buon segno? Per le voci "meglio se scende" (es. incarichi scaduti) un aumento è negativo */
+export function variazioneBuona(v: number, voce?: VoceMensile): boolean {
+  return voce?.meglio_se_scende ? v <= 0 : v >= 0
+}
+
 /** Gli indicatori da mostrare tra parentesi in una colonna, per una persona con quel ruolo */
 export function indicatoriAccanto(voci: VoceMensile[], colonna: string, ruolo: RuoloPersona): VoceMensile[] {
   return indicatori(voci, ruolo).filter((v) => v.accanto_a === colonna)
@@ -94,7 +132,7 @@ export function movimentoNelMese(p: Persona, mese: string): 'entrata' | 'uscita'
   return null
 }
 
-/** Ordine delle righe: responsabile, funzionari, coordinatrici, marketer; poi per anzianità e nome */
+/** Ordine delle righe: responsabile, collaboratori, coordinatrici, marketer; poi per anzianità e nome */
 export function ordinaPersone(a: Persona, b: Persona): number {
   return ORDINE_RUOLI.indexOf(a.ruolo) - ORDINE_RUOLI.indexOf(b.ruolo)
     || a.data_inizio.localeCompare(b.data_inizio) || a.nome.localeCompare(b.nome)

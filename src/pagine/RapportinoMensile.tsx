@@ -204,7 +204,7 @@ function messaggioErrore(m: string): string {
 }
 
 function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast }: PropsPersonale) {
-  const vuota: Bozza = { nome: '', ruolo: 'funzionario', data_inizio: '', data_fine: '' }
+  const vuota: Bozza = { nome: '', ruolo: 'collaboratore', data_inizio: '', data_fine: '' }
   const [nuova, setNuova] = useState<Bozza>(vuota)
   const [inModifica, setInModifica] = useState<{ id: number; bozza: Bozza } | null>(null)
   const [errore, setErrore] = useState<string | null>(null)

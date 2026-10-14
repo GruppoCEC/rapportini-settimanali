@@ -8,17 +8,25 @@
   - una riga per persona, con le stesse 19 colonne del file "Rapportino vuoto NUOVO" (portafoglio, acquisizioni, appuntamenti, incarichi, … incarichi scaduti), vendita e locazione separate;
   - totale dell'ufficio e **staff** (numero di persone in servizio nel mese) calcolati da soli;
   - si apre sul mese appena concluso; con Invio si passa alla casella sotto, come in Excel.
-- **Personale dell'ufficio**: nome, ruolo (responsabile, funzionario, coordinatrice, marketer) e **data di inizio**.
+- **Personale dell'ufficio**: nome, ruolo (responsabile, collaboratore, coordinatrice, marketer) e **data di inizio**.
   - Si inserisce una volta e vale per tutti i mesi.
   - Chi lascia l'ufficio si chiude con "Ha lasciato": i suoi numeri passati restano.
 - **Report mensile** (amministratori), con tre schede:
   - **Panoramica**: il riepilogo di gruppo come il file "Modello rapportino mensile gruppo", Roma e Milano insieme, uffici **nell'ordine del file** e nelle sue due tabelle. In fondo ci sono il totale, la riga dello stesso mese dell'anno prima (scritta a mano dall'amministratore generale) e la variazione %. Accanto a ogni ufficio lo stato: completo, parziale o mancante;
   - **Singoli rapportini**: il rapportino di ogni ufficio, persona per persona;
-  - **Personale**: liste separate di funzionari, coordinatrici e marketer, con ufficio, data di inizio, anzianità e numeri del mese. La colonna "Punteggio" è pronta per i criteri che verranno definiti.
+  - **Personale**: liste separate di collaboratori, coordinatrici e marketer, con ufficio, data di inizio, anzianità e numeri del mese. Per i collaboratori c'è anche il punteggio della gara (vedi sotto).
   - Pulsante **Stampa**: A4 orizzontale; il report di gruppo con 47 uffici sta in una pagina.
 - L'amministratore di città vede solo la sua città, l'ufficio solo il proprio rapportino. Le regole sono nel database e sono verificate dai test automatici.
 - **Cambi di personale evidenziati**: nel rapportino, nel riquadro del personale e nelle liste, chi entra nel mese ha la riga **verde** ("Nuovo ingresso dal …") e chi lascia l'ufficio nel mese la riga **rossa** ("Ha lasciato il …"). Anche in stampa.
 - **App. vendita fix** delle coordinatrici: si scrive nell'angolo in alto a destra della stessa casella degli Appuntamenti vendita, che resta grande come le altre, solo sulla riga delle coordinatrici, e si legge come esponente: 12⁹ = 12 appuntamenti, 9 fix. È un indicatore di qualità: non entra nel totale dell'ufficio, nello stato di compilazione né nel report di gruppo. Compare nel rapportino dell'ufficio e nella lista delle coordinatrici; nel backup Excel ha una colonna sua.
+- **Gara a punti dei collaboratori** (Report mensile → Personale):
+  - tabella "Come si ottengono i punti": i punti di ogni voce, tranne Gestione incarichi. Si accettano decimali (2,5) e numeri negativi (es. -3 per ogni incarico scaduto). Li decide l'amministratore generale; l'amministratore di città li vede soltanto;
+  - punteggio del mese = numero × punti, sommati su tutte le voci;
+  - la lista Collaboratori si può vedere come **classifica** (a pari punti, stessa posizione) oppure per ufficio;
+  - coordinatrici e marketer non partecipano e non hanno la colonna Punteggio;
+  - in stampa, sotto la classifica, sono elencati i punti usati.
+- "Funzionario" diventa **collaboratore** in tutto il rapportino mensile.
+- Nel report di gruppo la variazione degli **incarichi scaduti** ha i colori invertiti: se aumentano è in rosso.
 - **Amministrazione → Uffici**: tabella (1ª o 2ª) e posizione di ogni ufficio nel report mensile.
 - **Backup in Excel**: due fogli in più, "Mensile" e "Personale".
 - Il menu "Inserisci settimana / Inserisci mese" e le voci un po' più strette, così il menu degli amministratori sta su una riga.

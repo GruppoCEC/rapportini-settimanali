@@ -19,7 +19,7 @@ create table persone (
   id            bigint generated always as identity primary key,
   ufficio_id    bigint not null references uffici on delete cascade,
   nome          text not null check (length(trim(nome)) between 1 and 80),
-  ruolo         text not null check (ruolo in ('responsabile', 'funzionario', 'coordinatrice', 'marketer')),
+  ruolo         text not null check (ruolo in ('responsabile', 'collaboratore', 'coordinatrice', 'marketer')),
   data_inizio   date not null,
   data_fine     date,
   aggiornato_da text,
@@ -32,15 +32,19 @@ create index persone_ufficio_idx on persone (ufficio_id);
 -- solo_ruolo: voce che si compila solo per quel ruolo ed è un indicatore a parte:
 -- non entra nel totale dell'ufficio, nello stato di compilazione né nel report di gruppo
 -- (es. "App. vendita fix" delle coordinatrici, indicatore di qualità).
--- accanto_a: la colonna in cui l'indicatore si mostra tra parentesi (es. 12 (9) negli appuntamenti vendita).
+-- accanto_a: la colonna in cui l'indicatore si mostra come esponente (es. 12⁹ negli appuntamenti vendita).
+-- con_punti: la voce conta nella gara a punti dei collaboratori (non conta Gestione incarichi).
+-- meglio_se_scende: nel report un aumento è negativo (es. Incarichi scaduti → variazione in rosso).
 create table voci_mensili (
-  codice     text primary key,
-  gruppo     text not null,
-  sotto      text,
-  ordine     smallint not null,
-  solo_ruolo text check (solo_ruolo in ('responsabile', 'funzionario', 'coordinatrice', 'marketer')),
-  accanto_a  text references voci_mensili,
-  attiva     boolean not null default true
+  codice           text primary key,
+  gruppo           text not null,
+  sotto            text,
+  ordine           smallint not null,
+  solo_ruolo       text check (solo_ruolo in ('responsabile', 'collaboratore', 'coordinatrice', 'marketer')),
+  accanto_a        text references voci_mensili,
+  con_punti        boolean not null default true,
+  meglio_se_scende boolean not null default false,
+  attiva           boolean not null default true
 );
 
 -- I numeri del mese: una riga per persona + mese + voce.
@@ -67,6 +71,16 @@ create table confronto_anno_prima (
   aggiornato_da text,
   aggiornato_il timestamptz not null default now(),
   primary key (mese, voce)
+);
+
+-- Gara a punti dei collaboratori: quanti punti vale ogni unità di una voce
+-- (es. 1 incarico vendita = 5 punti; può essere negativo, es. incarichi scaduti).
+-- Punteggio del mese = somma di (numero × punti). Li decide l'amministratore generale.
+create table punti_mensili (
+  voce          text primary key references voci_mensili,
+  punti         numeric(6, 2) not null,
+  aggiornato_da text,
+  aggiornato_il timestamptz not null default now()
 );
 
 -- ---------------------------------------------------------------------
@@ -136,6 +150,22 @@ end $$;
 create trigger confronto_prima before insert or update on confronto_anno_prima
 for each row execute function confronto_prima_del_salvataggio();
 
+-- Punti: solo per le voci che partecipano alla gara (non Gestione incarichi)
+create function punti_prima_del_salvataggio() returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not coalesce((select con_punti and solo_ruolo is null from voci_mensili where codice = new.voce), false) then
+    raise exception 'La voce % non dà punti', new.voce;
+  end if;
+  new.aggiornato_da := nullif(email_corrente(), '');
+  new.aggiornato_il := now();
+  return new;
+end $$;
+
+create trigger punti_prima before insert or update on punti_mensili
+for each row execute function punti_prima_del_salvataggio();
+
 -- Registro delle modifiche (stessa tabella dei dati settimanali;
 -- nella colonna "settimana" si annota il mese)
 create function registra_modifica_mensile() returns trigger
@@ -158,6 +188,8 @@ create trigger valori_mensili_registro after insert or update or delete on valor
 for each row execute function registra_modifica_mensile();
 create trigger confronto_registro after insert or update or delete on confronto_anno_prima
 for each row execute function registra_modifica_mensile();
+create trigger punti_registro after insert or update or delete on punti_mensili
+for each row execute function registra_modifica_mensile();
 
 -- ---------------------------------------------------------------------
 -- Regole di accesso (stesse funzioni dei dati settimanali, 002_sicurezza.sql)
@@ -167,6 +199,7 @@ alter table persone              enable row level security;
 alter table voci_mensili         enable row level security;
 alter table valori_mensili       enable row level security;
 alter table confronto_anno_prima enable row level security;
+alter table punti_mensili        enable row level security;
 
 -- Personale e numeri: l'ufficio vede e modifica solo i propri,
 -- l'amministratore di città la sua città, l'amministratore generale tutto
@@ -198,8 +231,14 @@ create policy voci_mensili_gestione on voci_mensili for all to authenticated
 create policy confronto_gestione on confronto_anno_prima for all to authenticated
   using (sono_admin_generale()) with check (sono_admin_generale());
 
-revoke all on persone, voci_mensili, valori_mensili, confronto_anno_prima from anon;
-grant select, insert, update, delete on persone, voci_mensili, valori_mensili, confronto_anno_prima to authenticated;
+-- Punti della gara: li vedono gli amministratori, li decide l'amministratore generale
+create policy punti_lettura on punti_mensili for select to authenticated
+  using (mio_ruolo() in ('admin_generale', 'admin_citta'));
+create policy punti_gestione on punti_mensili for all to authenticated
+  using (sono_admin_generale()) with check (sono_admin_generale());
+
+revoke all on persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili from anon;
+grant select, insert, update, delete on persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili to authenticated;
 
 -- ---------------------------------------------------------------------
 -- Le 19 colonne del rapportino (file "Rapportino vuoto NUOVO.xlsx"), più l'indicatore delle coordinatrici.
@@ -226,6 +265,9 @@ insert into voci_mensili (codice, gruppo, sotto, ordine) values
   ('richieste_locazione',    'Richieste',            'locazione', 18),
   ('incarichi_scaduti',      'Incarichi scaduti',    null,        19);
 
+update voci_mensili set con_punti = false where codice = 'gestione_incarichi';      -- nella gara non dà punti
+update voci_mensili set meglio_se_scende = true where codice = 'incarichi_scaduti'; -- se aumentano è un male
+
 -- Indicatore di qualità delle coordinatrici: tra parentesi negli appuntamenti vendita, fuori dai totali
-insert into voci_mensili (codice, gruppo, sotto, ordine, solo_ruolo, accanto_a) values
-  ('appuntamenti_vendita_fix', 'App. vendita fix', null, 50, 'coordinatrice', 'appuntamenti_vendita');
+insert into voci_mensili (codice, gruppo, sotto, ordine, solo_ruolo, accanto_a, con_punti) values
+  ('appuntamenti_vendita_fix', 'App. vendita fix', null, 50, 'coordinatrice', 'appuntamenti_vendita', false);

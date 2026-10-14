@@ -61,7 +61,7 @@ export const NOMI_RUOLO: Record<Ruolo, string> = {
 
 // ---------------------------------------------------------------- Rapportino mensile
 
-export type RuoloPersona = 'responsabile' | 'funzionario' | 'coordinatrice' | 'marketer'
+export type RuoloPersona = 'responsabile' | 'collaboratore' | 'coordinatrice' | 'marketer'
 
 export interface Persona {
   id: number
@@ -79,7 +79,9 @@ export interface VoceMensile {
   sotto: string | null
   ordine: number
   solo_ruolo?: RuoloPersona | null   // indicatore di un solo ruolo, fuori dai totali (es. App. vendita fix delle coordinatrici)
-  accanto_a?: string | null          // colonna in cui l'indicatore si mostra tra parentesi (es. appuntamenti_vendita)
+  accanto_a?: string | null          // colonna in cui l'indicatore si mostra come esponente (es. appuntamenti_vendita)
+  con_punti?: boolean                // conta nella gara a punti dei collaboratori (non Gestione incarichi)
+  meglio_se_scende?: boolean         // nel report un aumento è negativo (es. Incarichi scaduti)
 }
 
 export interface ValoreMensile {
@@ -94,7 +96,7 @@ export interface ValoreMensile {
 
 export const NOMI_RUOLO_PERSONA: Record<RuoloPersona, string> = {
   responsabile: 'Responsabile',
-  funzionario: 'Funzionario',
+  collaboratore: 'Collaboratore',
   coordinatrice: 'Coordinatrice',
   marketer: 'Marketer',
 }

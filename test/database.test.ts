@@ -254,14 +254,14 @@ describe('Rapportino mensile', () => {
      on conflict (persona_id, mese, voce) do update set valore = excluded.valore`
 
   beforeAll(async () => {
-    pB = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaB}, 'Bruno Bianchi', 'funzionario', '2020-01-01') returning id`)
+    pB = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaB}, 'Bruno Bianchi', 'collaboratore', '2020-01-01') returning id`)
     pM = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${milanoA}, 'Marta Meli', 'coordinatrice', '2024-05-01') returning id`)
     await db.exec(`${valore(pB, 'colloqui', 4)}; ${valore(pM, 'colloqui', 2)}`)
   })
 
   it('l\'ufficio registra il proprio personale e i suoi numeri', async () => {
     const [p] = await come<{ id: number; nome: string; aggiornato_da: string }>('a@test.it',
-      `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, '  Anna   Rossi ', 'funzionario', '2023-03-01') returning id, nome, aggiornato_da`, [romaA])
+      `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, '  Anna   Rossi ', 'collaboratore', '2023-03-01') returning id, nome, aggiornato_da`, [romaA])
     pA = p.id
     expect(p.nome).toBe('Anna Rossi')
     expect(p.aggiornato_da).toBe('a@test.it')
@@ -314,10 +314,19 @@ describe('Rapportino mensile', () => {
   })
 
   it('l\'indicatore "App. vendita fix" si compila solo per le coordinatrici', async () => {
-    await rifiutata('a@test.it', valore(pA, 'appuntamenti_vendita_fix', 3))            // Anna è funzionario
+    await rifiutata('a@test.it', valore(pA, 'appuntamenti_vendita_fix', 3))            // Anna è collaboratore
     await come('adminmi@test.it', valore(pM, 'appuntamenti_vendita_fix', 12))          // Marta è coordinatrice
     const r = (await db.query<{ valore: number }>(`select valore from valori_mensili where persona_id = $1 and voce = 'appuntamenti_vendita_fix'`, [pM])).rows[0]
     expect(r.valore).toBe(12)
+  })
+
+  it('i punti della gara li decide l\'amministratore generale e li vedono solo gli amministratori', async () => {
+    await come('davide@test.it', `insert into punti_mensili (voce, punti) values ('incarichi_vendita', 5), ('incarichi_scaduti', -2.5)`)
+    expect(await come('adminmi@test.it', `select * from punti_mensili`)).toHaveLength(2)
+    expect(await come('a@test.it', `select * from punti_mensili`)).toHaveLength(0)
+    await rifiutata('adminmi@test.it', `insert into punti_mensili (voce, punti) values ('kiron', 1)`)
+    await rifiutata('davide@test.it', `insert into punti_mensili (voce, punti) values ('gestione_incarichi', 1)`)          // non dà punti
+    await rifiutata('davide@test.it', `insert into punti_mensili (voce, punti) values ('appuntamenti_vendita_fix', 1)`)    // indicatore
   })
 
   it('tutti vedono le 19 colonne del rapportino più l\'indicatore, nessuno estraneo', async () => {
