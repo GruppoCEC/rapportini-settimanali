@@ -269,10 +269,14 @@ const LISTE: { ruolo: RuoloPersona; titolo: string }[] = [
 
 function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMese; mese: string; generale: boolean; ctx: Contesto; onSalvato: () => void }) {
   const [citta, setCitta] = useState<number | 'tutte'>('tutte')
-  const [ordine, setOrdine] = useState<'punteggio' | 'ufficio'>('punteggio')
   const uffici = dati.uffici.filter((u) => citta === 'tutte' || u.ufficio.citta_id === citta)
   const ordineUfficio = new Map(dati.uffici.map((u, i) => [u.ufficio.id, i]))
   const conPunti = dati.punti.size > 0
+  // Punteggio più alto del mese su tutto il gruppo (anche filtrando per città): quella riga va in giallo
+  const migliore = Math.max(-Infinity, ...dati.uffici.flatMap((u) => u.persone
+    .filter((p) => p.ruolo === RUOLO_GARA && inServizio(p, mese))
+    .map((p) => punteggio(u.valori.filter((v) => v.persona_id === p.id), dati.punti))
+    .filter((x): x is number => x !== null)))
   const testoPunti = vociConPunti(dati.voci).filter((v) => dati.punti.has(v.codice))
     .map((v) => `${v.gruppo}${v.sotto ? ` ${SOTTO_BREVE[v.sotto] ?? v.sotto}` : ''} ${formattaPunti(dati.punti.get(v.codice))}`).join(' · ')
 
@@ -294,34 +298,27 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
       {LISTE.map(({ ruolo, titolo }) => {
         const colonne = vociDelRapportino(dati.voci)
         const gara = ruolo === RUOLO_GARA
-        const classifica = gara && conPunti && ordine === 'punteggio'
         const righe = uffici
           .flatMap((u) => u.persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese))
             .map((p) => ({ p, u, punti: gara ? punteggio(u.valori.filter((v) => v.persona_id === p.id), dati.punti) : null })))
-          .sort((a, b) => (classifica ? (b.punti ?? -Infinity) - (a.punti ?? -Infinity) : 0)
-            || ordineUfficio.get(a.u.ufficio.id)! - ordineUfficio.get(b.u.ufficio.id)! || ordinaPersone(a.p, b.p))
+          .sort((a, b) => ordineUfficio.get(a.u.ufficio.id)! - ordineUfficio.get(b.u.ufficio.id)! || ordinaPersone(a.p, b.p))
+        const primo = (punti: number | null) => gara && punti !== null && punti === migliore
         return (
           <section key={ruolo} className="scheda scheda-stampa">
-            <div className="scheda-titolo non-stampa">
-              <h2>{titolo} <span className="piccolo">({righe.length}){gara ? ' · gara a punti' : ''}</span></h2>
-              {gara && conPunti && (
-                <div className="segmentato">
-                  <button className={ordine === 'punteggio' ? 'attivo' : ''} onClick={() => setOrdine('punteggio')}><Icona nome="trophy" />Classifica</button>
-                  <button className={ordine === 'ufficio' ? 'attivo' : ''} onClick={() => setOrdine('ufficio')}><Icona nome="storefront" />Per ufficio</button>
-                </div>
-              )}
-            </div>
+            <h2 className="non-stampa">{titolo} <span className="piccolo">({righe.length}){gara ? ' · gara a punti' : ''}</span></h2>
             {righe.length === 0 ? <p className="piccolo">Nessuna persona con questo ruolo.</p> : (
               <div className="tabella-scorrevole">
                 <table className="tabella tabella-mensile tabella-report">
                   <TestataVoci voci={colonne} prime={['Nome', 'Ufficio', 'Inizio · anzianità']} ultime={gara ? ['Punteggio'] : []}
                     annotazioni={annotazioniIndicatori(dati.voci, righe.map((x) => x.p)).annotazioni}
-                    titoloStampa={`${titolo} · ${titoloMese(mese)} (${righe.length})${classifica ? ' · classifica a punti' : ''}`} />
+                    titoloStampa={`${titolo} · ${titoloMese(mese)} (${righe.length})`} />
                   <tbody>
                     {righe.map(({ p, u, punti }) => (
-                      <tr key={p.id} className={classeMovimento(p, mese)}>
+                      <tr key={p.id} className={primo(punti) ? 'riga-migliore' : classeMovimento(p, mese)}>
                         <th scope="row" className="ufficio-fisso">
-                          {classifica && punti !== null && <span className="posizione">{righe.filter((x) => (x.punti ?? -Infinity) > punti).length + 1}º</span>}{p.nome}<EtichettaMovimento persona={p} mese={mese} />
+                          {p.nome}
+                          {primo(punti) && <span className="tag tag-migliore tag-movimento">★ Punteggio più alto del mese</span>}
+                          <EtichettaMovimento persona={p} mese={mese} />
                         </th>
                         <td>{u.ufficio.nome}</td>
                         <td className="cella-inizio">{dataItaliana(p.data_inizio)}<span className="piccolo">{formattaAnzianita(mesiDiServizio(p.data_inizio, mese))}</span></td>
@@ -347,6 +344,9 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
               </div>
             )}
             {gara && testoPunti && <p className="solo-stampa-blocco legenda-punti">Punti: {testoPunti}. Gestione incarichi non dà punti.</p>}
+            {gara && righe.some((x) => primo(x.punti)) && (
+              <p className="legenda legenda-movimenti"><span><span className="quadratino riga-migliore" />giallo = punteggio più alto del mese ({formattaPunti(migliore)} punti)</span></p>
+            )}
             <LegendaIndicatori usati={annotazioniIndicatori(dati.voci, righe.map((x) => x.p)).usati} voci={colonne} />
             {righe.some(({ p }) => movimentoNelMese(p, mese)) && <LegendaMovimenti />}
           </section>
@@ -389,7 +389,7 @@ function TabellaPunti({ voci, punti, modificabile, onSalvato }: { voci: VoceMens
     setStato('pronto')
     const e = esiti.find((r) => r.error)?.error
     if (e) { setErrore(`Salvataggio non riuscito: ${e.message}`); return }
-    mostraToast('Punti salvati: punteggi e classifica aggiornati.')
+    mostraToast('Punti salvati: punteggi aggiornati.')
     onSalvato()
   }
 
@@ -417,7 +417,7 @@ function TabellaPunti({ voci, punti, modificabile, onSalvato }: { voci: VoceMens
       </div>
       {modificabile && (
         <div className="barra-confronto">
-          {errore ? <span className="errore">{errore}</span> : <span className="piccolo">{cambiate.length > 0 ? 'Punti modificati: salva per aggiornare punteggi e classifica.' : 'Casella vuota = la voce non dà punti.'}</span>}
+          {errore ? <span className="errore">{errore}</span> : <span className="piccolo">{cambiate.length > 0 ? 'Punti modificati: salva per aggiornare i punteggi.' : 'Casella vuota = la voce non dà punti.'}</span>}
           <button className="btn btn-primario" disabled={cambiate.length === 0 || stato !== 'pronto'} onClick={salva}>
             <Icona nome={stato === 'salvataggio' ? 'circle-notch' : 'floppy-disk'} className={stato === 'salvataggio' ? 'gira' : ''} />Salva i punti
           </button>

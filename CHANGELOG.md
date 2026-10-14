@@ -22,9 +22,9 @@
 - **Gara a punti dei collaboratori** (Report mensile → Personale):
   - tabella "Come si ottengono i punti": i punti di ogni voce, tranne Gestione incarichi. Si accettano decimali (2,5) e numeri negativi (es. -3 per ogni incarico scaduto). Li decide l'amministratore generale; l'amministratore di città li vede soltanto;
   - punteggio del mese = numero × punti, sommati su tutte le voci;
-  - la lista Collaboratori si può vedere come **classifica** (a pari punti, stessa posizione) oppure per ufficio;
+  - la lista Collaboratori resta in ordine di ufficio; la riga di chi ha il **punteggio più alto del mese** (su tutto il gruppo) è **gialla**, con la scritta "★ Punteggio più alto del mese". A pari punti si evidenziano entrambi;
   - coordinatrici e marketer non partecipano e non hanno la colonna Punteggio;
-  - in stampa, sotto la classifica, sono elencati i punti usati.
+  - in stampa, sotto la lista, sono elencati i punti usati.
 - "Funzionario" diventa **collaboratore** in tutto il rapportino mensile.
 - Nel report di gruppo la variazione degli **incarichi scaduti** ha i colori invertiti: se aumentano è in rosso.
 - **Amministrazione → Uffici**: tabella (1ª o 2ª) e posizione di ogni ufficio nel report mensile.

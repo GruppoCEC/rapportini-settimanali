@@ -619,7 +619,11 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .input-punti { display: flex; align-items: center; gap: 6px; }
 .input-punti input { width: 80px; min-height: 38px; text-align: right; font-weight: 700; }
 .input-punti > span { font-size: 13px; color: var(--testo-tenue); }
-.posizione { display: inline-block; min-width: 26px; margin-right: 6px; font-weight: 800; color: var(--secondario-700); }
+.tabella tr.riga-migliore > *, .tabella tr.riga-migliore > th.ufficio-fisso { background: #FFF1A6; }
+.tabella tr.riga-migliore > th:first-child { box-shadow: inset 4px 0 0 #E2B400; padding-left: 12px; }
+.tabella tr.riga-migliore td.cella-punteggio { background: #FFE266; color: #5C4600; }
+.tag-migliore { background: #FFE266; color: #5C4600; }
+.quadratino.riga-migliore { background: #FFF1A6; border: 2px solid #E2B400; }
 .tabella-mensile td.cella-punteggio { font-weight: 800; color: var(--primario-800); background: var(--primario-100); min-width: 60px; }
 
 /* Cambi di personale nel mese: verde chi entra, rosso chi esce (con etichetta scritta, mai solo colore) */
