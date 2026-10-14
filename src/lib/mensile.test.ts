@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, formattaAnzianita, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
+  aggiungiMesi, formattaAnzianita, indicatori, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   righeDelMese, sommaTotali, statoMensile, STAFF, titoloMese, totaleUfficio, ultimoGiornoDelMese, variazione,
 } from './mensile'
 import type { Persona, Ufficio, ValoreMensile, VoceMensile } from './tipi'
@@ -9,6 +9,7 @@ const voci: VoceMensile[] = [
   { codice: 'colloqui', gruppo: 'Colloqui', sotto: null, ordine: 1 },
   { codice: 'proposte_vendita', gruppo: 'Proposte', sotto: 'vendita', ordine: 2 },
 ]
+const fix: VoceMensile = { codice: 'appuntamenti_vendita_fix', gruppo: 'App. vendita fix', sotto: null, ordine: 50, solo_ruolo: 'coordinatrice' }
 const persona = (id: number, ruolo: Persona['ruolo'], data_inizio: string, data_fine: string | null = null): Persona =>
   ({ id, ufficio_id: 1, nome: `Persona ${id}`, ruolo, data_inizio, data_fine })
 const val = (persona_id: number, voce: string, valore: number | null, mese = '2026-09-01'): ValoreMensile =>
@@ -47,6 +48,30 @@ describe('persone', () => {
     expect(formattaAnzianita(12)).toBe('1 anno')
     expect(formattaAnzianita(1)).toBe('1 mese')
     expect(formattaAnzianita(mesiDiServizio('2026-09-30', '2026-09-01'))).toBe('meno di un mese')
+  })
+})
+
+describe('cambi di personale nel mese', () => {
+  it('verde chi entra, rosso chi esce', () => {
+    expect(movimentoNelMese(persona(1, 'funzionario', '2026-09-10'), '2026-09-01')).toBe('entrata')
+    expect(movimentoNelMese(persona(2, 'funzionario', '2020-01-01', '2026-09-30'), '2026-09-01')).toBe('uscita')
+    expect(movimentoNelMese(persona(3, 'marketer', '2026-09-01', '2026-09-20'), '2026-09-01')).toBe('uscita')
+    expect(movimentoNelMese(persona(4, 'funzionario', '2020-01-01', '2026-10-15'), '2026-09-01')).toBeNull()
+    expect(movimentoNelMese(persona(5, 'funzionario', '2026-08-31'), '2026-09-01')).toBeNull()
+  })
+})
+
+describe('indicatore delle coordinatrici', () => {
+  const persone = [persona(1, 'coordinatrice', '2020-01-01')]
+  it('App. vendita fix non entra nei totali né nello stato di compilazione', () => {
+    const tutte = [...voci, fix]
+    expect(vociDelRapportino(tutte)).toEqual(voci)
+    expect(indicatori(tutte, 'coordinatrice')).toEqual([fix])
+    expect(indicatori(tutte, 'funzionario')).toEqual([])
+    const valori = [val(1, 'colloqui', 1), val(1, 'proposte_vendita', 0), val(1, 'appuntamenti_vendita_fix', 12)]
+    const t = totaleUfficio(persone, valori, '2026-09-01', tutte)
+    expect(t.has('appuntamenti_vendita_fix')).toBe(false)
+    expect(statoMensile(persone, valori.slice(0, 2), tutte)).toBe('completo')   // completo anche senza il fix
   })
 })
 

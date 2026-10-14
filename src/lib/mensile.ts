@@ -59,11 +59,34 @@ export function dataItaliana(iso: string | null): string {
   return `${g}/${m}/${a}`
 }
 
+// ---------------------------------------------------------------- Colonne
+
+/** Le colonne del rapportino vero e proprio: entrano nei totali e nel report di gruppo */
+export function vociDelRapportino(voci: VoceMensile[]): VoceMensile[] {
+  return voci.filter((v) => !v.solo_ruolo)
+}
+
+/** Gli indicatori riservati a un ruolo (es. App. vendita fix delle coordinatrici): fuori dai totali */
+export function indicatori(voci: VoceMensile[], ruolo?: RuoloPersona): VoceMensile[] {
+  return voci.filter((v) => v.solo_ruolo && (!ruolo || v.solo_ruolo === ruolo))
+}
+
 // ---------------------------------------------------------------- Persone
 
 /** La persona era in ufficio in quel mese? (iniziata entro la fine del mese, non uscita prima dell'inizio) */
 export function inServizio(p: Persona, mese: string): boolean {
   return p.data_inizio <= ultimoGiornoDelMese(mese) && (!p.data_fine || p.data_fine >= mese)
+}
+
+/**
+ * Cambi di personale nel mese: "uscita" se la persona ha lasciato l'ufficio in quel mese,
+ * "entrata" se ha iniziato in quel mese (se entrambe, conta l'uscita).
+ */
+export function movimentoNelMese(p: Persona, mese: string): 'entrata' | 'uscita' | null {
+  const fine = ultimoGiornoDelMese(mese)
+  if (p.data_fine && p.data_fine >= mese && p.data_fine <= fine) return 'uscita'
+  if (p.data_inizio >= mese && p.data_inizio <= fine) return 'entrata'
+  return null
 }
 
 /** Ordine delle righe: responsabile, funzionari, coordinatrici, marketer; poi per anzianità e nome */
@@ -104,7 +127,7 @@ export function formattaAnzianita(mesi: number): string {
 
 /** Somma voce per voce dei valori indicati (vuota se nessuno ha scritto quella voce) */
 export function sommaValori(valori: ValoreMensile[], voci: VoceMensile[]): TotaliMese {
-  const totali: TotaliMese = new Map(voci.map((v) => [v.codice, null]))
+  const totali: TotaliMese = new Map(vociDelRapportino(voci).map((v) => [v.codice, null]))
   for (const v of valori) {
     if (v.valore === null || !totali.has(v.voce)) continue
     totali.set(v.voce, (totali.get(v.voce) ?? 0) + v.valore)
@@ -150,8 +173,9 @@ export function variazione(attuale: number | null | undefined, annoPrima: number
 export function statoMensile(personeInServizio: Persona[], valori: ValoreMensile[], voci: VoceMensile[]): StatoCompilazione {
   const pieni = new Set(valori.filter((v) => v.valore !== null).map((v) => `${v.persona_id}|${v.voce}`))
   if (pieni.size === 0) return 'mancante'
+  const colonne = vociDelRapportino(voci)        // gli indicatori (es. App. vendita fix) non sono obbligatori
   const completo = personeInServizio.length > 0
-    && personeInServizio.every((p) => voci.every((v) => pieni.has(`${p.id}|${v.codice}`)))
+    && personeInServizio.every((p) => colonne.every((v) => pieni.has(`${p.id}|${v.codice}`)))
   return completo ? 'completo' : 'parziale'
 }
 

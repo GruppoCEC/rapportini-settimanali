@@ -313,8 +313,16 @@ describe('Rapportino mensile', () => {
     expect(await conta()).toBe(prima + 1)
   })
 
-  it('tutti vedono le 19 colonne del rapportino, nessuno estraneo', async () => {
-    expect(await come('a@test.it', `select * from voci_mensili`)).toHaveLength(19)
+  it('l\'indicatore "App. vendita fix" si compila solo per le coordinatrici', async () => {
+    await rifiutata('a@test.it', valore(pA, 'appuntamenti_vendita_fix', 3))            // Anna è funzionario
+    await come('adminmi@test.it', valore(pM, 'appuntamenti_vendita_fix', 12))          // Marta è coordinatrice
+    const r = (await db.query<{ valore: number }>(`select valore from valori_mensili where persona_id = $1 and voce = 'appuntamenti_vendita_fix'`, [pM])).rows[0]
+    expect(r.valore).toBe(12)
+  })
+
+  it('tutti vedono le 19 colonne del rapportino più l\'indicatore, nessuno estraneo', async () => {
+    expect(await come('a@test.it', `select * from voci_mensili where solo_ruolo is null`)).toHaveLength(19)
+    expect(await come('a@test.it', `select * from voci_mensili where solo_ruolo = 'coordinatrice'`)).toHaveLength(1)
     expect(await come('estraneo@test.it', `select * from voci_mensili`)).toHaveLength(0)
     expect(await come('estraneo@test.it', `select * from persone`)).toHaveLength(0)
   })

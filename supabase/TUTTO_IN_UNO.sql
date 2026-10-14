@@ -562,13 +562,17 @@ create table persone (
 );
 create index persone_ufficio_idx on persone (ufficio_id);
 
--- Le colonne del rapportino mensile (gruppo = intestazione in alto, sotto = vendita/locazione)
+-- Le colonne del rapportino mensile (gruppo = intestazione in alto, sotto = vendita/locazione).
+-- solo_ruolo: voce che si compila solo per quel ruolo ed è un indicatore a parte:
+-- non entra nel totale dell'ufficio, nello stato di compilazione né nel report di gruppo
+-- (es. "App. vendita fix" delle coordinatrici, indicatore di qualità).
 create table voci_mensili (
-  codice text primary key,
-  gruppo text not null,
-  sotto  text,
-  ordine smallint not null,
-  attiva boolean not null default true
+  codice     text primary key,
+  gruppo     text not null,
+  sotto      text,
+  ordine     smallint not null,
+  solo_ruolo text check (solo_ruolo in ('responsabile', 'funzionario', 'coordinatrice', 'marketer')),
+  attiva     boolean not null default true
 );
 
 -- I numeri del mese: una riga per persona + mese + voce.
@@ -626,12 +630,18 @@ create trigger persone_prima before insert or update on persone
 for each row execute function persone_prima_del_salvataggio();
 
 -- Valori: l'ufficio si ricava sempre dalla persona (così nessuno può scrivere
--- numeri di un'altra persona "travestendoli" da propri), salvataggi identici ignorati
+-- numeri di un'altra persona "travestendoli" da propri), le voci riservate a un ruolo
+-- si accettano solo per quel ruolo, salvataggi identici ignorati
 create function valori_mensili_prima_del_salvataggio() returns trigger
 language plpgsql security definer set search_path = public
 as $$
+declare
+  riservata text := (select solo_ruolo from voci_mensili where codice = new.voce);
 begin
   new.ufficio_id := (select ufficio_id from persone where id = new.persona_id);
+  if riservata is not null and riservata <> (select ruolo from persone where id = new.persona_id) then
+    raise exception 'La voce % si compila solo per il ruolo %', new.voce, riservata;
+  end if;
   if tg_op = 'UPDATE' and new.valore is not distinct from old.valore then
     return null;
   end if;
@@ -724,7 +734,7 @@ revoke all on persone, voci_mensili, valori_mensili, confronto_anno_prima from a
 grant select, insert, update, delete on persone, voci_mensili, valori_mensili, confronto_anno_prima to authenticated;
 
 -- ---------------------------------------------------------------------
--- Le 19 colonne del rapportino (file "Rapportino vuoto NUOVO.xlsx").
+-- Le 19 colonne del rapportino (file "Rapportino vuoto NUOVO.xlsx"), più l'indicatore delle coordinatrici.
 -- Lo "Staff" non è una colonna da compilare: è il numero di persone, contato in automatico.
 -- ---------------------------------------------------------------------
 insert into voci_mensili (codice, gruppo, sotto, ordine) values
@@ -747,3 +757,7 @@ insert into voci_mensili (codice, gruppo, sotto, ordine) values
   ('richieste_vendita',      'Richieste',            'vendita',   17),
   ('richieste_locazione',    'Richieste',            'locazione', 18),
   ('incarichi_scaduti',      'Incarichi scaduti',    null,        19);
+
+-- Indicatore di qualità delle coordinatrici: fuori dal rapportino e dai totali
+insert into voci_mensili (codice, gruppo, sotto, ordine, solo_ruolo) values
+  ('appuntamenti_vendita_fix', 'App. vendita fix', null, 50, 'coordinatrice');

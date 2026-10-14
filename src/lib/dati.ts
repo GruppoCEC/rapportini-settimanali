@@ -74,7 +74,7 @@ async function aPagine<T>(richiesta: (da: number, a: number) => PromiseLike<{ da
 
 /** Le colonne del rapportino mensile, nell'ordine del file Excel */
 export async function caricaVociMensili(): Promise<VoceMensile[]> {
-  const { data, error } = await supabase.from('voci_mensili').select('codice, gruppo, sotto, ordine').eq('attiva', true).order('ordine')
+  const { data, error } = await supabase.from('voci_mensili').select('codice, gruppo, sotto, ordine, solo_ruolo').eq('attiva', true).order('ordine')
   if (error) throw new Error(error.message)
   return data as VoceMensile[]
 }

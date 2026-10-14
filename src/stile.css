@@ -574,7 +574,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 
 /* ---------------------------------------------------------------- Rapportino e report mensile */
 .tabella-mensile { font-size: 13px; }
-.tabella-mensile thead th { white-space: normal; text-align: center; font-size: 10px; letter-spacing: .02em; padding: 6px 2px; line-height: 1.25; vertical-align: bottom; hyphens: auto; -webkit-hyphens: auto; }
+.tabella-mensile thead th { white-space: normal; text-align: center; font-size: 9.5px; letter-spacing: .01em; padding: 6px 2px; line-height: 1.25; vertical-align: bottom; hyphens: auto; -webkit-hyphens: auto; }
 .tabella-mensile thead th.ufficio-fisso { text-align: left; vertical-align: bottom; }
 .tabella-mensile .testa-gruppo { border-bottom: 0; padding-bottom: 2px; }
 .tabella-mensile .testa-sotto { text-transform: none; letter-spacing: 0; font-weight: 600; padding-top: 2px; }
@@ -584,7 +584,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabella-mensile tbody th.ufficio-fisso { min-width: 150px; }
 .tabella-mensile tr.separatore th { padding-top: 16px; background: #fff; }
 .tabella-mensile tr.separatore:hover, .tabella-mensile tr.separatore-blocco:hover { background: none; }
-.tabella-mensile-modifica input { width: 46px; min-height: 36px; padding: 4px 5px; text-align: right; font-size: 14px; font-weight: 600; }
+.tabella-mensile-modifica input { width: 44px; min-height: 36px; padding: 4px 5px; text-align: right; font-size: 14px; font-weight: 600; }
 .nome-persona span:first-child { display: block; font-weight: 600; }
 .nome-persona .piccolo, .riga-totale-mese th .piccolo, .riga-anno-prima th .piccolo { display: block; font-size: 11px; line-height: 1.3; }
 .tabella-mensile tbody th.ufficio-fisso { white-space: normal; max-width: 180px; }
@@ -596,6 +596,8 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabella tr.separatore-blocco td { height: 14px; padding: 0; background: var(--sfondo); border: 0; }
 .tabella-report tbody th.ufficio-fisso { min-width: 150px; }
 .tabella-report .tag { font-size: 11px; padding: 2px 8px; }
+.tabella-report td { white-space: nowrap; }
+.cella-inizio .piccolo { display: block; font-size: 11px; }
 .tag-simbolo { min-width: 26px; justify-content: center; }
 .legenda-stampa { font-size: 12px; color: var(--testo-tenue); }
 .sigla-citta { margin-left: 6px; font-size: 10px; font-weight: 800; letter-spacing: .06em; color: var(--secondario-700); }
@@ -609,6 +611,28 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabella-admin .posizione-report select { min-width: 0; }
 .tabella-admin .posizione-report input { min-width: 0; width: 64px; text-align: right; }
 .solo-stampa { display: none; }
+
+/* Cambi di personale nel mese: verde chi entra, rosso chi esce (con etichetta scritta, mai solo colore) */
+.tabella tr.riga-entrata > *, .tabella tr.riga-entrata > th.ufficio-fisso { background: var(--ok-bg); }
+.tabella tr.riga-uscita > *, .tabella tr.riga-uscita > th.ufficio-fisso { background: var(--ko-bg); }
+.tabella tr.riga-entrata > th:first-child { box-shadow: inset 4px 0 0 var(--ok); }
+.tabella tr.riga-uscita > th:first-child { box-shadow: inset 4px 0 0 var(--ko); }
+.tabella tr.riga-entrata > th:first-child, .tabella tr.riga-uscita > th:first-child { padding-left: 12px; }
+.tag-movimento { display: inline-flex; margin-top: 3px; font-size: 10.5px; padding: 1px 8px; }
+.tabella th .tag-movimento { display: table; }
+.legenda-movimenti { margin-top: 10px; color: var(--testo-2); }
+.legenda-movimenti > span { display: inline-flex; align-items: center; gap: 6px; }
+.quadratino { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
+.quadratino.riga-entrata { background: var(--ok-bg); border: 2px solid var(--ok); }
+.quadratino.riga-uscita { background: var(--ko-bg); border: 2px solid var(--ko); }
+
+/* Indicatore delle coordinatrici (App. vendita fix): colonna a parte, fuori dai totali */
+.testa-indicatore { hyphens: manual; -webkit-hyphens: manual; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--secondario-800); }
+.testa-indicatore > span { font-size: 9px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--testo-tenue); }
+.tabella-mensile th.testa-ultima { min-width: 52px; border-left: 2px dashed var(--secondario-300); }
+.tabella-mensile td.cella-indicatore { border-left: 2px dashed var(--secondario-300); background: var(--secondario-100); }
+.tabella-mensile tr.riga-entrata td.cella-indicatore, .tabella-mensile tr.riga-uscita td.cella-indicatore { background: var(--secondario-100); }
+.tabella-mensile td.cella-esclusa { border-left: 2px dashed var(--secondario-300); background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--testo) 5%, transparent) 6px 7px); }
 
 /* ---------------------------------------------------------------- Stampa (report mensile su A4 orizzontale) */
 @media print {
@@ -648,6 +672,9 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   /* report di gruppo: 47 uffici + totali in una pagina */
   .tabella-report tbody th, .tabella-report tbody th.ufficio-fisso, .tabella-report td { font-size: 6.5pt; }
   .tabella-report td { white-space: nowrap; }
+  .tag-movimento { font-size: 6pt; padding: 0 4px; margin: 0 0 0 4px; display: inline; }
+  .testa-indicatore > span { display: none; }
+  .legenda-movimenti { font-size: 7pt; margin-top: 3px; }
   .nome-persona .piccolo { font-size: 6pt; }
   .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 100%; font-size: 8pt; box-shadow: none !important; }
   .tabella tr.separatore-blocco td { height: 6px; border-left: 0 !important; border-right: 0 !important; background: #fff; }

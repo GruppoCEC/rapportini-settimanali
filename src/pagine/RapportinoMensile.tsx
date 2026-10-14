@@ -15,7 +15,7 @@ import { useDati } from '../lib/useDati'
 import { Caricamento } from '../componenti/Celle'
 import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
-import { TabellaRapportino } from '../componenti/TabellaMensile'
+import { classeMovimento, EtichettaMovimento, TabellaRapportino } from '../componenti/TabellaMensile'
 
 interface Props {
   uffici: Ufficio[]                     // uffici che l'utente può compilare (di solito uno solo)
@@ -301,15 +301,18 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast }
                   )
                 }
                 return (
-                  <tr key={p.id} className={p.data_fine && p.data_fine < oggi ? 'disattivo' : ''}>
+                  <tr key={p.id} className={classeMovimento(p, mese) || (p.data_fine && p.data_fine < oggi ? 'disattivo' : '')}>
                     <th scope="row">{p.nome}</th>
                     <td>{NOMI_RUOLO_PERSONA[p.ruolo]}</td>
                     <td>{dataItaliana(p.data_inizio)}</td>
                     <td>{dataItaliana(p.data_fine)}</td>
                     <td>
-                      <span className={`tag ${servizio ? 'tag-accento' : 'tag-neutro'}`}>
-                        {servizio ? `In servizio a ${titoloMese(mese).split(' ')[0].toLowerCase()}` : p.data_inizio > mese ? 'Non ancora iniziato' : 'Non più in ufficio'}
-                      </span>
+                      <EtichettaMovimento persona={p} mese={mese} />
+                      {!classeMovimento(p, mese) && (
+                        <span className={`tag ${servizio ? 'tag-accento' : 'tag-neutro'}`}>
+                          {servizio ? `In servizio a ${titoloMese(mese).split(' ')[0].toLowerCase()}` : p.data_inizio > mese ? 'Non ancora iniziato' : 'Non più in ufficio'}
+                        </span>
+                      )}
                     </td>
                     <td className="azioni">
                       <button className="btn btn-fantasma" onClick={() => modifica(p)}>Modifica</button>

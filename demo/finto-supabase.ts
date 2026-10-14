@@ -102,7 +102,9 @@ const voci_mensili = [
   ['accettazioni_vendita', 'Accettazioni', 'vendita'], ['accettazioni_locazione', 'Accettazioni', 'locazione'],
   ['vendite_effettuate', 'Vendite effettuate', null], ['richieste_vendita', 'Richieste', 'vendita'], ['richieste_locazione', 'Richieste', 'locazione'],
   ['incarichi_scaduti', 'Incarichi scaduti', null],
-].map(([codice, gruppo, sotto], i) => ({ codice, gruppo, sotto, ordine: i + 1, attiva: true }))
+].map(([codice, gruppo, sotto], i) => ({ codice, gruppo, sotto, ordine: i + 1, solo_ruolo: null as string | null, attiva: true }))
+// Indicatore di qualità delle coordinatrici, fuori dai totali
+voci_mensili.push({ codice: 'appuntamenti_vendita_fix', gruppo: 'App. vendita fix', sotto: null, ordine: 50, solo_ruolo: 'coordinatrice', attiva: true })
 // Valori tipici di un mese per un funzionario [min, max]
 const TIPICI: Record<string, [number, number]> = {
   portafoglio_vendita: [2, 14], portafoglio_locazione: [0, 4], acquisizioni: [0, 4], appuntamenti_vendita: [6, 36], appuntamenti_locazione: [0, 10],
@@ -126,6 +128,11 @@ for (const u of uffici) {
   }
   // Qualche cambio di personale: un'uscita due mesi fa e un ingresso nel mese da compilare
   if (u.id % 4 === 0) persone.find((p) => p.ufficio_id === u.id && p.ruolo === 'funzionario').data_fine = ultimoGiornoDelMese(aggiungiMesi(meseDaCompilare, -2))
+  // e qualche uscita proprio nel mese da compilare (righe rosse)
+  if (u.id % 3 === 1) {
+    const chi = persone.filter((p) => p.ufficio_id === u.id && p.ruolo !== 'responsabile' && !p.data_fine).pop()
+    if (chi) chi.data_fine = `${meseDaCompilare.slice(0, 8)}${String(tra(10, 28)).padStart(2, '0')}`
+  }
   if (u.id % 5 === 2) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo: 'funzionario', data_inizio: `${meseDaCompilare.slice(0, 8)}${String(tra(1, 20)).padStart(2, '0')}`, data_fine: null })
 }
 for (const mese of mesiDemo) {
@@ -140,6 +147,9 @@ for (const mese of mesiDemo) {
       for (const [voce, [min, max]] of Object.entries(TIPICI)) {
         if (parziale && n > 1) continue
         valori_mensili.push({ persona_id: p.id, ufficio_id: u.id, mese, voce, valore: Math.round(tra(min, max) * peso), aggiornato_da: da, aggiornato_il: ts })
+      }
+      if (p.ruolo === 'coordinatrice' && !(parziale && n > 1)) {
+        valori_mensili.push({ persona_id: p.id, ufficio_id: u.id, mese, voce: 'appuntamenti_vendita_fix', valore: tra(6, 30), aggiornato_da: da, aggiornato_il: ts })
       }
     })
   }
@@ -225,7 +235,12 @@ class Interrogazione {
       if (op.tipo === 'insert' || op.tipo === 'upsert') {
         const inseriti: any[] = []
         for (const r of op.righe!) {
-          if (this.tabella === 'valori_mensili') r.ufficio_id = persone.find((p) => p.id === r.persona_id)?.ufficio_id   // come il trigger del database
+          if (this.tabella === 'valori_mensili') {                    // come il trigger del database
+            const persona = persone.find((p) => p.id === r.persona_id)
+            r.ufficio_id = persona?.ufficio_id
+            const riservata = voci_mensili.find((v) => v.codice === r.voce)?.solo_ruolo
+            if (riservata && riservata !== persona?.ruolo) return { data: null, error: { message: `La voce ${r.voce} si compila solo per il ruolo ${riservata}` } }
+          }
           if (this.tabella === 'confronto_anno_prima' && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
           if (['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella)) {
             if (!ufficiLeggibili().has(r.ufficio_id) || me.ruolo === 'responsabile' && r.ufficio_id !== me.ufficio_id) {
