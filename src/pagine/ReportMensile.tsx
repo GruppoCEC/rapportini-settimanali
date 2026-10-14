@@ -372,7 +372,7 @@ function SchedaPunteggi({ righe, migliore, mese, conPunti }: {
     <section className="scheda scheda-stampa scheda-punteggi">
       <div className="non-stampa">
         <h2>Scheda punteggi · collaboratori <span className="piccolo">({righe.length})</span></h2>
-        <p className="piccolo">Pensata per la stampa (A4 verticale): nome, data di inizio, ufficio e punteggio del mese, più una colonna vuota da compilare a penna.
+        <p className="piccolo">Pensata per la stampa (A4 verticale): nome, ufficio, data di inizio e punteggio del mese, più una colonna vuota da compilare a penna.
           {!conPunti && ' I punti della gara non sono ancora stati decisi: si scrivono in "Liste con i numeri".'}</p>
       </div>
       {righe.length === 0 ? <p className="piccolo">Nessun collaboratore in servizio.</p> : (
@@ -380,7 +380,7 @@ function SchedaPunteggi({ righe, migliore, mese, conPunti }: {
           <table className="tabella tabella-punteggi">
             <thead>
               <tr className="solo-stampa"><th colSpan={5} className="titolo-stampa">Scheda punteggi collaboratori · {titoloMese(mese)}</th></tr>
-              <tr><th>Collaboratore</th><th>Data di inizio</th><th>Ufficio</th><th className="destra">Punteggio</th><th className="colonna-penna">Annotazioni</th></tr>
+              <tr><th>Collaboratore</th><th>Ufficio</th><th>Data di inizio</th><th className="destra">Punteggio</th><th className="colonna-penna">Annotazioni</th></tr>
             </thead>
             <tbody>
               {righe.map(({ p, u, punti }) => {
@@ -388,8 +388,8 @@ function SchedaPunteggi({ righe, migliore, mese, conPunti }: {
                 return (
                   <tr key={p.id} className={primo ? 'riga-migliore' : ''}>
                     <th scope="row">{p.nome}{primo && <span className="tag tag-migliore tag-movimento">★ Punteggio più alto</span>}</th>
-                    <td>{dataItaliana(p.data_inizio)}</td>
                     <td>{u.ufficio.nome}</td>
+                    <td>{dataItaliana(p.data_inizio)}</td>
                     <td className={`destra cella-punteggio ${punti === null ? 'cella-vuota' : ''}`}>{formattaPunti(punti)}</td>
                     <td className="colonna-penna" />
                   </tr>

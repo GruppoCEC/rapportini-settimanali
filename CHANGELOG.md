@@ -15,7 +15,7 @@
   - **Panoramica**: il riepilogo di gruppo come il file "Modello rapportino mensile gruppo", Roma e Milano insieme, uffici **nell'ordine del file** e nelle sue due tabelle. In fondo ci sono il totale, la riga dello stesso mese dell'anno prima (scritta a mano dall'amministratore generale) e la variazione %. Sopra la tabella, quanti uffici hanno compilato (completi, parziali, mancanti);
   - **Singoli rapportini**: il rapportino di ogni ufficio, persona per persona;
   - **Personale**: liste separate di collaboratori, coordinatrici e marketer, con ufficio, data di inizio, anzianità e numeri del mese. Per i collaboratori c'è anche il punteggio della gara (vedi sotto).
-  - **Scheda punteggi** (Personale → Scheda punteggi): solo i collaboratori, con nome, data di inizio, ufficio, punteggio e una colonna "Annotazioni" vuota da compilare a penna. Si stampa in A4 verticale, con righe alte; il punteggio più alto è in giallo.
+  - **Scheda punteggi** (Personale → Scheda punteggi): solo i collaboratori, con nome, ufficio, data di inizio, punteggio e una colonna "Annotazioni" vuota da compilare a penna. Si stampa in A4 verticale, con righe alte; il punteggio più alto è in giallo.
   - Pulsante **Stampa**, con caratteri grandi come negli Excel:
     - report e liste su A4 orizzontale; il report di gruppo con 47 uffici occupa 2 pagine e ripete titolo e intestazioni in cima alla seconda;
     - le tabelle sono larghe esattamente quanto il foglio, così il browser non le rimpicciolisce.
