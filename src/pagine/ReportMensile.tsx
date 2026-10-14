@@ -3,12 +3,12 @@
 // singoli uffici; le liste di collaboratori, coordinatrici e marketer, con la gara a punti dei collaboratori.
 import { useEffect, useMemo, useState } from 'react'
 import type { Contesto } from '../lib/contesto'
-import { leggiNumero } from '../lib/calcoli'
+import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
 import { caricaConfronto, caricaPersone, caricaPunti, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
   punteggio, RUOLO_GARA, variazioneBuona, vociConPunti,
-  indicatoriAccanto, movimentoNelMese, ordinaPersone, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleUfficio, variazione,
+  indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleUfficio, variazione,
   vociDelRapportino, type TotaliMese,
 } from '../lib/mensile'
 import { supabase } from '../lib/supabase'
@@ -19,7 +19,7 @@ import { BadgeStato, Caricamento } from '../componenti/Celle'
 import { Icona, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
 import {
-  annotazioniIndicatori, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
+  annotazioniIndicatori, AvvisoUscite, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
 } from '../componenti/TabellaMensile'
 
 type Scheda = 'panoramica' | 'rapportini' | 'personale'
@@ -248,7 +248,7 @@ function SingoliRapportini({ dati, mese }: { dati: DatiMese; mese: string }) {
         {recente?.aggiornato_il && <span className="piccolo">Ultimo salvataggio: {new Date(recente.aggiornato_il).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}</span>}
       </div>
       {u.stato === 'mancante' && <p className="avviso avviso-arancio non-stampa"><Icona nome="warning-circle" /><span>{u.ufficio.nome} non ha ancora inserito i numeri di {titoloMese(mese).toLowerCase()}.</span></p>}
-      <TabellaRapportino voci={dati.voci} mese={mese} righe={righeDelMese(u.persone, u.valori, mese)} totale={u.totale} testo={testo}
+      <TabellaRapportino voci={dati.voci} mese={mese} righe={righeDelMese(u.persone, mese)} totale={u.totale} testo={testo}
         titoloStampa={`Rapportino mensile · ${u.ufficio.nome} · ${titoloMese(mese)}`} />
       <p className="piccolo non-stampa">Per correggere i numeri di un ufficio apri <strong>Rapportino mensile</strong> e scegli l'ufficio in alto.</p>
     </section>
@@ -265,7 +265,7 @@ const LISTE: { ruolo: RuoloPersona; titolo: string }[] = [
 
 function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMese; mese: string; generale: boolean; ctx: Contesto; onSalvato: () => void }) {
   const [citta, setCitta] = useState<number | 'tutte'>('tutte')
-  const [vista, setVista] = useState<'liste' | 'scheda'>('liste')
+  const [vista, setVista] = useState<'liste' | 'scheda' | 'uscite'>('liste')
   const uffici = dati.uffici.filter((u) => citta === 'tutte' || u.ufficio.citta_id === citta)
   const ordineUfficio = new Map(dati.uffici.map((u, i) => [u.ufficio.id, i]))
   const conPunti = dati.punti.size > 0
@@ -288,6 +288,7 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
         <div className="segmentato">
           <button className={vista === 'liste' ? 'attivo' : ''} onClick={() => setVista('liste')}><Icona nome="table" />Liste con i numeri</button>
           <button className={vista === 'scheda' ? 'attivo' : ''} onClick={() => setVista('scheda')}><Icona nome="clipboard-text" />Scheda punteggi</button>
+          <button className={vista === 'uscite' ? 'attivo' : ''} onClick={() => setVista('uscite')}><Icona nome="sign-out" />Usciti nell'anno</button>
         </div>
         {generale && (
           <div className="segmentato">
@@ -298,8 +299,10 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
             ))}
           </div>
         )}
-        <p className="avviso"><Icona nome="info" /><span>Persone in servizio a {titoloMese(mese).toLowerCase()}. Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</span></p>
+        {vista !== 'uscite' && <p className="avviso"><Icona nome="info" /><span>Persone in servizio a {titoloMese(mese).toLowerCase()}. Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</span></p>}
       </div>
+      {vista !== 'uscite' && <AvvisoUscite persone={uffici.flatMap((u) => u.persone.filter((p) => p.ruolo !== 'responsabile').map((p) => ({ p, ufficio: u.ufficio.nome })))} mese={mese} conUfficio />}
+      {vista === 'uscite' && <SchedaUscite uffici={uffici} annoIniziale={mese.slice(0, 4)} />}
       {vista === 'scheda' && <SchedaPunteggi righe={righeDi(RUOLO_GARA)} migliore={migliore} mese={mese} conPunti={conPunti} />}
       {vista === 'liste' && <TabellaPunti voci={dati.voci} punti={dati.punti} modificabile={generale} onSalvato={onSalvato} />}
       {vista === 'liste' && LISTE.map(({ ruolo, titolo }) => {
@@ -352,7 +355,7 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
               <p className="legenda legenda-movimenti"><span><span className="quadratino riga-migliore" />giallo = punteggio più alto del mese ({formattaPunti(migliore)} punti)</span></p>
             )}
             <LegendaIndicatori usati={annotazioniIndicatori(dati.voci, righe.map((x) => x.p)).usati} voci={colonne} />
-            {righe.some(({ p }) => movimentoNelMese(p, mese)) && <LegendaMovimenti />}
+            <LegendaMovimenti persone={righe.map((x) => x.p)} mese={mese} />
           </section>
         )
       })}
@@ -362,6 +365,60 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
 }
 
 const SOTTO_BREVE: Record<string, string> = { vendita: 'vend.', locazione: 'loc.' }
+
+// ---------------------------------------------------------------- Usciti nell'anno (turnover)
+
+const PLURALI_RUOLO: Record<RuoloPersona, string> = { responsabile: 'Responsabili', collaboratore: 'Collaboratori', coordinatrice: 'Coordinatrici', marketer: 'Marketer' }
+
+function SchedaUscite({ uffici, annoIniziale }: { uffici: DatiUfficio[]; annoIniziale: string }) {
+  const [anno, setAnno] = useState(annoIniziale)
+  const persone = uffici.flatMap((u) => u.persone)
+  const ufficioDi = new Map(uffici.flatMap((u) => u.persone.map((p) => [p.id, u.ufficio.nome] as const)))
+  const anni = [...new Set([annoIniziale, ...persone.filter((p) => p.data_fine).map((p) => p.data_fine!.slice(0, 4))])].sort().reverse()
+  const t = turnoverAnno(persone, anno)
+  const perRuolo = ORDINE_RUOLI.map((r) => [r, t.usciti.filter((u) => u.persona.ruolo === r).length] as const).filter(([, n]) => n > 0)
+
+  return (
+    <section className="scheda scheda-stampa scheda-uscite">
+      <div className="scheda-titolo non-stampa">
+        <h2>Usciti nel {anno} <span className="piccolo">({t.usciti.length})</span></h2>
+        <label className="campo campo-anno"><span className="etichetta">Anno</span>
+          <select value={anno} onChange={(e) => setAnno(e.target.value)}>{anni.map((a) => <option key={a} value={a}>{a}</option>)}</select>
+        </label>
+      </div>
+      <div className="riepilogo-turnover">
+        <div><span className="etichetta-maiuscola">Uscite</span><strong>{t.usciti.length}</strong></div>
+        <div><span className="etichetta-maiuscola">In servizio al 1° gennaio</span><strong>{t.organicoInizio}</strong></div>
+        <div><span className="etichetta-maiuscola">Tasso di uscita</span><strong>{t.tasso === null ? '—' : formattaPercentuale(t.tasso)}</strong><span className="piccolo">uscite ÷ in servizio al 1° gennaio</span></div>
+        <div><span className="etichetta-maiuscola">Anzianità media all'uscita</span><strong className="testo-medio">{t.anzianitaMedia === null ? '—' : formattaAnzianita(t.anzianitaMedia)}</strong></div>
+        {perRuolo.length > 0 && <div><span className="etichetta-maiuscola">Per ruolo</span><span className="per-ruolo">{perRuolo.map(([r, n]) => `${n === 1 ? NOMI_RUOLO_PERSONA[r] : PLURALI_RUOLO[r]}: ${n}`).join(' · ')}</span></div>}
+      </div>
+      {t.usciti.length === 0 ? <p className="piccolo">Nessuna uscita registrata nel {anno}.</p> : (
+        <div className="tabella-scorrevole">
+          <table className="tabella tabella-punteggi tabella-uscite">
+            <thead>
+              <tr className="solo-stampa"><th colSpan={6} className="titolo-stampa">Usciti nel {anno} · {t.usciti.length} persone · tasso di uscita {t.tasso === null ? '—' : formattaPercentuale(t.tasso)}</th></tr>
+              <tr><th>Nome</th><th>Ruolo</th><th>Ufficio</th><th>Data di inizio</th><th>Data di uscita</th><th>Anzianità all'uscita</th></tr>
+            </thead>
+            <tbody>
+              {t.usciti.map(({ persona: p, mesi }) => (
+                <tr key={p.id}>
+                  <th scope="row">{p.nome}</th>
+                  <td>{NOMI_RUOLO_PERSONA[p.ruolo]}</td>
+                  <td>{ufficioDi.get(p.id)}</td>
+                  <td>{dataItaliana(p.data_inizio)}</td>
+                  <td>{dataItaliana(p.data_fine)}</td>
+                  <td>{formattaAnzianita(mesi)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="piccolo non-stampa">Sono comprese tutte le persone con data di fine nell'anno, di tutti i ruoli. Gli uffici seguono il filtro per città qui sopra.</p>
+    </section>
+  )
+}
 
 // ---------------------------------------------------------------- Scheda punteggi (da stampare e completare a penna)
 

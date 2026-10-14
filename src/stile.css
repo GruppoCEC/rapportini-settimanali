@@ -613,6 +613,13 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .solo-stampa { display: none; }
 .solo-stampa-blocco { display: none; }
 
+/* Usciti nell'anno (turnover) */
+.campo-anno { flex-direction: row; align-items: center; gap: 8px; }
+.riepilogo-turnover { display: flex; flex-wrap: wrap; gap: 12px; }
+.riepilogo-turnover > div { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; border-radius: 12px; background: var(--ko-bg); min-width: 150px; }
+.riepilogo-turnover strong { font: 800 30px/1.1 var(--font-titoli); color: var(--ko-fg); }
+.riepilogo-turnover strong.testo-medio { font-size: 20px; }
+.riepilogo-turnover .per-ruolo { font-weight: 700; color: var(--ko-fg); }
 /* Scheda punteggi (da stampare e completare a penna) */
 .tabella-punteggi { max-width: 1000px; }
 .tabella-punteggi tbody th { font-weight: 600; }
@@ -642,6 +649,8 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabella th .tag-movimento { display: table; }
 .legenda-movimenti { margin-top: 10px; color: var(--testo-2); }
 .legenda-movimenti > span { display: inline-flex; align-items: center; gap: 6px; }
+.avviso-uscite { background: var(--ko-bg); color: var(--ko-fg); align-items: center; }
+.avviso-uscite .quadratino { flex: none; }
 .quadratino { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
 .quadratino.riga-entrata { background: var(--ok-bg); border: 2px solid var(--ok); }
 .quadratino.riga-uscita { background: var(--ko-bg); border: 2px solid var(--ko); }
@@ -720,6 +729,13 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .tabella-punteggi tbody th { font-size: 12pt; font-weight: 600; white-space: nowrap; }
   .tabella-punteggi td { white-space: nowrap; }
   .tabella-punteggi .colonna-penna { width: 38%; }
+  .scheda-uscite { page: verticale; }
+  .tabella-uscite th, .tabella-uscite td { height: 8mm; font-size: 11pt; }
+  .tabella-uscite tbody th { font-size: 11pt; }
+  .riepilogo-turnover { gap: 6px; margin-bottom: 8px; }
+  .riepilogo-turnover > div { padding: 6px 10px; min-width: 0; }
+  .riepilogo-turnover strong { font-size: 16pt; }
+  .riepilogo-turnover strong.testo-medio { font-size: 11pt; }
 }
 
 /* ---------------------------------------------------------------- Schermi piccoli */

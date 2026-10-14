@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, formattaAnzianita, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
+  aggiungiMesi, formattaAnzianita, turnoverAnno, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   righeDelMese, sommaTotali, statoMensile, STAFF, titoloMese, totaleUfficio, ultimoGiornoDelMese, variazione,
 } from './mensile'
 import type { Persona, Ufficio, ValoreMensile, VoceMensile } from './tipi'
@@ -32,14 +32,16 @@ describe('persone', () => {
     persona(3, 'marketer', '2026-09-30'),               // inizia l'ultimo giorno del mese: conta
     persona(4, 'collaboratore', '2019-01-01', '2026-08-31'), // uscita ad agosto: a settembre non c'è
     persona(5, 'coordinatrice', '2026-10-01'),          // inizia a ottobre
+    persona(6, 'collaboratore', '2019-01-01', '2026-09-15'), // uscita a settembre: a settembre non conta già più
+    persona(7, 'marketer', '2019-01-01', '2026-10-01'), // uscita il 1° ottobre: settembre lo ha fatto tutto
   ]
 
   it('sa chi era in servizio nel mese', () => {
-    expect(persone.filter((p) => inServizio(p, '2026-09-01')).map((p) => p.id)).toEqual([1, 2, 3])
+    expect(persone.filter((p) => inServizio(p, '2026-09-01')).map((p) => p.id)).toEqual([1, 2, 3, 7])
   })
 
-  it('mette le righe in ordine di ruolo e tiene chi ha numeri anche se uscito', () => {
-    expect(righeDelMese(persone, [val(4, 'colloqui', 2)], '2026-09-01').map((p) => p.id)).toEqual([2, 4, 1, 3])   // collaboratori dal più anziano
+  it('mette le righe in ordine di ruolo e non mostra chi è uscito nel mese', () => {
+    expect(righeDelMese(persone, '2026-09-01').map((p) => p.id)).toEqual([2, 1, 7, 3])   // marketer dal più anziano
   })
 
   it('calcola l\'anzianità a fine mese', () => {
@@ -87,6 +89,13 @@ describe('totali', () => {
     expect(t.get(STAFF)).toBe(2)
   })
 
+  it('chi è uscito nel mese non conta nel totale né nello staff, anche se aveva dei numeri', () => {
+    const conUscita = [...persone, persona(9, 'collaboratore', '2020-01-01', '2026-09-20')]
+    const t = totaleUfficio(conUscita, [val(1, 'colloqui', 3), val(9, 'colloqui', 50)], '2026-09-01', voci)
+    expect(t.get('colloqui')).toBe(3)
+    expect(t.get(STAFF)).toBe(2)
+  })
+
   it('una colonna che nessuno ha scritto resta vuota, non zero', () => {
     expect(totaleUfficio(persone, [val(1, 'colloqui', 3)], '2026-09-01', voci).get('proposte_vendita')).toBeNull()
   })
@@ -106,6 +115,23 @@ describe('totali', () => {
     expect(variazione(100, undefined)).toBeNull()
     expect(formattaVariazione(0.125)).toBe('+12,5%')
     expect(formattaVariazione(-0.03)).toBe('−3,0%')
+  })
+})
+
+describe('turnover dell\'anno', () => {
+  it('elenca chi è uscito nell\'anno con l\'anzianità all\'uscita e calcola il tasso', () => {
+    const persone = [
+      persona(1, 'collaboratore', '2020-03-01', '2026-02-15'),   // uscito a febbraio: 5 anni e 11 mesi
+      persona(2, 'marketer', '2025-06-01', '2026-09-30'),        // uscito a settembre: 1 anno e 3 mesi
+      persona(3, 'collaboratore', '2018-01-01'),                 // ancora in ufficio
+      persona(4, 'coordinatrice', '2019-01-01', '2025-12-31'),   // uscito l'anno prima: non conta nel 2026
+      persona(5, 'collaboratore', '2026-04-01', '2026-07-10'),   // entrato e uscito nel 2026
+    ]
+    const t = turnoverAnno(persone, '2026')
+    expect(t.usciti.map((u) => [u.persona.id, u.mesi])).toEqual([[1, 71], [5, 3], [2, 15]])
+    expect(t.organicoInizio).toBe(3)            // persone 1, 2, 3 al 1° gennaio 2026
+    expect(t.tasso).toBe(1)                     // 3 uscite su 3
+    expect(t.anzianitaMedia).toBe(30)
   })
 })
 

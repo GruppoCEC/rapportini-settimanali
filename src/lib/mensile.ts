@@ -76,6 +76,21 @@ export function vociConPunti(voci: VoceMensile[]): VoceMensile[] {
   return vociDelRapportino(voci).filter((v) => v.con_punti !== false)
 }
 
+/**
+ * Turnover dell'anno: chi ha lasciato l'ufficio nell'anno, con l'anzianità al giorno dell'uscita,
+ * e il tasso di uscita = uscite ÷ persone in servizio al 1° gennaio (vuoto se non calcolabile).
+ */
+export function turnoverAnno(persone: Persona[], anno: string) {
+  const inizioAnno = `${anno}-01-01`
+  const usciti = persone
+    .filter((p) => p.data_fine && p.data_fine.startsWith(`${anno}-`))
+    .map((p) => ({ persona: p, mesi: mesiTraDate(p.data_inizio, p.data_fine!) }))
+    .sort((a, b) => a.persona.data_fine!.localeCompare(b.persona.data_fine!) || a.persona.nome.localeCompare(b.persona.nome))
+  const organicoInizio = persone.filter((p) => p.data_inizio <= inizioAnno && (!p.data_fine || p.data_fine >= inizioAnno)).length
+  const anzianitaMedia = usciti.length ? Math.round(usciti.reduce((t, u) => t + u.mesi, 0) / usciti.length) : null
+  return { usciti, organicoInizio, anzianitaMedia, tasso: organicoInizio > 0 ? usciti.length / organicoInizio : null }
+}
+
 /** Solo i collaboratori partecipano alla gara a punti */
 export const RUOLO_GARA: RuoloPersona = 'collaboratore'
 
@@ -116,9 +131,14 @@ export function indicatoriAccanto(voci: VoceMensile[], colonna: string, ruolo: R
 
 // ---------------------------------------------------------------- Persone
 
-/** La persona era in ufficio in quel mese? (iniziata entro la fine del mese, non uscita prima dell'inizio) */
+/**
+ * La persona conta in quel mese? Deve aver iniziato entro la fine del mese e non aver lasciato
+ * l'ufficio durante il mese: chi esce non conta da nessuna parte nel mese in cui esce
+ * (rapportino, totali, staff, liste, gara), decisione di Davide del 14/10/2026.
+ */
 export function inServizio(p: Persona, mese: string): boolean {
-  return p.data_inizio <= ultimoGiornoDelMese(mese) && (!p.data_fine || p.data_fine >= mese)
+  const fine = ultimoGiornoDelMese(mese)
+  return p.data_inizio <= fine && (!p.data_fine || p.data_fine > fine)
 }
 
 /**
@@ -138,19 +158,20 @@ export function ordinaPersone(a: Persona, b: Persona): number {
     || a.data_inizio.localeCompare(b.data_inizio) || a.nome.localeCompare(b.nome)
 }
 
-/**
- * Le righe del rapportino di un mese: le persone in servizio, più chi ha comunque
- * dei numeri in quel mese (così nessun valore salvato sparisce dalla tabella).
- */
-export function righeDelMese(persone: Persona[], valori: ValoreMensile[], mese: string): Persona[] {
-  const conValori = new Set(valori.filter((v) => v.mese === mese && v.valore !== null).map((v) => v.persona_id))
-  return persone.filter((p) => inServizio(p, mese) || conValori.has(p.id)).sort(ordinaPersone)
+/** Le righe del rapportino di un mese: solo le persone in servizio (chi è uscito nel mese non compare) */
+export function righeDelMese(persone: Persona[], mese: string): Persona[] {
+  return persone.filter((p) => inServizio(p, mese)).sort(ordinaPersone)
 }
 
 /** Mesi interi di servizio dalla data di inizio alla fine del mese indicato */
 export function mesiDiServizio(dataInizio: string, mese: string): number {
+  return mesiTraDate(dataInizio, ultimoGiornoDelMese(mese))
+}
+
+/** Mesi interi tra due date 'AAAA-MM-GG' (es. anzianità al giorno dell'uscita) */
+export function mesiTraDate(dataInizio: string, dataFine: string): number {
   const [a1, m1, g1] = dataInizio.split('-').map(Number)
-  const [a2, m2, g2] = ultimoGiornoDelMese(mese).split('-').map(Number)
+  const [a2, m2, g2] = dataFine.split('-').map(Number)
   let n = (a2 - a1) * 12 + (m2 - m1)
   if (g2 < g1) n--
   return Math.max(0, n)
@@ -183,8 +204,9 @@ export function sommaValori(valori: ValoreMensile[], voci: VoceMensile[]): Total
  * `persone` e `valori` sono quelli di un solo ufficio.
  */
 export function totaleUfficio(persone: Persona[], valori: ValoreMensile[], mese: string, voci: VoceMensile[]): TotaliMese {
-  const totali = sommaValori(valori.filter((v) => v.mese === mese), voci)
-  const staff = persone.filter((p) => inServizio(p, mese)).length
+  const inUfficio = new Set(persone.filter((p) => inServizio(p, mese)).map((p) => p.id))   // i numeri di chi è uscito nel mese non contano
+  const totali = sommaValori(valori.filter((v) => v.mese === mese && inUfficio.has(v.persona_id)), voci)
+  const staff = inUfficio.size
   totali.set(STAFF, staff > 0 ? staff : null)
   return totali
 }
@@ -214,7 +236,8 @@ export function variazione(attuale: number | null | undefined, annoPrima: number
  * - parziale: tutto il resto.
  */
 export function statoMensile(personeInServizio: Persona[], valori: ValoreMensile[], voci: VoceMensile[]): StatoCompilazione {
-  const pieni = new Set(valori.filter((v) => v.valore !== null).map((v) => `${v.persona_id}|${v.voce}`))
+  const inUfficio = new Set(personeInServizio.map((p) => p.id))
+  const pieni = new Set(valori.filter((v) => v.valore !== null && inUfficio.has(v.persona_id)).map((v) => `${v.persona_id}|${v.voce}`))
   if (pieni.size === 0) return 'mancante'
   const colonne = vociDelRapportino(voci)        // gli indicatori (es. App. vendita fix) non sono obbligatori
   const completo = personeInServizio.length > 0

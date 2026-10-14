@@ -7,7 +7,7 @@ import { nomeDaEmail } from '../lib/account'
 import { leggiNumero } from '../lib/calcoli'
 import { caricaPersone, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
 import {
-  dataItaliana, inServizio, mesePredefinito, ordinaPersone, righeDelMese, titoloMese, totaleUfficio, ultimoGiornoDelMese, ORDINE_RUOLI,
+  dataItaliana, inServizio, mesePredefinito, ordinaPersone, righeDelMese, titoloMese, totaleUfficio, ORDINE_RUOLI,
 } from '../lib/mensile'
 import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
 import { oggiISO } from '../lib/settimane'
@@ -15,7 +15,7 @@ import { useDati } from '../lib/useDati'
 import { Caricamento } from '../componenti/Celle'
 import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
-import { classeMovimento, EtichettaMovimento, TabellaRapportino } from '../componenti/TabellaMensile'
+import { AvvisoUscite, classeMovimento, EtichettaMovimento, TabellaRapportino } from '../componenti/TabellaMensile'
 
 interface Props {
   uffici: Ufficio[]                     // uffici che l'utente può compilare (di solito uno solo)
@@ -91,7 +91,7 @@ function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: Voce
     const [pid, voce] = k.split('|')
     return { persona_id: Number(pid), ufficio_id: ufficioId, mese, voce, valore: num(testo) }
   }), [caselle, ufficioId, mese])
-  const righe = righeDelMese(persone, valoriAttuali, mese)
+  const righe = righeDelMese(persone, mese)
   const totale = totaleUfficio(persone, valoriAttuali, mese, voci)
   const errate = new Set(Object.entries(caselle).filter(([, t]) => leggiNumero(t) === 'errore').map(([k]) => k))
 
@@ -160,6 +160,7 @@ function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: Voce
             <span>Nessuna persona in servizio a {titoloMese(mese).toLowerCase()}. Aggiungi il personale dell'ufficio nel riquadro <strong>Personale dell'ufficio</strong> qui sotto: lo fai una volta sola, poi vale per tutti i mesi.</span>
           </p>
         )}
+        <AvvisoUscite persone={persone.map((p) => ({ p }))} mese={mese} />
         <TabellaRapportino voci={voci} mese={mese} righe={righe} totale={totale} modificabile disattivo={disattivo} errate={errate}
           testo={(pid, voce) => caselle[chiave(pid, voce)] ?? ''}
           onCambia={(pid, voce, valore) => { setCaselle((c) => ({ ...c, [chiave(pid, voce)]: valore })); setMessaggio(null) }} />
@@ -259,7 +260,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast }
       <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="users-three" /></span>Personale dell'ufficio</h2>
       <p className="piccolo">
         Il personale si inserisce una volta sola e vale per tutti i mesi, a partire dalla data di inizio.
-        Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong> e indica l'ultimo giorno: dal mese dopo non compare più, ma i suoi numeri passati restano.
+        Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong> e indica l'ultimo giorno: non conta già dal mese in cui esce (niente riga nel rapportino, totali, staff né gara), ma i suoi numeri dei mesi precedenti restano.
       </p>
       {errore && <p className="errore-box" role="alert"><Icona nome="warning-circle" />{errore}</p>}
 
@@ -316,7 +317,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast }
                     </td>
                     <td className="azioni">
                       <button className="btn btn-fantasma" onClick={() => modifica(p)}>Modifica</button>
-                      {!p.data_fine && <button className="btn btn-fantasma" onClick={() => modifica(p, ultimoGiornoDelMese(mese))}>Ha lasciato</button>}
+                      {!p.data_fine && <button className="btn btn-fantasma" onClick={() => modifica(p, oggi)}>Ha lasciato</button>}
                       <button className="btn btn-fantasma btn-pericolo" onClick={() => elimina(p)}>Elimina</button>
                     </td>
                   </tr>

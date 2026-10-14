@@ -104,11 +104,31 @@ export function EtichettaMovimento({ persona, mese }: { persona: Persona; mese: 
 export const classeMovimento = (persona: Persona, mese: string) =>
   ({ entrata: 'riga-entrata', uscita: 'riga-uscita', nessuno: '' })[movimentoNelMese(persona, mese) ?? 'nessuno']
 
-export function LegendaMovimenti() {
+/** Spiega i colori delle righe, solo quelli presenti nelle persone mostrate */
+export function LegendaMovimenti({ persone, mese }: { persone: Persona[]; mese: string }) {
+  const entrate = persone.some((p) => movimentoNelMese(p, mese) === 'entrata')
+  const uscite = persone.some((p) => movimentoNelMese(p, mese) === 'uscita')
+  if (!entrate && !uscite) return null
   return (
     <p className="legenda legenda-movimenti">
-      <span><span className="quadratino riga-entrata" />verde = nuovo ingresso nel mese</span>
-      <span><span className="quadratino riga-uscita" />rosso = ha lasciato l'ufficio nel mese</span>
+      {entrate && <span><span className="quadratino riga-entrata" />verde = nuovo ingresso nel mese</span>}
+      {uscite && <span><span className="quadratino riga-uscita" />rosso = ha lasciato l'ufficio nel mese (non conta in questo mese)</span>}
+    </p>
+  )
+}
+
+/** Chi ha lasciato l'ufficio nel mese: non compare nel rapportino né nei totali, lo si segnala a parte */
+export function AvvisoUscite({ persone, mese, conUfficio }: { persone: { p: Persona; ufficio?: string }[]; mese: string; conUfficio?: boolean }) {
+  const usciti = persone.filter(({ p }) => movimentoNelMese(p, mese) === 'uscita')
+  if (usciti.length === 0) return null
+  return (
+    <p className="avviso avviso-uscite non-stampa">
+      <span className="quadratino riga-uscita" />
+      <span>
+        <strong>{usciti.length === 1 ? 'Ha lasciato l\'ufficio' : 'Hanno lasciato l\'ufficio'} nel mese:</strong>{' '}
+        {usciti.map(({ p, ufficio }) => `${p.nome} (${conUfficio && ufficio ? `${ufficio}, ` : ''}${NOMI_RUOLO_PERSONA[p.ruolo].toLowerCase()}, il ${dataItaliana(p.data_fine)})`).join(' · ')}.
+        {' '}Non {usciti.length === 1 ? 'conta' : 'contano'} in questo mese: niente rapportino, totali, staff né gara.
+      </span>
     </p>
   )
 }
@@ -117,7 +137,6 @@ export function LegendaMovimenti() {
 export function TabellaRapportino({ voci, mese, righe, totale, testo, modificabile, disattivo, errate, onCambia, titoloStampa }: PropsRapportino) {
   const colonne = vociDelRapportino(voci)
   const { usati, annotazioni } = annotazioniIndicatori(voci, righe)
-  const conMovimenti = righe.some((p) => movimentoNelMese(p, mese))
 
   // Invio e frecce su/giù spostano sulla stessa colonna della riga sotto/sopra (come in Excel)
   function tasto(e: KeyboardEvent<HTMLInputElement>, riga: number, colonna: string) {
@@ -195,7 +214,7 @@ export function TabellaRapportino({ voci, mese, righe, totale, testo, modificabi
         </table>
       </div>
       <LegendaIndicatori usati={usati} voci={colonne} />
-      {conMovimenti && <LegendaMovimenti />}
+      <LegendaMovimenti persone={righe} mese={mese} />
     </>
   )
 }
