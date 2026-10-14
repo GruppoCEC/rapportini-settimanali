@@ -160,7 +160,9 @@ for (const mese of mesiDemo) {
     if (mese === meseDaCompilare && (u.id === 3 || u.id === 16)) continue
     const parziale = mese === meseDaCompilare && u.id === 7
     const da = utenti.find((x) => x.ufficio_id === u.id && x.ruolo === 'ufficio')!.email
-    const ts = new Date(`${aggiungiMesi(mese, 1).slice(0, 8)}0${tra(1, 5)}T${tra(10, 18)}:${tra(10, 59)}:00`).toISOString()
+    // Prati e Brera inseriscono il mese da compilare l'8 del mese dopo: dopo la scadenza (il 5), quindi in ritardo
+    const giorno = mese === meseDaCompilare && (u.nome === 'Prati' || u.nome === 'Brera') ? '08' : `0${tra(1, 4)}`
+    const ts = new Date(`${aggiungiMesi(mese, 1).slice(0, 8)}${giorno}T${tra(10, 18)}:${tra(10, 59)}:00`).toISOString()
     persone.filter((p) => p.ufficio_id === u.id && inServizio(p, mese)).forEach((p, n) => {
       const peso = p.ruolo === 'collaboratore' ? 1 : p.ruolo === 'responsabile' ? 0.7 : 0.35
       for (const [voce, [min, max]] of Object.entries(TIPICI)) {
@@ -183,7 +185,10 @@ for (const mese of mesiDemo.slice(-3)) {
   confronto_anno_prima.push({ mese: aggiungiMesi(mese, -12), voce: 'staff', valore: persone.filter((p) => inServizio(p, mese)).length - tra(0, 6) })
 }
 
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili }
+// Scadenza di esempio per il mese da compilare: il 5 del mese dopo alle 23:59, senza blocco
+const scadenze_mensili: any[] = [{ mese: meseDaCompilare, scadenza: new Date(`${aggiungiMesi(meseDaCompilare, 1).slice(0, 8)}05T23:59:00`).toISOString(), blocca: false }]
+
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili }
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
 const CHIAVE = 'rapportini.demo.utente'
@@ -261,7 +266,11 @@ class Interrogazione {
             const riservata = voci_mensili.find((v) => v.codice === r.voce)?.solo_ruolo
             if (riservata && riservata !== persona?.ruolo) return { data: null, error: { message: `La voce ${r.voce} si compila solo per il ruolo ${riservata}` } }
           }
-          if (['confronto_anno_prima', 'punti_mensili'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
+          if (this.tabella === 'valori_mensili' && me.ruolo === 'ufficio') {      // mese chiuso: come il trigger del database
+            const s = scadenze_mensili.find((x) => x.mese === r.mese)
+            if (s && s.blocca && Date.now() > new Date(s.scadenza).getTime()) return { data: null, error: { message: 'Inserimento chiuso: la scadenza per questo mese è passata. Per correzioni contatta l\'amministratore' } }
+          }
+          if (['confronto_anno_prima', 'punti_mensili', 'scadenze_mensili'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
           if (['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella)) {
             if (!ufficiLeggibili().has(r.ufficio_id) || me.ruolo === 'responsabile' && r.ufficio_id !== me.ufficio_id) {
               return { data: null, error: { message: 'new row violates row-level security policy' } }

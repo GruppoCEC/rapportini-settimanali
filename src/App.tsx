@@ -150,7 +150,7 @@ export default function App() {
 
       <main className="contenuto" key={`${attiva}-${cittaScelta}`}>
         {attiva === 'inserisci' && <InserisciSettimana uffici={compilabili} metriche={dati.metriche} ufficioPredefinito={utente.ufficio_id} onSalvato={() => setAggiornamento((n) => n + 1)} />}
-        {attiva === 'mensile' && <RapportinoMensile uffici={compilabili} ufficioPredefinito={utente.ufficio_id} />}
+        {attiva === 'mensile' && <RapportinoMensile uffici={compilabili} ufficioPredefinito={utente.ufficio_id} amministratore={isAmministratore(utente)} />}
         {attiva === 'andamento' && <AndamentoUfficio ctx={ctx} />}
         {attiva === 'cruscotto' && <Cruscotto ctx={ctx} />}
         {attiva === 'compilazione' && <StatoCompilazione ctx={ctx} />}

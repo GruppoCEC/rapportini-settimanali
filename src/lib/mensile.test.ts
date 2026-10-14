@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, formattaAnzianita, turnoverAnno, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
+  aggiungiMesi, formattaAnzianita, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   righeDelMese, sommaTotali, statoMensile, STAFF, titoloMese, totaleUfficio, ultimoGiornoDelMese, variazione,
 } from './mensile'
 import type { Persona, Ufficio, ValoreMensile, VoceMensile } from './tipi'
@@ -115,6 +115,24 @@ describe('totali', () => {
     expect(variazione(100, undefined)).toBeNull()
     expect(formattaVariazione(0.125)).toBe('+12,5%')
     expect(formattaVariazione(-0.03)).toBe('−3,0%')
+  })
+})
+
+describe('scadenza di inserimento', () => {
+  const s = { mese: '2026-09-01', scadenza: '2026-10-05T21:59:00Z', blocca: false }
+  it('sa se la scadenza è passata e se il mese è chiuso', () => {
+    expect(scadenzaPassata(s, new Date('2026-10-05T20:00:00Z'))).toBe(false)
+    expect(scadenzaPassata(s, new Date('2026-10-06T08:00:00Z'))).toBe(true)
+    expect(meseChiuso(s, new Date('2026-10-06T08:00:00Z'))).toBe(false)
+    expect(meseChiuso({ ...s, blocca: true }, new Date('2026-10-06T08:00:00Z'))).toBe(true)
+    expect(scadenzaPassata(null)).toBe(false)
+  })
+  it('segnala l\'ultimo inserimento arrivato dopo la scadenza', () => {
+    const v = (aggiornato_il: string) => ({ ...val(1, 'colloqui', 1), aggiornato_il })
+    expect(ultimoRitardo([v('2026-10-03T10:00:00Z'), v('2026-10-05T21:00:00Z')], s)).toBeNull()
+    expect(ultimoRitardo([v('2026-10-03T10:00:00Z'), v('2026-10-08T09:12:00Z'), v('2026-10-07T09:00:00Z')], s)).toBe('2026-10-08T09:12:00Z')
+    expect(ultimoRitardo([v('2026-10-08T09:12:00Z')], null)).toBeNull()
+    expect(scadenzaProposta('2026-12-01')).toBe('2027-01-05T23:59')
   })
 })
 

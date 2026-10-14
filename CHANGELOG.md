@@ -33,6 +33,11 @@
   - tutte le persone uscite nell'anno scelto, con ruolo, ufficio, data di inizio, data di uscita e anzianità all'uscita, raggruppate per mese: a sinistra una casella con il nome del mese in verticale e una linea spessa tra un mese e l'altro;
   - riepilogo: numero di uscite, persone in servizio al 1° gennaio, tasso di uscita (uscite ÷ in servizio al 1° gennaio), anzianità media all'uscita e uscite per ruolo;
   - si stampa in A4 verticale.
+- **Scadenza di inserimento** (Report mensile → Panoramica, solo l'amministratore generale):
+  - per ogni mese si fissano data e ora; la proposta è il 5 del mese dopo alle 23:59;
+  - chi inserisce o modifica dopo la scadenza viene segnalato: elenco "In ritardo" con data e ora, ed etichetta "in ritardo" accanto all'ufficio. C'è anche l'elenco di chi manca ancora;
+  - casella "Dopo la scadenza blocca l'inserimento agli uffici": a scadenza passata gli uffici non possono più scrivere (lo impedisce il database), gli amministratori sì;
+  - gli uffici vedono in "Inserisci mese" entro quando compilare, e dopo la scadenza un avviso (in ritardo oppure inserimento chiuso).
 - "Funzionario" diventa **collaboratore** in tutto il rapportino mensile.
 - Nel report di gruppo la variazione degli **incarichi scaduti** ha i colori invertiti: se aumentano è in rosso.
 - **Amministrazione → Uffici**: tabella (1ª o 2ª) e posizione di ogni ufficio nel report mensile.

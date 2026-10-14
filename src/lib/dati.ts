@@ -1,7 +1,7 @@
 // Lettura dei dati dal database. Le regole di accesso filtrano già
 // automaticamente: ognuno riceve solo le righe che può vedere.
 import { supabase } from './supabase'
-import type { Metrica, Persona, Rilevazione, Utente, ValoreMensile, VoceMensile } from './tipi'
+import type { Metrica, Persona, Rilevazione, Scadenza, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
 
@@ -108,6 +108,13 @@ export async function caricaPunti(): Promise<Map<string, number>> {
   const { data, error } = await supabase.from('punti_mensili').select('voce, punti')
   if (error) throw new Error(error.message)
   return new Map((data as { voce: string; punti: number | string }[]).map((r) => [r.voce, Number(r.punti)]))
+}
+
+/** Scadenza di inserimento del mese, se l'amministratore l'ha fissata */
+export async function caricaScadenza(mese: string): Promise<Scadenza | null> {
+  const { data, error } = await supabase.from('scadenze_mensili').select('mese, scadenza, blocca').eq('mese', mese).maybeSingle()
+  if (error) throw new Error(error.message)
+  return data as Scadenza | null
 }
 
 /** Tutto il mensile, per il backup (null se le tabelle non esistono ancora nel database) */

@@ -5,7 +5,7 @@
 // - Variazione = (mese − stesso mese dell'anno prima) ÷ anno prima; vuota se non calcolabile (mai #DIV/0!).
 import type { StatoCompilazione } from './aggregazioni'
 import { aggiungiGiorni, nomeMese, oggiISO } from './settimane'
-import type { Persona, RuoloPersona, Ufficio, ValoreMensile, VoceMensile } from './tipi'
+import type { Persona, RuoloPersona, Scadenza, Ufficio, ValoreMensile, VoceMensile } from './tipi'
 
 /** Chiave dello staff nei totali (non è una colonna da compilare) */
 export const STAFF = 'staff'
@@ -243,6 +243,39 @@ export function statoMensile(personeInServizio: Persona[], valori: ValoreMensile
   const completo = personeInServizio.length > 0
     && personeInServizio.every((p) => colonne.every((v) => pieni.has(`${p.id}|${v.codice}`)))
   return completo ? 'completo' : 'parziale'
+}
+
+// ---------------------------------------------------------------- Scadenza di inserimento
+
+export function scadenzaPassata(s: Scadenza | null, adesso: Date = new Date()): boolean {
+  return s !== null && adesso.getTime() > new Date(s.scadenza).getTime()
+}
+
+/** Il mese è chiuso per gli uffici? (scadenza passata e blocco attivo) */
+export function meseChiuso(s: Scadenza | null, adesso: Date = new Date()): boolean {
+  return s !== null && s.blocca && scadenzaPassata(s, adesso)
+}
+
+/**
+ * Ritardo di un ufficio: l'ultima volta che ha inserito o modificato numeri dopo la scadenza
+ * (null se ha fatto tutto in tempo o se non c'è scadenza).
+ */
+export function ultimoRitardo(valori: ValoreMensile[], s: Scadenza | null): string | null {
+  if (!s) return null
+  const limite = new Date(s.scadenza).getTime()
+  const tardi = valori.filter((v) => v.aggiornato_il && new Date(v.aggiornato_il).getTime() > limite).map((v) => v.aggiornato_il!)
+  return tardi.length ? tardi.sort().at(-1)! : null
+}
+
+/** Es. "5 ottobre 2026 alle 23:59" */
+export function dataOra(iso: string): string {
+  const d = new Date(iso)
+  return `${d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })} alle ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+/** Scadenza proposta per un mese: il 5 del mese dopo alle 23:59 (formato della casella data e ora) */
+export function scadenzaProposta(mese: string): string {
+  return `${aggiungiMesi(mese, 1).slice(0, 8)}05T23:59`
 }
 
 // ---------------------------------------------------------------- Uffici e formati

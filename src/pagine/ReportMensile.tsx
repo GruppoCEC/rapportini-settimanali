@@ -4,15 +4,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Contesto } from '../lib/contesto'
 import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
-import { caricaConfronto, caricaPersone, caricaPunti, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
+import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
-  punteggio, RUOLO_GARA, variazioneBuona, vociConPunti,
+  punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, dataOra, scadenzaPassata, scadenzaProposta, ultimoRitardo,
   indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleUfficio, variazione,
   vociDelRapportino, type TotaliMese,
 } from '../lib/mensile'
 import { supabase } from '../lib/supabase'
-import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
+import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import type { StatoCompilazione } from '../lib/aggregazioni'
 import { BadgeStato, Caricamento } from '../componenti/Celle'
@@ -30,6 +30,7 @@ interface DatiUfficio {
   valori: ValoreMensile[]
   totale: TotaliMese
   stato: StatoCompilazione
+  ritardo: string | null              // ultimo inserimento arrivato dopo la scadenza
 }
 
 interface DatiMese {
@@ -37,6 +38,7 @@ interface DatiMese {
   uffici: DatiUfficio[]
   confronto: Map<string, number | null>
   punti: Map<string, number>          // gara dei collaboratori: punti per unità di ogni voce
+  scadenza: Scadenza | null
 }
 
 export default function ReportMensile({ ctx }: { ctx: Contesto }) {
@@ -51,15 +53,16 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
   const ids = uffici.map((u) => u.id)
 
   const dati = useDati<DatiMese>(async () => {
-    const [voci, persone, valori, confronto, punti] = await Promise.all([
+    const [voci, persone, valori, confronto, punti, scadenza] = await Promise.all([
       caricaVociMensili(), caricaPersone(ids), caricaValoriMensili(mese, ids),
       generale ? caricaConfronto(aggiungiMesi(mese, -12)) : Promise.resolve(new Map<string, number | null>()),
-      caricaPunti(),
+      caricaPunti(), caricaScadenza(mese),
     ])
     return {
       voci,
       confronto,
       punti,
+      scadenza,
       uffici: uffici.map((ufficio) => {
         const suePersone = persone.filter((p) => p.ufficio_id === ufficio.id)
         const suoiValori = valori.filter((v) => v.ufficio_id === ufficio.id)
@@ -67,6 +70,7 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
           ufficio, persone: suePersone, valori: suoiValori,
           totale: totaleUfficio(suePersone, suoiValori, mese, voci),
           stato: statoMensile(suePersone.filter((p) => inServizio(p, mese)), suoiValori, voci),
+          ritardo: ultimoRitardo(suoiValori, scadenza),
         }
       }),
     }
@@ -153,6 +157,7 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
     <tr key={u.ufficio.id}>
       <th scope="row" className="ufficio-fisso">
         {u.ufficio.nome}{piuCitta && u.ufficio.citta_id !== ctx.citta[0]?.id && <span className="sigla-citta">{nomeCittaBreve(ctx, u.ufficio.citta_id)}</span>}
+        {u.ritardo && <span className="tag tag-ritardo" title={`Ultimo inserimento il ${dataOra(u.ritardo)}`}>in ritardo</span>}
       </th>
       {colonne.map((c) => <td key={c} className={`destra ${u.totale.get(c) == null ? 'cella-vuota' : ''}`}>{formattaNumero(u.totale.get(c))}</td>)}
     </tr>
@@ -166,6 +171,7 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
         <span className="tag tag-ko">✗ {plurale(conta('mancante'), 'mancante', 'mancanti')}</span>
         <span className="piccolo">su {dati.uffici.length} uffici · {titoloMese(mese)}</span>
       </div>
+      <GestioneScadenza dati={dati} mese={mese} modificabile={generale} onSalvato={onSalvato} />
       <section className="scheda scheda-stampa">
         <div className="tabella-scorrevole">
           <table className="tabella tabella-mensile tabella-report">
@@ -226,6 +232,80 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
       </section>
       {toast}
     </>
+  )
+}
+
+// ---------------------------------------------------------------- Scadenza di inserimento
+
+/** Data e ora nel formato della casella "data e ora" del browser (ora locale) */
+function perCasella(iso: string): string {
+  const d = new Date(iso)
+  const due = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${due(d.getMonth() + 1)}-${due(d.getDate())}T${due(d.getHours())}:${due(d.getMinutes())}`
+}
+
+function GestioneScadenza({ dati, mese, modificabile, onSalvato }: { dati: DatiMese; mese: string; modificabile: boolean; onSalvato: () => void }) {
+  const s = dati.scadenza
+  const [quando, setQuando] = useState(s ? perCasella(s.scadenza) : scadenzaProposta(mese))
+  const [blocca, setBlocca] = useState(s?.blocca ?? false)
+  const [stato, setStato] = useState<'pronto' | 'salvataggio'>('pronto')
+  const [errore, setErrore] = useState<string | null>(null)
+  const [toast, mostraToast] = useToast()
+  useEffect(() => { setQuando(s ? perCasella(s.scadenza) : scadenzaProposta(mese)); setBlocca(s?.blocca ?? false) }, [s, mese])
+
+  const passata = scadenzaPassata(s)
+  const inRitardo = dati.uffici.filter((u) => u.ritardo).sort((a, b) => a.ritardo!.localeCompare(b.ritardo!))
+  const mancanti = dati.uffici.filter((u) => u.stato === 'mancante')
+  const modificata = !s || perCasella(s.scadenza) !== quando || s.blocca !== blocca
+
+  async function esegui(promessa: PromiseLike<{ error: { message: string } | null }>, testo: string) {
+    setStato('salvataggio')
+    setErrore(null)
+    const { error } = await promessa
+    setStato('pronto')
+    if (error) { setErrore(`Salvataggio non riuscito: ${error.message}`); return }
+    mostraToast(testo)
+    onSalvato()
+  }
+
+  return (
+    <section className="scheda scheda-scadenza non-stampa">
+      <h2 className="titolo-icona"><span className="icona-quadrata icona-ambra"><Icona nome="alarm" /></span>Scadenza di {titoloMese(mese).toLowerCase()}</h2>
+      {s ? (
+        <p>
+          Gli uffici devono compilare entro il <strong>{dataOra(s.scadenza)}</strong>.{' '}
+          {s.blocca ? (passata ? 'Inserimento chiuso: gli uffici non possono più modificare.' : 'Dopo la scadenza l\'inserimento si chiude.') : 'Dopo la scadenza possono ancora inserire, ma vengono segnalati in ritardo.'}
+        </p>
+      ) : <p className="piccolo">Nessuna scadenza per questo mese: gli uffici possono compilare quando vogliono e nessuno viene segnalato in ritardo.</p>}
+      {modificabile && (
+        <div className="riga-modulo">
+          <label className="campo"><span className="etichetta">Data e ora di scadenza</span>
+            <input type="datetime-local" value={quando} onChange={(e) => setQuando(e.target.value)} /></label>
+          <label className="casella-spunta"><input type="checkbox" checked={blocca} onChange={(e) => setBlocca(e.target.checked)} />Dopo la scadenza blocca l'inserimento agli uffici</label>
+          <button className="btn btn-primario" disabled={!quando || !modificata || stato !== 'pronto'}
+            onClick={() => esegui(supabase.from('scadenze_mensili').upsert({ mese, scadenza: new Date(quando).toISOString(), blocca }, { onConflict: 'mese' }), 'Scadenza salvata.')}>
+            <Icona nome="floppy-disk" />{s ? 'Aggiorna scadenza' : 'Fissa la scadenza'}
+          </button>
+          {s && <button className="btn btn-fantasma btn-pericolo" disabled={stato !== 'pronto'} onClick={() => esegui(supabase.from('scadenze_mensili').delete().eq('mese', mese), 'Scadenza tolta.')}>Togli la scadenza</button>}
+        </div>
+      )}
+      {errore && <span className="errore">{errore}</span>}
+      {s && (
+        <div className="esito-scadenza">
+          <p className={inRitardo.length ? 'in-ritardo' : 'piccolo'}>
+            <Icona nome="alarm" /><strong>In ritardo ({inRitardo.length}):</strong>{' '}
+            {inRitardo.length ? inRitardo.map((u) => `${u.ufficio.nome} (${dataOra(u.ritardo!)})`).join(' · ') : 'nessuno, finora.'}
+          </p>
+          {mancanti.length > 0 && (
+            <p className={passata ? 'in-ritardo' : 'piccolo'}>
+              <Icona nome="hourglass-medium" /><strong>{passata ? 'Ancora mancanti dopo la scadenza' : 'Non hanno ancora compilato'} ({mancanti.length}):</strong>{' '}
+              {mancanti.map((u) => u.ufficio.nome).join(' · ')}
+            </p>
+          )}
+        </div>
+      )}
+      {toast}
+    </section>
   )
 }
 

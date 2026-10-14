@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { nomeDaEmail } from '../lib/account'
 import { leggiNumero } from '../lib/calcoli'
-import { caricaPersone, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
+import { caricaPersone, caricaScadenza, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
 import {
-  dataItaliana, inServizio, mesePredefinito, ordinaPersone, righeDelMese, titoloMese, totaleUfficio, ORDINE_RUOLI,
+  dataItaliana, dataOra, inServizio, meseChiuso, mesePredefinito, scadenzaPassata, ordinaPersone, righeDelMese, titoloMese, totaleUfficio, ORDINE_RUOLI,
 } from '../lib/mensile'
-import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
+import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
 import { oggiISO } from '../lib/settimane'
 import { useDati } from '../lib/useDati'
 import { Caricamento } from '../componenti/Celle'
@@ -20,6 +20,7 @@ import { AvvisoUscite, classeMovimento, EtichettaMovimento, TabellaRapportino } 
 interface Props {
   uffici: Ufficio[]                     // uffici che l'utente può compilare (di solito uno solo)
   ufficioPredefinito?: number | null
+  amministratore?: boolean              // gli amministratori possono scrivere anche a mese chiuso
 }
 
 /** Caselle scritte, come testo: chiave "persona|voce" */
@@ -27,16 +28,17 @@ type Caselle = Record<string, string>
 const chiave = (personaId: number, voce: string) => `${personaId}|${voce}`
 const num = (s: string) => { const v = leggiNumero(s); return typeof v === 'number' ? v : null }
 
-export default function RapportinoMensile({ uffici, ufficioPredefinito }: Props) {
+export default function RapportinoMensile({ uffici, ufficioPredefinito, amministratore }: Props) {
   const voci = useDati(caricaVociMensili, [])
   if (!voci.dati) return <div className="pagina"><Caricamento errore={voci.errore} /></div>
-  return <Compilazione uffici={uffici} ufficioPredefinito={ufficioPredefinito} voci={voci.dati} />
+  return <Compilazione uffici={uffici} ufficioPredefinito={ufficioPredefinito} amministratore={amministratore} voci={voci.dati} />
 }
 
-function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: VoceMensile[] }) {
+function Compilazione({ uffici, ufficioPredefinito, amministratore, voci }: Props & { voci: VoceMensile[] }) {
   const [ufficioId, setUfficioId] = useState(uffici.find((u) => u.id === ufficioPredefinito)?.id ?? uffici[0].id)
   const [mese, setMese] = useState(mesePredefinito())
   const [persone, setPersone] = useState<Persona[]>([])
+  const [scadenza, setScadenza] = useState<Scadenza | null>(null)
   const [caselle, setCaselle] = useState<Caselle>({})
   const [originali, setOriginali] = useState<Caselle>({})
   const [ultimoSalvataggio, setUltimoSalvataggio] = useState<{ quando: string; chi: string | null } | null>(null)
@@ -64,9 +66,10 @@ function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: Voce
   useEffect(() => {
     let annullato = false
     setStato('caricamento')
-    Promise.all([caricaPersone([ufficioId]), caricaValoriMensili(mese, [ufficioId])])
-      .then(([p, valori]) => {
+    Promise.all([caricaPersone([ufficioId]), caricaValoriMensili(mese, [ufficioId]), caricaScadenza(mese)])
+      .then(([p, valori, sc]) => {
         if (annullato) return
+        setScadenza(sc)
         const salvate: Caselle = {}
         for (const v of valori) if (v.valore !== null) salvate[chiave(v.persona_id, v.voce)] = String(v.valore)
         const recente = valori.filter((v) => v.aggiornato_il).sort((a, b) => b.aggiornato_il!.localeCompare(a.aggiornato_il!))[0]
@@ -124,7 +127,8 @@ function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: Voce
   }
 
   const ufficio = uffici.find((u) => u.id === ufficioId)!
-  const disattivo = stato !== 'pronto'
+  const chiuso = meseChiuso(scadenza) && !amministratore      // mese chiuso dall'amministratore: l'ufficio non scrive più
+  const disattivo = stato !== 'pronto' || chiuso
 
   return (
     <div className="pagina entra">
@@ -160,6 +164,7 @@ function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: Voce
             <span>Nessuna persona in servizio a {titoloMese(mese).toLowerCase()}. Aggiungi il personale dell'ufficio nel riquadro <strong>Personale dell'ufficio</strong> qui sotto: lo fai una volta sola, poi vale per tutti i mesi.</span>
           </p>
         )}
+        <AvvisoScadenza scadenza={scadenza} amministratore={amministratore} />
         <AvvisoUscite persone={persone} mese={mese} />
         <TabellaRapportino voci={voci} mese={mese} righe={righe} totale={totale} modificabile disattivo={disattivo} errate={errate}
           testo={(pid, voce) => caselle[chiave(pid, voce)] ?? ''}
@@ -175,7 +180,7 @@ function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: Voce
           </span>
         )}
         {!messaggio && modificato && stato === 'pronto' && <span className="non-salvato"><span className="pallino" />Modifiche non salvate</span>}
-        <button className="btn btn-primario" onClick={salva} disabled={stato !== 'pronto' || !modificato}>
+        <button className="btn btn-primario" onClick={salva} disabled={stato !== 'pronto' || !modificato || chiuso}>
           <Icona nome={stato === 'salvataggio' ? 'circle-notch' : 'floppy-disk'} className={stato === 'salvataggio' ? 'gira' : ''} />
           {stato === 'salvataggio' ? 'Salvataggio…' : stato === 'caricamento' ? 'Caricamento…' : 'Salva'}
         </button>
@@ -183,6 +188,31 @@ function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: Voce
       {dialogo}
       {toast}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------- Scadenza
+
+/** Entro quando compilare; dopo la scadenza avvisa che i dati arrivano in ritardo, o che il mese è chiuso */
+function AvvisoScadenza({ scadenza, amministratore }: { scadenza: Scadenza | null; amministratore?: boolean }) {
+  if (!scadenza) return null
+  const quando = dataOra(scadenza.scadenza)
+  if (!scadenzaPassata(scadenza)) {
+    return <p className="avviso compare"><Icona nome="calendar-check" /><span>Da compilare entro il <strong>{quando}</strong>.</span></p>
+  }
+  if (scadenza.blocca) {
+    return (
+      <p className="avviso avviso-scadenza-chiusa compare"><Icona nome="lock-simple" />
+        <span><strong>Inserimento chiuso</strong> il {quando}. {amministratore
+          ? 'Gli uffici non possono più modificare questo mese; come amministratore puoi ancora correggere.'
+          : 'Per correzioni contatta l\'amministratore.'}</span>
+      </p>
+    )
+  }
+  return (
+    <p className="avviso avviso-arancio compare"><Icona nome="alarm" />
+      <span><strong>Scadenza superata</strong> il {quando}: puoi ancora inserire o correggere i numeri, ma l'amministratore vedrà che sono arrivati in ritardo.</span>
+    </p>
   )
 }
 

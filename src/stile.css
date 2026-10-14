@@ -655,6 +655,16 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .legenda-movimenti { margin-top: 10px; color: var(--testo-2); }
 .legenda-movimenti > span { display: inline-flex; align-items: center; gap: 6px; }
 .avviso-uscite { background: var(--ko-bg); color: var(--ko-fg); align-items: center; }
+.avviso-scadenza-chiusa { background: var(--ko-bg); color: var(--ko-fg); }
+.avviso-scadenza-chiusa i { color: var(--ko-fg); }
+.tag-ritardo { margin-left: 6px; background: var(--secondario-200); color: var(--secondario-900); font-size: 10px; padding: 1px 7px; }
+.scheda-scadenza { gap: 12px; }
+.casella-spunta { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; font-weight: 600; color: var(--testo-2); cursor: pointer; }
+.casella-spunta input { width: 18px; height: 18px; accent-color: var(--primario); }
+.esito-scadenza { display: flex; flex-direction: column; gap: 6px; }
+.esito-scadenza p { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.esito-scadenza p i { align-self: center; }
+.esito-scadenza .in-ritardo { color: var(--secondario-900); background: var(--secondario-100); padding: 8px 12px; border-radius: 10px; }
 .avviso-uscite .quadratino { flex: none; }
 .quadratino { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
 .quadratino.riga-entrata { background: var(--ok-bg); border: 2px solid var(--ok); }

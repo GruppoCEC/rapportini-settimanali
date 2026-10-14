@@ -100,3 +100,10 @@ export const NOMI_RUOLO_PERSONA: Record<RuoloPersona, string> = {
   coordinatrice: 'Coordinatrice',
   marketer: 'Marketer',
 }
+
+/** Scadenza per inserire i numeri di un mese (decisa dall'amministratore generale) */
+export interface Scadenza {
+  mese: string                // 'AAAA-MM-01'
+  scadenza: string            // data e ora (ISO)
+  blocca: boolean             // dopo la scadenza gli uffici non possono più scrivere
+}

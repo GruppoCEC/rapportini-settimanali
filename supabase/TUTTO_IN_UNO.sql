@@ -617,6 +617,17 @@ create table punti_mensili (
   aggiornato_il timestamptz not null default now()
 );
 
+-- Scadenza per inserire i numeri di un mese, decisa dall'amministratore generale.
+-- Chi inserisce o modifica dopo la scadenza viene segnalato nel report (si vede da aggiornato_il);
+-- con blocca = true, dopo la scadenza gli uffici non possono più scrivere (gli amministratori sì).
+create table scadenze_mensili (
+  mese          date primary key check (extract(day from mese) = 1),
+  scadenza      timestamptz not null,
+  blocca        boolean not null default false,
+  aggiornato_da text,
+  aggiornato_il timestamptz not null default now()
+);
+
 -- ---------------------------------------------------------------------
 -- Trigger: coerenza dei dati e chi ha salvato
 -- ---------------------------------------------------------------------
@@ -661,6 +672,11 @@ begin
   if tg_op = 'UPDATE' and new.valore is not distinct from old.valore then
     return null;
   end if;
+  -- mese chiuso dall'amministratore: dopo la scadenza scrivono solo gli amministratori della città
+  if exists (select 1 from scadenze_mensili s where s.mese = new.mese and s.blocca and now() > s.scadenza)
+     and not gestisco_citta((select citta_id from uffici where id = new.ufficio_id)) then
+    raise exception 'Inserimento chiuso: la scadenza per questo mese è passata. Per correzioni contatta l''amministratore';
+  end if;
   new.aggiornato_da := nullif(email_corrente(), '');
   new.aggiornato_il := now();
   return new;
@@ -700,6 +716,18 @@ end $$;
 create trigger punti_prima before insert or update on punti_mensili
 for each row execute function punti_prima_del_salvataggio();
 
+create function scadenze_prima_del_salvataggio() returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  new.aggiornato_da := nullif(email_corrente(), '');
+  new.aggiornato_il := now();
+  return new;
+end $$;
+
+create trigger scadenze_prima before insert or update on scadenze_mensili
+for each row execute function scadenze_prima_del_salvataggio();
+
 -- Registro delle modifiche (stessa tabella dei dati settimanali;
 -- nella colonna "settimana" si annota il mese)
 create function registra_modifica_mensile() returns trigger
@@ -724,6 +752,8 @@ create trigger confronto_registro after insert or update or delete on confronto_
 for each row execute function registra_modifica_mensile();
 create trigger punti_registro after insert or update or delete on punti_mensili
 for each row execute function registra_modifica_mensile();
+create trigger scadenze_registro after insert or update or delete on scadenze_mensili
+for each row execute function registra_modifica_mensile();
 
 -- ---------------------------------------------------------------------
 -- Regole di accesso (stesse funzioni dei dati settimanali, 002_sicurezza.sql)
@@ -734,6 +764,7 @@ alter table voci_mensili         enable row level security;
 alter table valori_mensili       enable row level security;
 alter table confronto_anno_prima enable row level security;
 alter table punti_mensili        enable row level security;
+alter table scadenze_mensili     enable row level security;
 
 -- Personale e numeri: l'ufficio vede e modifica solo i propri,
 -- l'amministratore di città la sua città, l'amministratore generale tutto
@@ -771,8 +802,14 @@ create policy punti_lettura on punti_mensili for select to authenticated
 create policy punti_gestione on punti_mensili for all to authenticated
   using (sono_admin_generale()) with check (sono_admin_generale());
 
-revoke all on persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili from anon;
-grant select, insert, update, delete on persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili to authenticated;
+-- Scadenze: le vedono tutti (gli uffici devono sapere entro quando compilare), le decide l'amministratore generale
+create policy scadenze_lettura on scadenze_mensili for select to authenticated
+  using (mio_ruolo() is not null);
+create policy scadenze_gestione on scadenze_mensili for all to authenticated
+  using (sono_admin_generale()) with check (sono_admin_generale());
+
+revoke all on persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili from anon;
+grant select, insert, update, delete on persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili to authenticated;
 
 -- ---------------------------------------------------------------------
 -- Le 19 colonne del rapportino (file "Rapportino vuoto NUOVO.xlsx"), più l'indicatore delle coordinatrici.

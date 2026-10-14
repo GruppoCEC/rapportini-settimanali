@@ -329,6 +329,24 @@ describe('Rapportino mensile', () => {
     await rifiutata('davide@test.it', `insert into punti_mensili (voce, punti) values ('appuntamenti_vendita_fix', 1)`)    // indicatore
   })
 
+  it('scadenza: la decide l\'amministratore generale, la vedono tutti; con il blocco gli uffici non scrivono più', async () => {
+    await rifiutata('adminmi@test.it', `insert into scadenze_mensili (mese, scadenza) values ('2026-08-01', now() - interval '1 day')`)
+    // agosto: scadenza passata, senza blocco → l'ufficio scrive ancora (verrà segnalato in ritardo)
+    await come('davide@test.it', `insert into scadenze_mensili (mese, scadenza) values ('2026-08-01', now() - interval '1 day')`)
+    expect(await come('a@test.it', `select * from scadenze_mensili`)).toHaveLength(1)
+    const agosto = (voce: string, v: number) => `insert into valori_mensili (persona_id, mese, voce, valore) values (${pA}, '2026-08-01', '${voce}', ${v})
+      on conflict (persona_id, mese, voce) do update set valore = excluded.valore`
+    await come('a@test.it', agosto('colloqui', 1))
+    // con il blocco: l'ufficio è respinto, l'amministratore generale può ancora correggere
+    await come('davide@test.it', `update scadenze_mensili set blocca = true where mese = '2026-08-01'`)
+    await rifiutata('a@test.it', agosto('colloqui', 2))
+    await rifiutata('a@test.it', agosto('kiron', 1))
+    await come('davide@test.it', agosto('colloqui', 3))
+    // scadenza spostata nel futuro: l'ufficio torna a scrivere
+    await come('davide@test.it', `update scadenze_mensili set scadenza = now() + interval '1 day' where mese = '2026-08-01'`)
+    await come('a@test.it', agosto('colloqui', 4))
+  })
+
   it('tutti vedono le 19 colonne del rapportino più l\'indicatore, nessuno estraneo', async () => {
     expect(await come('a@test.it', `select * from voci_mensili where solo_ruolo is null`)).toHaveLength(19)
     expect(await come('a@test.it', `select * from voci_mensili where solo_ruolo = 'coordinatrice'`)).toHaveLength(1)
