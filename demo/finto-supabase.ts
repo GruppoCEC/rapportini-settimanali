@@ -6,7 +6,7 @@
 // =====================================================================
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { aggiungiSettimane, lunediDi, oggiISO, settimanaPredefinita } from '../src/lib/settimane'
-import { aggiungiMesi, inServizio, mesePredefinito, ultimoGiornoDelMese } from '../src/lib/mensile'
+import { aggiungiMesi, inServizio, mesePredefinito } from '../src/lib/mensile'
 
 export const configurato = true
 
