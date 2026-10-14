@@ -630,11 +630,16 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .nota-fix { font-size: 8px; font-weight: 800; text-transform: none; letter-spacing: 0; color: var(--secondario-700); margin-left: 1px; }
 .valore-fix { color: var(--secondario-700); font-weight: 700; font-size: .7em; margin-left: 1px; }
 .tabella-mensile td.cella-con-fix { white-space: nowrap; }
-.esponente-fix { display: inline-block; vertical-align: top; margin: -6px 0 0 2px; }
-.tabella-mensile-modifica input.input-fix {
-  width: 30px; min-height: 0; height: 22px; padding: 1px 4px; font-size: 11px; font-weight: 700; border-radius: 6px;
-  border-color: var(--secondario-300); background: var(--secondario-100); color: var(--secondario-800);
+.casella-con-fix { position: relative; display: inline-block; vertical-align: middle; }
+.tabella-mensile-modifica .casella-con-fix input.input-principale { padding-right: 17px; }
+.tabella-mensile-modifica .casella-con-fix input.input-fix {
+  position: absolute; top: 3px; right: 3px; width: 17px; height: 14px; min-height: 0; padding: 0 1px;
+  border: 0; border-radius: 3px; background: transparent; box-shadow: none;
+  font-size: 10px; font-weight: 800; line-height: 14px; text-align: right; color: var(--secondario-700);
 }
+.tabella-mensile-modifica .casella-con-fix input.input-fix::placeholder { font-size: 8px; font-weight: 700; color: var(--secondario-400); }
+.tabella-mensile-modifica .casella-con-fix input.input-fix:focus-visible { background: var(--secondario-100); outline: 1px solid var(--secondario-500); outline-offset: 0; }
+.tabella-mensile-modifica .casella-con-fix input.input-fix.non-valido { background: var(--ko-bg); color: var(--ko-fg); }
 
 /* ---------------------------------------------------------------- Stampa (report mensile su A4 orizzontale) */
 @media print {
@@ -675,7 +680,6 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .tabella-report tbody th, .tabella-report tbody th.ufficio-fisso, .tabella-report td { font-size: 6.5pt; }
   .tabella-report td { white-space: nowrap; }
   .tag-movimento { font-size: 6pt; padding: 0 4px; margin: 0 0 0 4px; display: inline; }
-  .tabella-mensile-modifica input.input-fix { width: auto; }
   .legenda-movimenti { font-size: 7pt; margin-top: 3px; }
   .nome-persona .piccolo { font-size: 6pt; }
   .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 100%; font-size: 8pt; box-shadow: none !important; }

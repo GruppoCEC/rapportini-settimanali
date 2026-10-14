@@ -18,7 +18,7 @@
   - Pulsante **Stampa**: A4 orizzontale; il report di gruppo con 47 uffici sta in una pagina.
 - L'amministratore di città vede solo la sua città, l'ufficio solo il proprio rapportino. Le regole sono nel database e sono verificate dai test automatici.
 - **Cambi di personale evidenziati**: nel rapportino, nel riquadro del personale e nelle liste, chi entra nel mese ha la riga **verde** ("Nuovo ingresso dal …") e chi lascia l'ufficio nel mese la riga **rossa** ("Ha lasciato il …"). Anche in stampa.
-- **App. vendita fix** delle coordinatrici: si scrive in una casellina in alto accanto agli Appuntamenti vendita, solo sulla riga delle coordinatrici, e si legge come esponente: 12⁹ = 12 appuntamenti, 9 fix. È un indicatore di qualità: non entra nel totale dell'ufficio, nello stato di compilazione né nel report di gruppo. Compare nel rapportino dell'ufficio e nella lista delle coordinatrici; nel backup Excel ha una colonna sua.
+- **App. vendita fix** delle coordinatrici: si scrive nell'angolo in alto a destra della stessa casella degli Appuntamenti vendita, che resta grande come le altre, solo sulla riga delle coordinatrici, e si legge come esponente: 12⁹ = 12 appuntamenti, 9 fix. È un indicatore di qualità: non entra nel totale dell'ufficio, nello stato di compilazione né nel report di gruppo. Compare nel rapportino dell'ufficio e nella lista delle coordinatrici; nel backup Excel ha una colonna sua.
 - **Amministrazione → Uffici**: tabella (1ª o 2ª) e posizione di ogni ufficio nel report mensile.
 - **Backup in Excel**: due fogli in più, "Mensile" e "Personale".
 - Il menu "Inserisci settimana / Inserisci mese" e le voci un po' più strette, così il menu degli amministratori sta su una riga.

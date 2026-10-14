@@ -129,8 +129,8 @@ export function TabellaRapportino({ voci, mese, righe, totale, testo, modificabi
     if (prossima) { e.preventDefault(); prossima.focus(); prossima.select() }
   }
 
-  const casella = (p: Persona, v: VoceMensile, r: number, colonna: string, classe = '') => (
-    <input inputMode="numeric" value={testo(p.id, v.codice)} disabled={disattivo} data-riga={r} data-colonna={colonna}
+  const casella = (p: Persona, v: VoceMensile, r: number, colonna: string, classe = '', segnaposto?: string) => (
+    <input key={v.codice} inputMode="numeric" value={testo(p.id, v.codice)} disabled={disattivo} data-riga={r} data-colonna={colonna} placeholder={segnaposto}
       aria-label={`${p.nome} – ${v.gruppo}${v.sotto ? ` ${v.sotto}` : ''}`}
       className={`${classe} ${errate?.has(`${p.id}|${v.codice}`) ? 'non-valido' : ''}`}
       onKeyDown={(e) => tasto(e, r, colonna)}
@@ -171,13 +171,14 @@ export function TabellaRapportino({ voci, mese, righe, totale, testo, modificabi
                             )
                           }
                           return (
-                            <td key={v.codice} className={`destra ${accanto.length ? 'cella-con-fix' : ''}`}>
-                              {casella(p, v, r, String(c))}
-                              {accanto.map((a) => (
-                                <span key={a.codice} className="esponente-fix" title={`${a.gruppo}: indicatore di qualità, non entra nei totali`}>
-                                  {casella(p, a, r, a.codice, 'input-fix')}
+                            <td key={v.codice} className="destra">
+                              {accanto.length === 0 ? casella(p, v, r, String(c)) : (
+                                // stesso quadrato degli altri: il fix si scrive nell'angolo in alto a destra, come un esponente
+                                <span className="casella-con-fix" title={`In alto a destra: ${accanto.map((a) => a.gruppo).join(', ')} (indicatore di qualità, non entra nei totali)`}>
+                                  {casella(p, v, r, String(c), 'input-principale')}
+                                  {accanto.map((a) => casella(p, a, r, a.codice, 'input-fix', breve(a)))}
                                 </span>
-                              ))}
+                              )}
                             </td>
                           )
                         })}
