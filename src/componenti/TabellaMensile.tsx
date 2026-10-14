@@ -31,7 +31,7 @@ interface PropsTestata {
 
 /** Intestazione su due righe: gruppo sopra, vendita/locazione sotto */
 export function TestataVoci({ voci, prime, ultime = [], titoloStampa, annotazioni }: PropsTestata) {
-  const nota = (codice: string) => annotazioni?.get(codice) && <span className="nota-fix">{annotazioni.get(codice)}</span>
+  const nota = (codice: string) => annotazioni?.get(codice) && <sup className="nota-fix">{annotazioni.get(codice)}</sup>
   const gruppi = gruppiDiVoci(voci)
   return (
     <thead>
@@ -66,28 +66,28 @@ interface PropsRapportino {
   titoloStampa?: string
 }
 
-/** Etichetta breve di un indicatore, mostrata tra parentesi: "App. vendita fix" → "fix" */
+/** Etichetta breve di un indicatore, mostrata come esponente nell'intestazione: "App. vendita fix" → "fix" */
 const breve = (v: VoceMensile) => v.gruppo.split(' ').pop()!.toLowerCase()
 
 /** Gli indicatori usati da queste persone, e la nota da mettere sotto la colonna che li ospita */
 export function annotazioniIndicatori(voci: VoceMensile[], persone: Persona[]) {
   const usati = indicatori(voci).filter((v) => v.accanto_a && persone.some((p) => p.ruolo === v.solo_ruolo))
-  return { usati, annotazioni: new Map(usati.map((v) => [v.accanto_a!, `(${breve(v)})`])) }
+  return { usati, annotazioni: new Map(usati.map((v) => [v.accanto_a!, breve(v)])) }
 }
 
-/** Numero con, tra parentesi, gli indicatori della stessa colonna (es. 12 (9)) */
+/** Numero con gli indicatori della stessa colonna scritti come esponente (es. 9⁷: 9 appuntamenti, 7 fix) */
 export function ValoreConIndicatori({ valore, tra }: { valore: number | null; tra: (number | null)[] }) {
-  return <>{formattaNumero(valore)}{tra.map((x, i) => <span key={i} className="valore-fix"> ({formattaNumero(x)})</span>)}</>
+  return <>{formattaNumero(valore)}{tra.map((x, i) => x !== null && <sup key={i} className="valore-fix">{formattaNumero(x)}</sup>)}</>
 }
 
-/** Spiega i numeri tra parentesi */
+/** Spiega i numeri a esponente */
 export function LegendaIndicatori({ usati, voci }: { usati: VoceMensile[]; voci: VoceMensile[] }) {
   if (usati.length === 0) return null
   return (
     <p className="legenda legenda-movimenti">
       {usati.map((v) => {
         const colonna = voci.find((c) => c.codice === v.accanto_a)
-        return <span key={v.codice}><span className="valore-fix">(n)</span> in {colonna ? `${colonna.gruppo}${colonna.sotto ? ` ${colonna.sotto}` : ''}`.toLowerCase() : ''} = {v.gruppo} delle {v.solo_ruolo === 'coordinatrice' ? 'coordinatrici' : v.solo_ruolo}: indicatore di qualità, non entra nei totali</span>
+        return <span key={v.codice}>9<sup className="valore-fix">7</sup> in {colonna ? `${colonna.gruppo}${colonna.sotto ? ` ${colonna.sotto}` : ''}`.toLowerCase() : ''} = {v.gruppo} delle {v.solo_ruolo === 'coordinatrice' ? 'coordinatrici' : v.solo_ruolo} (il numero piccolo in alto): indicatore di qualità, non entra nei totali</span>
       })}
     </p>
   )
@@ -174,8 +174,8 @@ export function TabellaRapportino({ voci, mese, righe, totale, testo, modificabi
                             <td key={v.codice} className={`destra ${accanto.length ? 'cella-con-fix' : ''}`}>
                               {casella(p, v, r, String(c))}
                               {accanto.map((a) => (
-                                <span key={a.codice} className="parentesi-fix" title={`${a.gruppo}: indicatore di qualità, non entra nei totali`}>
-                                  ({casella(p, a, r, a.codice, 'input-fix')})
+                                <span key={a.codice} className="esponente-fix" title={`${a.gruppo}: indicatore di qualità, non entra nei totali`}>
+                                  {casella(p, a, r, a.codice, 'input-fix')}
                                 </span>
                               ))}
                             </td>

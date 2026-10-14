@@ -626,12 +626,15 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .quadratino.riga-entrata { background: var(--ok-bg); border: 2px solid var(--ok); }
 .quadratino.riga-uscita { background: var(--ko-bg); border: 2px solid var(--ko); }
 
-/* Indicatore delle coordinatrici (App. vendita fix): tra parentesi nella colonna degli appuntamenti, fuori dai totali */
-.nota-fix { display: block; font-size: 9px; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--secondario-700); }
-.valore-fix { color: var(--secondario-700); font-weight: 600; font-size: .9em; }
+/* Indicatore delle coordinatrici (App. vendita fix): esponente del numero degli appuntamenti (9⁷), fuori dai totali */
+.nota-fix { font-size: 8px; font-weight: 800; text-transform: none; letter-spacing: 0; color: var(--secondario-700); margin-left: 1px; }
+.valore-fix { color: var(--secondario-700); font-weight: 700; font-size: .7em; margin-left: 1px; }
 .tabella-mensile td.cella-con-fix { white-space: nowrap; }
-.parentesi-fix { display: inline-flex; align-items: center; gap: 1px; margin-left: 3px; color: var(--secondario-700); font-weight: 700; }
-.tabella-mensile-modifica input.input-fix { width: 38px; padding-inline: 4px; border-color: var(--secondario-300); background: var(--secondario-100); color: var(--secondario-900); }
+.esponente-fix { display: inline-block; vertical-align: top; margin: -6px 0 0 2px; }
+.tabella-mensile-modifica input.input-fix {
+  width: 30px; min-height: 0; height: 22px; padding: 1px 4px; font-size: 11px; font-weight: 700; border-radius: 6px;
+  border-color: var(--secondario-300); background: var(--secondario-100); color: var(--secondario-800);
+}
 
 /* ---------------------------------------------------------------- Stampa (report mensile su A4 orizzontale) */
 @media print {
