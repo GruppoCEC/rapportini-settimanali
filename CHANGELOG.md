@@ -30,7 +30,7 @@
   - in stampa, sotto la lista, sono elencati i punti usati.
 - **Chi lascia l'ufficio in un mese non conta in quel mese**: niente riga nel rapportino, totali, staff, liste né gara. Nel rapportino dell'ufficio compare al suo posto un avviso rosso ("Ha lasciato l'ufficio nel mese: …"), che non c'è invece nelle liste e nella scheda punteggi dell'amministratore; i numeri dei mesi precedenti restano. Il pulsante "Ha lasciato" propone la data di oggi.
 - **Usciti nell'anno** (Personale → Usciti nell'anno), per il turnover:
-  - tutte le persone uscite nell'anno scelto, con ruolo, ufficio, data di inizio, data di uscita e anzianità all'uscita;
+  - tutte le persone uscite nell'anno scelto, con ruolo, ufficio, data di inizio, data di uscita e anzianità all'uscita, raggruppate per mese: a sinistra una casella con il nome del mese in verticale e una linea spessa tra un mese e l'altro;
   - riepilogo: numero di uscite, persone in servizio al 1° gennaio, tasso di uscita (uscite ÷ in servizio al 1° gennaio), anzianità media all'uscita e uscite per ruolo;
   - si stampa in A4 verticale.
 - "Funzionario" diventa **collaboratore** in tutto il rapportino mensile.

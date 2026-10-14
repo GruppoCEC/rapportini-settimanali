@@ -620,6 +620,11 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .riepilogo-turnover strong { font: 800 30px/1.1 var(--font-titoli); color: var(--ko-fg); }
 .riepilogo-turnover strong.testo-medio { font-size: 20px; }
 .riepilogo-turnover .per-ruolo { font-weight: 700; color: var(--ko-fg); }
+.tabella-uscite th.cella-mese-testa { width: 44px; text-align: center; }
+.tabella-uscite th.cella-mese { width: 44px; padding: 6px 0; text-align: center; vertical-align: middle; background: var(--ko-bg); color: var(--ko-fg); border-right: 1px solid color-mix(in srgb, var(--ko) 35%, transparent); }
+.tabella-uscite th.cella-mese span { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); font: 800 13px var(--font-testo); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.tabella-uscite tr.inizio-mese > * { border-top: 3px solid var(--testo); }
+.tabella-uscite tbody tr:hover { background: none; }
 /* Scheda punteggi (da stampare e completare a penna) */
 .tabella-punteggi { max-width: 1000px; }
 .tabella-punteggi tbody th { font-weight: 600; }
@@ -732,6 +737,9 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .scheda-uscite { page: verticale; }
   .tabella-uscite th, .tabella-uscite td { height: 8mm; font-size: 11pt; }
   .tabella-uscite tbody th { font-size: 11pt; }
+  .tabella-uscite tr.inizio-mese > * { border-top: 2.5pt solid #201E1D !important; }
+  .tabella-uscite th.cella-mese { height: auto; padding: 4px 0 !important; }
+  .tabella-uscite th.cella-mese span { font-size: 10pt; }
   .riepilogo-turnover { gap: 6px; margin-bottom: 8px; }
   .riepilogo-turnover > div { padding: 6px 10px; min-width: 0; }
   .riepilogo-turnover strong { font-size: 16pt; }

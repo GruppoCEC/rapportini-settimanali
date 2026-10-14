@@ -144,7 +144,9 @@ for (const u of uffici) {
       data_inizio: ruolo === 'responsabile' ? dataTra(2008, 2018) : dataTra(2015, 2025), data_fine: null })
   }
   // Qualche cambio di personale: un'uscita due mesi fa e un ingresso nel mese da compilare
-  if (u.id % 4 === 0) persone.find((p) => p.ufficio_id === u.id && p.ruolo === 'collaboratore').data_fine = ultimoGiornoDelMese(aggiungiMesi(meseDaCompilare, -2))
+  // uscite sparse nei mesi passati dell'anno (per la scheda "Usciti nell'anno")
+  if (u.id % 4 === 0) persone.find((p) => p.ufficio_id === u.id && p.ruolo === 'collaboratore').data_fine =
+    `${aggiungiMesi(meseDaCompilare, -1 - (Math.floor(u.id / 4) % 8)).slice(0, 8)}${String(5 + (u.id % 20)).padStart(2, '0')}`
   // e qualche uscita proprio nel mese da compilare (righe rosse)
   if (u.id % 3 === 1) {
     const chi = persone.filter((p) => p.ufficio_id === u.id && p.ruolo !== 'responsabile' && !p.data_fine).pop()

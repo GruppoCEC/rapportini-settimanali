@@ -367,6 +367,20 @@ const SOTTO_BREVE: Record<string, string> = { vendita: 'vend.', locazione: 'loc.
 
 // ---------------------------------------------------------------- Usciti nell'anno (turnover)
 
+/** Uscite raggruppate per mese di uscita ('AAAA-MM-01'), già in ordine di data */
+function perMese<T extends { persona: Persona }>(usciti: T[]): { mese: string; uscite: T[] }[] {
+  const gruppi: { mese: string; uscite: T[] }[] = []
+  for (const u of usciti) {
+    const m = `${u.persona.data_fine!.slice(0, 7)}-01`
+    if (gruppi[gruppi.length - 1]?.mese === m) gruppi[gruppi.length - 1].uscite.push(u)
+    else gruppi.push({ mese: m, uscite: [u] })
+  }
+  return gruppi
+}
+
+/** "Settembre 2026" → "Settembre" */
+const nomeMeseSolo = (mese: string) => titoloMese(mese).split(' ')[0]
+
 const PLURALI_RUOLO: Record<RuoloPersona, string> = { responsabile: 'Responsabili', collaboratore: 'Collaboratori', coordinatrice: 'Coordinatrici', marketer: 'Marketer' }
 
 function SchedaUscite({ uffici, annoIniziale }: { uffici: DatiUfficio[]; annoIniziale: string }) {
@@ -396,12 +410,18 @@ function SchedaUscite({ uffici, annoIniziale }: { uffici: DatiUfficio[]; annoIni
         <div className="tabella-scorrevole">
           <table className="tabella tabella-punteggi tabella-uscite">
             <thead>
-              <tr className="solo-stampa"><th colSpan={6} className="titolo-stampa">Usciti nel {anno} · {t.usciti.length} persone · tasso di uscita {t.tasso === null ? '—' : formattaPercentuale(t.tasso)}</th></tr>
-              <tr><th>Nome</th><th>Ruolo</th><th>Ufficio</th><th>Data di inizio</th><th>Data di uscita</th><th>Anzianità all'uscita</th></tr>
+              <tr className="solo-stampa"><th colSpan={7} className="titolo-stampa">Usciti nel {anno} · {t.usciti.length} persone · tasso di uscita {t.tasso === null ? '—' : formattaPercentuale(t.tasso)}</th></tr>
+              <tr><th className="cella-mese-testa">Mese</th><th>Nome</th><th>Ruolo</th><th>Ufficio</th><th>Data di inizio</th><th>Data di uscita</th><th>Anzianità all'uscita</th></tr>
             </thead>
             <tbody>
-              {t.usciti.map(({ persona: p, mesi }) => (
-                <tr key={p.id}>
+              {perMese(t.usciti).flatMap(({ mese: m, uscite }) => uscite.map(({ persona: p, mesi }, i) => (
+                <tr key={p.id} className={i === 0 ? 'inizio-mese' : ''}>
+                  {i === 0 && (
+                    // una casella per mese, alta quanto le sue uscite, con il nome scritto in verticale
+                    <th rowSpan={uscite.length} className="cella-mese" title={titoloMese(m)}>
+                      <span>{uscite.length >= 3 ? nomeMeseSolo(m) : nomeMeseSolo(m).slice(0, 3)}</span>
+                    </th>
+                  )}
                   <th scope="row">{p.nome}</th>
                   <td>{NOMI_RUOLO_PERSONA[p.ruolo]}</td>
                   <td>{ufficioDi.get(p.id)}</td>
@@ -409,7 +429,7 @@ function SchedaUscite({ uffici, annoIniziale }: { uffici: DatiUfficio[]; annoIni
                   <td>{dataItaliana(p.data_fine)}</td>
                   <td>{formattaAnzianita(mesi)}</td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
