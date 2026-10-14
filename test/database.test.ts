@@ -254,6 +254,7 @@ describe('Rapportino mensile', () => {
      on conflict (persona_id, mese, voce) do update set valore = excluded.valore`
 
   beforeAll(async () => {
+    await db.exec(`update impostazioni set valore = 'si' where chiave = 'mensile_aperto'`)   // per questi test il mensile è aperto
     pB = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaB}, 'Bruno Bianchi', 'collaboratore', '2020-01-01') returning id`)
     pM = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${milanoA}, 'Marta Meli', 'coordinatrice', '2024-05-01') returning id`)
     await db.exec(`${valore(pB, 'colloqui', 4)}; ${valore(pM, 'colloqui', 2)}`)
@@ -345,6 +346,21 @@ describe('Rapportino mensile', () => {
     // scadenza spostata nel futuro: l'ufficio torna a scrivere
     await come('davide@test.it', `update scadenze_mensili set scadenza = now() + interval '1 day' where mese = '2026-08-01'`)
     await come('a@test.it', agosto('colloqui', 4))
+  })
+
+  it('in prova (Work in progress) gli uffici non scrivono, gli amministratori sì', async () => {
+    await db.exec(`update impostazioni set valore = 'no' where chiave = 'mensile_aperto'`)
+    try {
+      expect((await come<{ aperto: boolean }>('a@test.it', `select mensile_aperto() as aperto`))[0].aperto).toBe(false)
+      await rifiutata('a@test.it', `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, 'Prova', 'marketer', '2026-01-01')`, [romaA])
+      await rifiutata('a@test.it', valore(pA, 'ribassi', 1))
+      expect(await come('a@test.it', `update persone set nome = 'X' where id = $1 returning *`, [pA])).toHaveLength(0)
+      expect(await come('a@test.it', `select * from valori_mensili`)).not.toHaveLength(0)        // vede ancora i suoi dati
+      await come('davide@test.it', valore(pA, 'ribassi', 1))
+      await come('adminmi@test.it', valore(pM, 'ribassi', 1))
+    } finally {
+      await db.exec(`update impostazioni set valore = 'si' where chiave = 'mensile_aperto'`)
+    }
   })
 
   it('tutti vedono le 19 colonne del rapportino più l\'indicatore, nessuno estraneo', async () => {

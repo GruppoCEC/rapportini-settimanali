@@ -225,6 +225,25 @@ for each row execute function registra_modifica_mensile();
 -- Regole di accesso (stesse funzioni dei dati settimanali, 002_sicurezza.sql)
 -- ---------------------------------------------------------------------
 
+-- Rapportino mensile "in prova" (Work in progress): finché l'impostazione mensile_aperto
+-- non vale 'si', gli uffici non possono scrivere; gli amministratori della città sì, per provarlo.
+-- Per aprirlo a tutti: update impostazioni set valore = 'si' where chiave = 'mensile_aperto';
+insert into impostazioni (chiave, valore) values ('mensile_aperto', 'no') on conflict (chiave) do nothing;
+
+create function mensile_aperto() returns boolean
+language sql stable security definer set search_path = public
+as $$ select coalesce((select valore = 'si' from impostazioni where chiave = 'mensile_aperto'), false) $$;
+
+-- Posso scrivere personale e numeri mensili di questo ufficio?
+create function posso_scrivere_mensile(p_ufficio bigint) returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select posso_scrivere_ufficio(p_ufficio)
+     and (mensile_aperto() or exists (select 1 from uffici u where u.id = p_ufficio and gestisco_citta(u.citta_id)))
+$$;
+
+grant execute on function mensile_aperto() to authenticated;
+
 alter table persone              enable row level security;
 alter table voci_mensili         enable row level security;
 alter table valori_mensili       enable row level security;
@@ -237,20 +256,20 @@ alter table scadenze_mensili     enable row level security;
 create policy persone_lettura on persone for select to authenticated
   using (posso_leggere_ufficio(ufficio_id));
 create policy persone_inserimento on persone for insert to authenticated
-  with check (posso_scrivere_ufficio(ufficio_id));
+  with check (posso_scrivere_mensile(ufficio_id));
 create policy persone_modifica on persone for update to authenticated
-  using (posso_scrivere_ufficio(ufficio_id)) with check (posso_scrivere_ufficio(ufficio_id));
+  using (posso_scrivere_mensile(ufficio_id)) with check (posso_scrivere_mensile(ufficio_id));
 create policy persone_cancellazione on persone for delete to authenticated
-  using (posso_scrivere_ufficio(ufficio_id));
+  using (posso_scrivere_mensile(ufficio_id));
 
 create policy valori_mensili_lettura on valori_mensili for select to authenticated
   using (posso_leggere_ufficio(ufficio_id));
 create policy valori_mensili_inserimento on valori_mensili for insert to authenticated
-  with check (posso_scrivere_ufficio(ufficio_id));
+  with check (posso_scrivere_mensile(ufficio_id));
 create policy valori_mensili_modifica on valori_mensili for update to authenticated
-  using (posso_scrivere_ufficio(ufficio_id)) with check (posso_scrivere_ufficio(ufficio_id));
+  using (posso_scrivere_mensile(ufficio_id)) with check (posso_scrivere_mensile(ufficio_id));
 create policy valori_mensili_cancellazione on valori_mensili for delete to authenticated
-  using (posso_scrivere_ufficio(ufficio_id));
+  using (posso_scrivere_mensile(ufficio_id));
 
 -- Colonne del rapportino: leggibili da tutti gli abilitati, modificabili dall'amministratore generale
 create policy voci_mensili_lettura on voci_mensili for select to authenticated

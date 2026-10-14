@@ -4,7 +4,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Contesto } from '../lib/contesto'
 import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
-import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
+import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaValoriMensili, caricaVociMensili, mensileAperto } from '../lib/dati'
+import { AvvisoProva } from './RapportinoMensile'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
   punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, dataOra, scadenzaPassata, scadenzaProposta, ultimoRitardo,
@@ -76,11 +77,13 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
     }
   }, [mese, ids.join(','), generale])
 
+  const aperto = useDati(mensileAperto, [])
   const nomeCitta = ctx.citta.find((c) => c.id === ctx.utente.citta_id)?.nome ?? ''
   const titolo = generale ? 'Gruppo' : nomeCitta
 
   return (
     <div className="pagina entra">
+      {aperto.dati === false && <div className="non-stampa"><AvvisoProva amministratore /></div>}
       <div className="intestazione non-stampa">
         <div className="intestazione-titoli">
           <span className="kicker">Report mensile</span>

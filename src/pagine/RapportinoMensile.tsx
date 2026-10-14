@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { nomeDaEmail } from '../lib/account'
 import { leggiNumero } from '../lib/calcoli'
-import { caricaPersone, caricaScadenza, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
+import { caricaPersone, caricaScadenza, caricaValoriMensili, caricaVociMensili, mensileAperto } from '../lib/dati'
 import {
   dataItaliana, dataOra, inServizio, meseChiuso, mesePredefinito, scadenzaPassata, ordinaPersone, righeDelMese, titoloMese, totaleUfficio, ORDINE_RUOLI,
 } from '../lib/mensile'
@@ -29,12 +29,28 @@ const chiave = (personaId: number, voce: string) => `${personaId}|${voce}`
 const num = (s: string) => { const v = leggiNumero(s); return typeof v === 'number' ? v : null }
 
 export default function RapportinoMensile({ uffici, ufficioPredefinito, amministratore }: Props) {
-  const voci = useDati(caricaVociMensili, [])
-  if (!voci.dati) return <div className="pagina"><Caricamento errore={voci.errore} /></div>
-  return <Compilazione uffici={uffici} ufficioPredefinito={ufficioPredefinito} amministratore={amministratore} voci={voci.dati} />
+  const base = useDati(() => Promise.all([caricaVociMensili(), mensileAperto()]), [])
+  if (!base.dati) return <div className="pagina"><Caricamento errore={base.errore} /></div>
+  const [voci, aperto] = base.dati
+  return <Compilazione uffici={uffici} ufficioPredefinito={ufficioPredefinito} amministratore={amministratore} voci={voci} aperto={aperto} />
 }
 
-function Compilazione({ uffici, ufficioPredefinito, amministratore, voci }: Props & { voci: VoceMensile[] }) {
+/** Funzione ancora in prova: lo si dice chiaramente, agli uffici e agli amministratori */
+export function AvvisoProva({ amministratore }: { amministratore?: boolean }) {
+  return (
+    <div className="avviso-wip" role="note">
+      <span className="tag-wip">Work in progress</span>
+      <span>
+        <strong>Funzione in prova.</strong>{' '}
+        {amministratore
+          ? 'Gli uffici vedono questa pagina ma non possono ancora inserire i dati. Tu puoi provarla: i dati che inserisci restano nel database.'
+          : 'Il rapportino mensile sarà presto disponibile: per ora le caselle sono bloccate e non è possibile inserire i dati.'}
+      </span>
+    </div>
+  )
+}
+
+function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto }: Props & { voci: VoceMensile[]; aperto: boolean }) {
   const [ufficioId, setUfficioId] = useState(uffici.find((u) => u.id === ufficioPredefinito)?.id ?? uffici[0].id)
   const [mese, setMese] = useState(mesePredefinito())
   const [persone, setPersone] = useState<Persona[]>([])
@@ -127,11 +143,13 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci }: Prop
   }
 
   const ufficio = uffici.find((u) => u.id === ufficioId)!
-  const chiuso = meseChiuso(scadenza) && !amministratore      // mese chiuso dall'amministratore: l'ufficio non scrive più
+  const inProva = !aperto && !amministratore                 // Work in progress: gli uffici non scrivono ancora
+  const chiuso = (meseChiuso(scadenza) && !amministratore) || inProva   // mese chiuso dall'amministratore: l'ufficio non scrive più
   const disattivo = stato !== 'pronto' || chiuso
 
   return (
     <div className="pagina entra">
+      {!aperto && <AvvisoProva amministratore={amministratore} />}
       <div className="intestazione">
         <div className="intestazione-titoli">
           <span className="kicker">Rapportino mensile</span>
@@ -164,14 +182,14 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci }: Prop
             <span>Nessuna persona in servizio a {titoloMese(mese).toLowerCase()}. Aggiungi il personale dell'ufficio nel riquadro <strong>Personale dell'ufficio</strong> qui sotto: lo fai una volta sola, poi vale per tutti i mesi.</span>
           </p>
         )}
-        <AvvisoScadenza scadenza={scadenza} amministratore={amministratore} />
+        {!inProva && <AvvisoScadenza scadenza={scadenza} amministratore={amministratore} />}
         <AvvisoUscite persone={persone} mese={mese} />
         <TabellaRapportino voci={voci} mese={mese} righe={righe} totale={totale} modificabile disattivo={disattivo} errate={errate}
           testo={(pid, voce) => caselle[chiave(pid, voce)] ?? ''}
           onCambia={(pid, voce, valore) => { setCaselle((c) => ({ ...c, [chiave(pid, voce)]: valore })); setMessaggio(null) }} />
       </section>
 
-      <Personale persone={persone} ufficioId={ufficioId} mese={mese} onCambiato={ricaricaPersone} chiedi={chiedi} mostraToast={mostraToast} />
+      <Personale persone={persone} ufficioId={ufficioId} mese={mese} onCambiato={ricaricaPersone} chiedi={chiedi} mostraToast={mostraToast} bloccato={inProva} />
 
       <div className="barra-salvataggio">
         {messaggio && (
@@ -225,6 +243,7 @@ interface PropsPersonale {
   onCambiato: () => Promise<void>
   chiedi: ReturnType<typeof useConferma>[1]
   mostraToast: (testo: string) => void
+  bloccato?: boolean                    // Work in progress: niente modifiche al personale
 }
 
 type Bozza = { nome: string; ruolo: RuoloPersona; data_inizio: string; data_fine: string }
@@ -234,7 +253,7 @@ function messaggioErrore(m: string): string {
   return m
 }
 
-function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast }: PropsPersonale) {
+function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, bloccato }: PropsPersonale) {
   const vuota: Bozza = { nome: '', ruolo: 'collaboratore', data_inizio: '', data_fine: '' }
   const [nuova, setNuova] = useState<Bozza>(vuota)
   const [inModifica, setInModifica] = useState<{ id: number; bozza: Bozza } | null>(null)
@@ -296,14 +315,14 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast }
 
       <form className="riga-modulo" onSubmit={aggiungi}>
         <label className="campo campo-nome"><span className="etichetta">Nome e cognome</span>
-          <input required maxLength={80} value={nuova.nome} onChange={(e) => setNuova({ ...nuova, nome: e.target.value })} placeholder="es. Mario Rossi" /></label>
+          <input required maxLength={80} disabled={bloccato} value={nuova.nome} onChange={(e) => setNuova({ ...nuova, nome: e.target.value })} placeholder="es. Mario Rossi" /></label>
         <label className="campo"><span className="etichetta">Ruolo</span>
-          <select value={nuova.ruolo} onChange={(e) => setNuova({ ...nuova, ruolo: e.target.value as RuoloPersona })}>
+          <select disabled={bloccato} value={nuova.ruolo} onChange={(e) => setNuova({ ...nuova, ruolo: e.target.value as RuoloPersona })}>
             {ORDINE_RUOLI.map((r) => <option key={r} value={r}>{NOMI_RUOLO_PERSONA[r]}</option>)}
           </select></label>
         <label className="campo"><span className="etichetta">Data di inizio</span>
-          <input required type="date" value={nuova.data_inizio} onChange={(e) => setNuova({ ...nuova, data_inizio: e.target.value })} /></label>
-        <button type="submit" className="btn btn-primario" disabled={occupato}><Icona nome="user-plus" />Aggiungi</button>
+          <input required type="date" disabled={bloccato} value={nuova.data_inizio} onChange={(e) => setNuova({ ...nuova, data_inizio: e.target.value })} /></label>
+        <button type="submit" className="btn btn-primario" disabled={occupato || bloccato}><Icona nome="user-plus" />Aggiungi</button>
       </form>
 
       {ordinate.length > 0 && (
@@ -346,9 +365,9 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast }
                       )}
                     </td>
                     <td className="azioni">
-                      <button className="btn btn-fantasma" onClick={() => modifica(p)}>Modifica</button>
-                      {!p.data_fine && <button className="btn btn-fantasma" onClick={() => modifica(p, oggi)}>Ha lasciato</button>}
-                      <button className="btn btn-fantasma btn-pericolo" onClick={() => elimina(p)}>Elimina</button>
+                      <button className="btn btn-fantasma" disabled={bloccato} onClick={() => modifica(p)}>Modifica</button>
+                      {!p.data_fine && <button className="btn btn-fantasma" disabled={bloccato} onClick={() => modifica(p, oggi)}>Ha lasciato</button>}
+                      <button className="btn btn-fantasma btn-pericolo" disabled={bloccato} onClick={() => elimina(p)}>Elimina</button>
                     </td>
                   </tr>
                 )

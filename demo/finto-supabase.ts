@@ -266,6 +266,11 @@ class Interrogazione {
             const riservata = voci_mensili.find((v) => v.codice === r.voce)?.solo_ruolo
             if (riservata && riservata !== persona?.ruolo) return { data: null, error: { message: `La voce ${r.voce} si compila solo per il ruolo ${riservata}` } }
           }
+          if (['persone', 'valori_mensili'].includes(this.tabella) && me.ruolo === 'ufficio') {   // in prova: come la regola del database
+            let inProva = false
+            try { inProva = localStorage.getItem('rapportini.demo.mensileInProva') === 'si' } catch { /* niente */ }
+            if (inProva) return { data: null, error: { message: 'new row violates row-level security policy' } }
+          }
           if (this.tabella === 'valori_mensili' && me.ruolo === 'ufficio') {      // mese chiuso: come il trigger del database
             const s = scadenze_mensili.find((x) => x.mese === r.mese)
             if (s && s.blocca && Date.now() > new Date(s.scadenza).getTime()) return { data: null, error: { message: 'Inserimento chiuso: la scadenza per questo mese è passata. Per correzioni contatta l\'amministratore' } }
@@ -329,6 +334,9 @@ export const supabase: any = {
   rpc: async (nome: string, args: any) => {
     await attesa(80)
     if (nome === 'email_di_accesso') return { data: `${String(args.p_nome_utente).trim().toLowerCase()}@demo`, error: null }
+    // Rapportino mensile: nella demo è aperto; per vedere la modalità "in prova" scrivere nella console
+    // localStorage.setItem('rapportini.demo.mensileInProva', 'si') e ricaricare
+    if (nome === 'mensile_aperto') { try { return { data: localStorage.getItem('rapportini.demo.mensileInProva') !== 'si', error: null } } catch { return { data: true, error: null } } }
     return { data: null, error: { message: `funzione ${nome} non disponibile nella demo` } }
   },
   functions: {

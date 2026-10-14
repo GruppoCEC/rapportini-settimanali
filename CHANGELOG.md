@@ -1,8 +1,13 @@
 # Storia delle versioni
 
-## 0.5.0 — in prova, non ancora online (ramo `mensile`)
+## 0.5.0 — 14 ottobre 2026 (rapportino mensile, "Work in progress")
 
 **Rapportino mensile**, al posto del file Excel che gli uffici mandano per email a fine mese.
+
+**Online in prova ("Work in progress")**:
+- gli uffici vedono "Inserisci mese" con una fascia "Work in progress" e tutte le caselle bloccate. Lo impedisce anche il database: finché il mensile non è aperto, gli uffici non possono scrivere;
+- gli amministratori possono già provarlo e vedere il report con gli uffici veri nell'ordine del file;
+- per aprirlo agli uffici basta in Supabase → SQL Editor: `update impostazioni set valore = 'si' where chiave = 'mensile_aperto';`. Non serve ripubblicare il sito: la fascia sparisce e le caselle si sbloccano da sole.
 
 - **Inserisci mese** (uffici, e amministratori che compilano):
   - una riga per persona, con le stesse 19 colonne del file "Rapportino vuoto NUOVO" (portafoglio, acquisizioni, appuntamenti, incarichi, … incarichi scaduti), vendita e locazione separate;

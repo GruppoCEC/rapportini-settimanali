@@ -110,6 +110,15 @@ export async function caricaPunti(): Promise<Map<string, number>> {
   return new Map((data as { voce: string; punti: number | string }[]).map((r) => [r.voce, Number(r.punti)]))
 }
 
+/**
+ * Il rapportino mensile è aperto agli uffici? Finché è "in prova" (Work in progress) no:
+ * gli uffici vedono le pagine ma non possono scrivere. Si apre dal database (impostazione mensile_aperto).
+ */
+export async function mensileAperto(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('mensile_aperto')
+  return !error && data === true
+}
+
 /** Scadenza di inserimento del mese, se l'amministratore l'ha fissata */
 export async function caricaScadenza(mese: string): Promise<Scadenza | null> {
   const { data, error } = await supabase.from('scadenze_mensili').select('mese, scadenza, blocca').eq('mese', mese).maybeSingle()
