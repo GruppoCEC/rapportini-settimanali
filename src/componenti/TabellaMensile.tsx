@@ -118,15 +118,15 @@ export function LegendaMovimenti({ persone, mese }: { persone: Persona[]; mese: 
 }
 
 /** Chi ha lasciato l'ufficio nel mese: non compare nel rapportino né nei totali, lo si segnala a parte */
-export function AvvisoUscite({ persone, mese, conUfficio }: { persone: { p: Persona; ufficio?: string }[]; mese: string; conUfficio?: boolean }) {
-  const usciti = persone.filter(({ p }) => movimentoNelMese(p, mese) === 'uscita')
+export function AvvisoUscite({ persone, mese }: { persone: Persona[]; mese: string }) {
+  const usciti = persone.filter((p) => movimentoNelMese(p, mese) === 'uscita')
   if (usciti.length === 0) return null
   return (
     <p className="avviso avviso-uscite non-stampa">
       <span className="quadratino riga-uscita" />
       <span>
         <strong>{usciti.length === 1 ? 'Ha lasciato l\'ufficio' : 'Hanno lasciato l\'ufficio'} nel mese:</strong>{' '}
-        {usciti.map(({ p, ufficio }) => `${p.nome} (${conUfficio && ufficio ? `${ufficio}, ` : ''}${NOMI_RUOLO_PERSONA[p.ruolo].toLowerCase()}, il ${dataItaliana(p.data_fine)})`).join(' · ')}.
+        {usciti.map((p) => `${p.nome} (${NOMI_RUOLO_PERSONA[p.ruolo].toLowerCase()}, il ${dataItaliana(p.data_fine)})`).join(' · ')}.
         {' '}Non {usciti.length === 1 ? 'conta' : 'contano'} in questo mese: niente rapportino, totali, staff né gara.
       </span>
     </p>

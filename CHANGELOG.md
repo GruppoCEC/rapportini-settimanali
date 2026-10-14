@@ -28,7 +28,7 @@
   - la lista Collaboratori resta in ordine di ufficio; la riga di chi ha il **punteggio più alto del mese** (su tutto il gruppo) è **gialla**, con la scritta "★ Punteggio più alto del mese". A pari punti si evidenziano entrambi;
   - coordinatrici e marketer non partecipano e non hanno la colonna Punteggio;
   - in stampa, sotto la lista, sono elencati i punti usati.
-- **Chi lascia l'ufficio in un mese non conta in quel mese**: niente riga nel rapportino, totali, staff, liste né gara. Al suo posto un avviso rosso ("Ha lasciato l'ufficio nel mese: …"); i numeri dei mesi precedenti restano. Il pulsante "Ha lasciato" propone la data di oggi.
+- **Chi lascia l'ufficio in un mese non conta in quel mese**: niente riga nel rapportino, totali, staff, liste né gara. Nel rapportino dell'ufficio compare al suo posto un avviso rosso ("Ha lasciato l'ufficio nel mese: …"), che non c'è invece nelle liste e nella scheda punteggi dell'amministratore; i numeri dei mesi precedenti restano. Il pulsante "Ha lasciato" propone la data di oggi.
 - **Usciti nell'anno** (Personale → Usciti nell'anno), per il turnover:
   - tutte le persone uscite nell'anno scelto, con ruolo, ufficio, data di inizio, data di uscita e anzianità all'uscita;
   - riepilogo: numero di uscite, persone in servizio al 1° gennaio, tasso di uscita (uscite ÷ in servizio al 1° gennaio), anzianità media all'uscita e uscite per ruolo;

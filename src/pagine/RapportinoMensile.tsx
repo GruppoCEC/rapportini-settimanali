@@ -160,7 +160,7 @@ function Compilazione({ uffici, ufficioPredefinito, voci }: Props & { voci: Voce
             <span>Nessuna persona in servizio a {titoloMese(mese).toLowerCase()}. Aggiungi il personale dell'ufficio nel riquadro <strong>Personale dell'ufficio</strong> qui sotto: lo fai una volta sola, poi vale per tutti i mesi.</span>
           </p>
         )}
-        <AvvisoUscite persone={persone.map((p) => ({ p }))} mese={mese} />
+        <AvvisoUscite persone={persone} mese={mese} />
         <TabellaRapportino voci={voci} mese={mese} righe={righe} totale={totale} modificabile disattivo={disattivo} errate={errate}
           testo={(pid, voce) => caselle[chiave(pid, voce)] ?? ''}
           onCambia={(pid, voce, valore) => { setCaselle((c) => ({ ...c, [chiave(pid, voce)]: valore })); setMessaggio(null) }} />

@@ -19,7 +19,7 @@ import { BadgeStato, Caricamento } from '../componenti/Celle'
 import { Icona, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
 import {
-  annotazioniIndicatori, AvvisoUscite, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
+  annotazioniIndicatori, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
 } from '../componenti/TabellaMensile'
 
 type Scheda = 'panoramica' | 'rapportini' | 'personale'
@@ -301,7 +301,6 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
         )}
         {vista !== 'uscite' && <p className="avviso"><Icona nome="info" /><span>Persone in servizio a {titoloMese(mese).toLowerCase()}. Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</span></p>}
       </div>
-      {vista !== 'uscite' && <AvvisoUscite persone={uffici.flatMap((u) => u.persone.filter((p) => p.ruolo !== 'responsabile').map((p) => ({ p, ufficio: u.ufficio.nome })))} mese={mese} conUfficio />}
       {vista === 'uscite' && <SchedaUscite uffici={uffici} annoIniziale={mese.slice(0, 4)} />}
       {vista === 'scheda' && <SchedaPunteggi righe={righeDi(RUOLO_GARA)} migliore={migliore} mese={mese} conPunti={conPunti} />}
       {vista === 'liste' && <TabellaPunti voci={dati.voci} punti={dati.punti} modificabile={generale} onSalvato={onSalvato} />}
