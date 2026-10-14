@@ -19,7 +19,7 @@ import { BadgeStato, Caricamento } from '../componenti/Celle'
 import { Icona, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
 import {
-  annotazioniIndicatori, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
+  annotazioniIndicatori, TitoloStampa, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
 } from '../componenti/TabellaMensile'
 
 type Scheda = 'panoramica' | 'rapportini' | 'personale'
@@ -175,10 +175,9 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
       <section className="scheda scheda-stampa">
         <div className="tabella-scorrevole">
           <table className="tabella tabella-mensile tabella-report">
-            <TestataVoci voci={voci} prime={['Ufficio', 'Staff']} titoloStampa={<>
-              Report mensile · {titolo} · {titoloMese(mese)}
-              <span className="legenda-titolo">Rapportini: {riepilogo(conta)} su {dati.uffici.length} uffici · Staff = persone in servizio nel mese</span>
-            </>} />
+            <TestataVoci voci={voci} prime={['Ufficio', 'Staff']} titoloStampa={
+              <TitoloStampa titolo={`Report mensile · ${generale ? 'Gruppo' : titolo}`} sottotitolo={titoloMese(mese)}
+                info={<><span>Rapportini: {riepilogo(conta)} su {dati.uffici.length} uffici</span><span>Staff = persone in servizio nel mese</span></>} />} />
             <tbody>
               {blocchi.map((b, i) => [
                 i > 0 && <tr key={`sep${i}`} className="separatore-blocco"><td colSpan={colonne.length + 1} /></tr>,
@@ -329,7 +328,7 @@ function SingoliRapportini({ dati, mese }: { dati: DatiMese; mese: string }) {
       </div>
       {u.stato === 'mancante' && <p className="avviso avviso-arancio non-stampa"><Icona nome="warning-circle" /><span>{u.ufficio.nome} non ha ancora inserito i numeri di {titoloMese(mese).toLowerCase()}.</span></p>}
       <TabellaRapportino voci={dati.voci} mese={mese} righe={righeDelMese(u.persone, mese)} totale={u.totale} testo={testo}
-        titoloStampa={`Rapportino mensile · ${u.ufficio.nome} · ${titoloMese(mese)}`} />
+        titoloStampa={<TitoloStampa titolo={`Rapportino mensile · ${u.ufficio.nome}`} sottotitolo={titoloMese(mese)} info={`Staff: ${formattaNumero(u.totale.get(STAFF))} persone`} />} />
       <p className="piccolo non-stampa">Per correggere i numeri di un ufficio apri <strong>Rapportino mensile</strong> e scegli l'ufficio in alto.</p>
     </section>
   )
@@ -397,7 +396,8 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
                 <table className="tabella tabella-mensile tabella-report">
                   <TestataVoci voci={colonne} prime={['Nome', 'Ufficio', 'Inizio · anzianità']} ultime={gara ? ['Punteggio'] : []}
                     annotazioni={annotazioniIndicatori(dati.voci, righe.map((x) => x.p)).annotazioni}
-                    titoloStampa={`${titolo} · ${titoloMese(mese)} (${righe.length})`} />
+                    titoloStampa={<TitoloStampa titolo={titolo} sottotitolo={`${titoloMese(mese)} · ${righe.length} persone`}
+                      info={gara && conPunti && Number.isFinite(migliore) ? `Gara a punti · punteggio più alto: ${formattaPunti(migliore)}` : undefined} />} />
                   <tbody>
                     {righe.map(({ p, u, punti }) => (
                       <tr key={p.id} className={primo(punti) ? 'riga-migliore' : classeMovimento(p, mese)}>
@@ -490,7 +490,10 @@ function SchedaUscite({ uffici, annoIniziale }: { uffici: DatiUfficio[]; annoIni
         <div className="tabella-scorrevole">
           <table className="tabella tabella-punteggi tabella-uscite">
             <thead>
-              <tr className="solo-stampa"><th colSpan={7} className="titolo-stampa">Usciti nel {anno} · {t.usciti.length} persone · tasso di uscita {t.tasso === null ? '—' : formattaPercentuale(t.tasso)}</th></tr>
+              <tr className="solo-stampa"><th colSpan={7} className="titolo-stampa">
+                <TitoloStampa titolo={`Usciti nel ${anno}`} sottotitolo={`${t.usciti.length} persone · tasso di uscita ${t.tasso === null ? '—' : formattaPercentuale(t.tasso)}`}
+                  info={t.anzianitaMedia === null ? undefined : `Anzianità media all'uscita: ${formattaAnzianita(t.anzianitaMedia)}`} />
+              </th></tr>
               <tr><th className="cella-mese-testa">Mese</th><th>Nome</th><th>Ruolo</th><th>Ufficio</th><th>Data di inizio</th><th>Data di uscita</th><th>Anzianità all'uscita</th></tr>
             </thead>
             <tbody>
@@ -535,7 +538,10 @@ function SchedaPunteggi({ righe, migliore, mese, conPunti }: {
         <div className="tabella-scorrevole">
           <table className="tabella tabella-punteggi">
             <thead>
-              <tr className="solo-stampa"><th colSpan={5} className="titolo-stampa">Scheda punteggi collaboratori · {titoloMese(mese)}</th></tr>
+              <tr className="solo-stampa"><th colSpan={5} className="titolo-stampa">
+                <TitoloStampa titolo="Scheda punteggi collaboratori" sottotitolo={`${titoloMese(mese)} · ${righe.length} collaboratori`}
+                  info={Number.isFinite(migliore) ? <span>Punteggio più alto: <strong>{formattaPunti(migliore)}</strong></span> : undefined} />
+              </th></tr>
               <tr><th>Collaboratore</th><th>Ufficio</th><th>Data di inizio</th><th className="destra">Punteggio</th><th className="colonna-penna">Annotazioni</th></tr>
             </thead>
             <tbody>
@@ -558,6 +564,7 @@ function SchedaPunteggi({ righe, migliore, mese, conPunti }: {
       {righe.some((x) => x.punti !== null && x.punti === migliore) && (
         <p className="legenda legenda-movimenti non-stampa"><span><span className="quadratino riga-migliore" />giallo = punteggio più alto del mese ({formattaPunti(migliore)} punti)</span></p>
       )}
+      <div className="solo-stampa-blocco stampa-firme"><span>Compilata da</span><span>Data</span></div>
     </section>
   )
 }

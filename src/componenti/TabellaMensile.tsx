@@ -7,6 +7,7 @@ import {
   vociDelRapportino, type TotaliMese,
 } from '../lib/mensile'
 import { NOMI_RUOLO_PERSONA, type Persona, type VoceMensile } from '../lib/tipi'
+import { Logo } from './Interfaccia'
 
 /** Voci consecutive con lo stesso gruppo (es. le due colonne di "Proposte") */
 function gruppiDiVoci(voci: VoceMensile[]): { gruppo: string; voci: VoceMensile[] }[] {
@@ -20,6 +21,27 @@ function gruppiDiVoci(voci: VoceMensile[]): { gruppo: string; voci: VoceMensile[
 }
 
 const SOTTO: Record<string, string> = { vendita: 'vend.', locazione: 'loc.' }
+
+/**
+ * Intestazione delle stampe: marchio, titolo, sottotitolo (di solito il mese) e note a destra.
+ * Sta nella prima riga dell'intestazione della tabella, quindi si ripete in cima a ogni pagina.
+ */
+export function TitoloStampa({ titolo, sottotitolo, info }: { titolo: ReactNode; sottotitolo?: ReactNode; info?: ReactNode }) {
+  return (
+    <div className="stampa-testata">
+      <Logo dimensione={34} />
+      <div className="stampa-titoli">
+        <span className="stampa-kicker">Gruppo CEC · Rapportini mensili</span>
+        <strong>{titolo}</strong>
+        {sottotitolo && <span className="stampa-sotto">{sottotitolo}</span>}
+      </div>
+      <div className="stampa-info">
+        {info}
+        <span className="stampa-data">Stampato il {new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+      </div>
+    </div>
+  )
+}
 
 interface PropsTestata {
   voci: VoceMensile[]
@@ -63,7 +85,7 @@ interface PropsRapportino {
   disattivo?: boolean
   errate?: Set<string>                                 // caselle con valori non validi ("persona|voce")
   onCambia?: (personaId: number, voce: string, valore: string) => void
-  titoloStampa?: string
+  titoloStampa?: ReactNode
 }
 
 /** Etichetta breve di un indicatore, mostrata come esponente nell'intestazione: "App. vendita fix" → "fix" */

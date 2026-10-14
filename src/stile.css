@@ -688,8 +688,12 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 /* ---------------------------------------------------------------- Stampa (report mensile su A4)
    Caratteri grandi e leggibili come negli Excel: il report di gruppo occupa 2 pagine orizzontali
    con l'intestazione ripetuta; la scheda punteggi esce in A4 verticale. */
-@page { size: A4 landscape; margin: 8mm; }
-@page verticale { size: A4 portrait; margin: 10mm; }
+@page {
+  size: A4 landscape; margin: 8mm 8mm 12mm;
+  @bottom-left { content: "Gruppo CEC · Rapportini mensili"; font: 8pt 'Manrope', system-ui, sans-serif; color: #6B6F78; }
+  @bottom-right { content: "Pagina " counter(page) " di " counter(pages); font: 8pt 'Manrope', system-ui, sans-serif; color: #6B6F78; }
+}
+@page verticale { size: A4 portrait; margin: 10mm 10mm 14mm; }
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; transition: none !important; }
   body { background: #fff; }
@@ -721,13 +725,15 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   }
   .titolo-stampa .legenda-titolo { float: right; font: 400 8.5pt var(--font-testo); color: var(--testo-2); margin-top: 8px; }
   .nome-persona span:first-child { display: inline; }
-  .nome-persona .piccolo, .riga-anno-prima th .piccolo, .riga-totale-mese th .piccolo { display: inline; margin-left: 5px; font-size: 8pt; }
+  .nome-persona .piccolo { display: block; font-size: 7.5pt; line-height: 1.2; }
+  .riga-anno-prima th .piccolo, .riga-totale-mese th .piccolo { display: inline; margin-left: 5px; font-size: 8pt; }
   .tag-movimento { font-size: 7.5pt; padding: 0 4px; margin: 1px 0 0; display: table; }
   .cella-inizio .piccolo { display: block; font-size: 7.5pt; }
   .valore-fix { font-size: .75em; }
 
   /* Report di gruppo e liste del personale: tante colonne, carattere appena più piccolo */
   .tabella-report td, .tabella-report tbody th, .tabella-report tbody th.ufficio-fisso { font-size: 9.5pt; }
+  .tabella-report td, .tabella-report tbody th { padding-top: 2px !important; padding-bottom: 2px !important; }
   .tabella-report .tag { padding: 0; background: none !important; font-size: 9pt; }
   .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 2.6em; font-size: 9.5pt; box-shadow: none !important; text-align: right; }
   .tabella-mensile tbody tr.riga-variazione th, .tabella-mensile tbody tr.riga-anno-prima th { white-space: normal; }
@@ -754,6 +760,59 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .riepilogo-turnover > div { padding: 6px 10px; min-width: 0; }
   .riepilogo-turnover strong { font-size: 16pt; }
   .riepilogo-turnover strong.testo-medio { font-size: 11pt; }
+
+  /* ---- Veste grafica delle stampe (solo aspetto: nessun dato cambia) ---- */
+  /* Intestazione: marchio, titolo, mese e data di stampa, ripetuta in cima a ogni pagina */
+  .tabella-mensile thead th.titolo-stampa, .tabella-punteggi thead th.titolo-stampa { background: none !important; border: 0 !important; padding: 0 0 8px !important; }
+  .stampa-testata {
+    display: flex; align-items: center; gap: 12px; padding-bottom: 7px; border-bottom: 2.5pt solid var(--secondario);
+    text-align: left; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--testo);
+  }
+  .stampa-titoli { display: flex; flex-direction: column; line-height: 1.15; }
+  .stampa-kicker { font: 700 7.5pt var(--font-testo); letter-spacing: .12em; text-transform: uppercase; color: var(--secondario-700); }
+  .stampa-titoli strong { font: 800 17pt var(--font-titoli); letter-spacing: -0.015em; color: var(--primario-900); }
+  .stampa-sotto { font: 600 10pt var(--font-testo); color: var(--testo-2); }
+  .stampa-info { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; font: 400 8.5pt/1.35 var(--font-testo); color: var(--testo-2); }
+  .stampa-data { font-size: 7.5pt; color: var(--testo-tenue); }
+
+  /* Righe delle intestazioni in blu scuro, sottovoci (vend./loc.) in blu medio */
+  .tabella-mensile thead tr:not(.solo-stampa) th, .tabella-punteggi thead tr:not(.solo-stampa) th {
+    background: var(--primario-900) !important; color: #fff !important; border-color: var(--primario-700) !important; vertical-align: middle;
+  }
+  .tabella-mensile thead th.testa-sotto { background: var(--primario-700) !important; color: #E6EEF6 !important; font-weight: 600; }
+  .tabella-mensile thead .nota-fix { color: var(--secondario-300); }
+
+  /* Griglia leggera e righe alternate per seguire i numeri */
+  .tabella-mensile tbody th, .tabella-mensile tbody td, .tabella-punteggi tbody th, .tabella-punteggi tbody td { border-color: #D6D2C8 !important; }
+  .tabella-mensile tbody tr:nth-child(even):not(.riga-migliore):not(.riga-entrata):not(.riga-uscita):not(.riga-totale-mese):not(.riga-anno-prima):not(.riga-variazione):not(.separatore):not(.separatore-blocco) > *,
+  .tabella-punteggi tbody tr:nth-child(even):not(.riga-migliore) > * { background: #EEEBE3; }
+  .tabella-mensile tbody th, .tabella-punteggi tbody th { font-weight: 600; color: var(--testo); }
+  .cella-vuota { color: #B9BBC0 !important; }
+
+  /* Gruppi del rapportino (Responsabile e collaboratori / Coordinatrici e marketer) */
+  .tabella-mensile tr.separatore > * { background: var(--secondario-100) !important; color: var(--secondario-800) !important; font-size: 8pt !important; letter-spacing: .08em; text-transform: uppercase; padding-top: 3px !important; }
+
+  /* Totali, anno prima e variazione */
+  .tabella tr.riga-totale-mese > *, .tabella tr.riga-totale-mese > th.ufficio-fisso { background: var(--primario-900) !important; color: #fff !important; border-color: var(--primario-700) !important; }
+  .tabella tr.riga-totale-mese th .piccolo { color: #C9D6E6; }
+  .tabella tr.riga-anno-prima > * { background: #EDF1F6 !important; color: var(--primario-900); }
+  .tabella tr.riga-variazione > * { background: #fff !important; font-weight: 700; }
+  .tabella tr.riga-variazione th { color: var(--primario-900); }
+
+  /* Etichette */
+  .tag-ritardo { background: none !important; color: var(--secondario-800) !important; border: .6pt solid var(--secondario-500); font-size: 7pt; padding: 0 4px; }
+  .sigla-citta { color: var(--secondario-700); }
+
+  /* Usciti nell'anno */
+  .tabella-uscite th.cella-mese { background: var(--ko-bg) !important; color: var(--ko-fg) !important; }
+  .scheda-uscite .tabella-scorrevole { order: 1; }
+  .scheda-uscite .riepilogo-turnover { order: 2; margin: 10px 0 0; }
+  .riepilogo-turnover > div { border: .6pt solid color-mix(in srgb, var(--ko) 40%, transparent); border-radius: 6px; flex-direction: row; align-items: baseline; gap: 8px; }
+  .riepilogo-turnover .piccolo { display: none; }
+
+  /* Scheda punteggi: spazio per le firme in fondo */
+  .stampa-firme.solo-stampa-blocco { display: flex; gap: 40px; margin-top: 12mm; font: 10pt var(--font-testo); color: var(--testo-2); }
+  .stampa-firme span { flex: 1; padding-top: 4px; border-top: .8pt solid var(--testo); }
 }
 
 /* ---------------------------------------------------------------- Schermi piccoli */

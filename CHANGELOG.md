@@ -19,6 +19,13 @@
   - Pulsante **Stampa**, con caratteri grandi come negli Excel:
     - report e liste su A4 orizzontale; il report di gruppo con 47 uffici occupa 2 pagine e ripete titolo e intestazioni in cima alla seconda;
     - le tabelle sono larghe esattamente quanto il foglio, così il browser non le rimpicciolisce.
+  - **Veste grafica delle stampe** (cambia solo l'aspetto):
+    - intestazione con marchio, titolo, mese, note e data di stampa, ripetuta su ogni pagina;
+    - righe delle intestazioni in blu scuro, sottovoci (vend./loc.) in blu medio;
+    - righe alternate per seguire i numeri, gruppi del rapportino in arancio chiaro, totale in blu con testo bianco;
+    - piè di pagina con "Pagina X di Y";
+    - nella scheda punteggi, in fondo, gli spazi per "Compilata da" e "Data";
+    - in "Usciti nell'anno" il riepilogo va sotto la tabella.
 - L'amministratore di città vede solo la sua città, l'ufficio solo il proprio rapportino. Le regole sono nel database e sono verificate dai test automatici.
 - **Cambi di personale evidenziati**: nel rapportino, nel riquadro del personale e nelle liste, chi entra nel mese ha la riga **verde** ("Nuovo ingresso dal …") e chi lascia l'ufficio nel mese la riga **rossa** ("Ha lasciato il …"). Anche in stampa.
 - **App. vendita fix** delle coordinatrici: si scrive nell'angolo in alto a destra della stessa casella degli Appuntamenti vendita, che resta grande come le altre, solo sulla riga delle coordinatrici, e si legge come esponente: 12⁹ = 12 appuntamenti, 9 fix. È un indicatore di qualità: non entra nel totale dell'ufficio, nello stato di compilazione né nel report di gruppo. Compare nel rapportino dell'ufficio e nella lista delle coordinatrici; nel backup Excel ha una colonna sua.
