@@ -13,6 +13,7 @@ interface Props {
   uffici: Ufficio[]      // uffici che l'utente può compilare (di solito uno solo)
   metriche: Metrica[]
   onSalvato?: () => void
+  ufficioPredefinito?: number | null   // l'ufficio dell'utente, se ne ha uno (es. amministratore di città che è anche un ufficio)
 }
 
 /** Quanto scritto nelle caselle (come testo, per poter mostrare anche gli errori) */
@@ -25,8 +26,8 @@ function caselleVuote(metriche: Metrica[]): Caselle {
   return Object.fromEntries(metriche.map((m) => [m.codice, { obiettivo: '', risultato: '' }]))
 }
 
-export default function InserisciSettimana({ uffici, metriche, onSalvato }: Props) {
-  const [ufficioId, setUfficioId] = useState(uffici[0].id)
+export default function InserisciSettimana({ uffici, metriche, onSalvato, ufficioPredefinito }: Props) {
+  const [ufficioId, setUfficioId] = useState(uffici.find((u) => u.id === ufficioPredefinito)?.id ?? uffici[0].id)
   const [settimana, setSettimana] = useState(settimanaPredefinita())
   const [caselle, setCaselle] = useState<Caselle>(() => caselleVuote(metriche))
   const [originali, setOriginali] = useState<Caselle>(() => caselleVuote(metriche))

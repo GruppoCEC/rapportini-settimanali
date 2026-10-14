@@ -1,5 +1,20 @@
 # Storia delle versioni
 
+## 0.4.2 — 14 ottobre 2026
+
+- **Amministratori di città che sono anche un ufficio** (Beato Angelico e Ticinese a Milano):
+  - il loro ufficio non compare più tra gli "Uffici senza account";
+  - ricevono i promemoria del proprio ufficio;
+  - "Inserisci settimana" si apre sul proprio ufficio invece che sul primo della lista.
+
+## 0.4.1 — 13 ottobre 2026
+
+- **Backup in Excel** (Amministrazione → Backup, solo per l'amministratore generale). Scarica un file `.xlsx` con tutti i dati di Roma e Milano:
+  - un foglio per ufficio, impostato come i vecchi rapportini: mesi uno sotto l'altro, 5 settimane con obiettivo, risultato ed esito, totale del mese, dati di zona, quota di mercato e note. Esiti, totali e quota sono formule, come negli Excel di partenza;
+  - "Dati": tutti i valori, uno per riga, con chi li ha modificati e quando;
+  - "Note", "Uffici" e "Account" (senza password).
+- Il file si crea nel browser. La libreria Excel si scarica solo quando si preme il pulsante, quindi il sito non diventa più lento.
+
 ## 0.4.0 — 13 ottobre 2026 (nuova grafica)
 
 - **Nuova veste grafica** dal design scelto da Davide (`docs/DESIGN.md`): colori blu e arancio, caratteri Manrope e Bricolage Grotesque, card bianche, icone e semaforo verde/ambra/rosso con i simboli ✓ ≈ ✗.

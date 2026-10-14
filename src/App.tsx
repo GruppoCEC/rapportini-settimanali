@@ -145,7 +145,7 @@ export default function App() {
         onEsci={() => supabase.auth.signOut()} aggiornamento={aggiornamento} />
 
       <main className="contenuto" key={`${attiva}-${cittaScelta}`}>
-        {attiva === 'inserisci' && <InserisciSettimana uffici={compilabili} metriche={dati.metriche} onSalvato={() => setAggiornamento((n) => n + 1)} />}
+        {attiva === 'inserisci' && <InserisciSettimana uffici={compilabili} metriche={dati.metriche} ufficioPredefinito={utente.ufficio_id} onSalvato={() => setAggiornamento((n) => n + 1)} />}
         {attiva === 'andamento' && <AndamentoUfficio ctx={ctx} />}
         {attiva === 'cruscotto' && <Cruscotto ctx={ctx} />}
         {attiva === 'compilazione' && <StatoCompilazione ctx={ctx} />}

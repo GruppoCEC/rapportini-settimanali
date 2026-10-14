@@ -5,10 +5,11 @@ import { AREE_ATTIVE, type Contesto, nomeArea } from '../lib/contesto'
 import { supabase } from '../lib/supabase'
 import { NOMI_RUOLO, type Ruolo, type Utente } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
+import { caricaTuttoPerBackup } from '../lib/dati'
 import { Caricamento } from '../componenti/Celle'
 import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 
-type Sezione = 'account' | 'uffici' | 'aree'
+type Sezione = 'account' | 'uffici' | 'aree' | 'backup'
 type Esito = { tipo: 'ok' | 'errore'; testo: string; credenziali?: { utente: string; password: string } } | null
 
 function MessaggioEsito({ esito, onChiudi }: { esito: Esito; onChiudi: () => void }) {
@@ -42,6 +43,8 @@ function MessaggioEsito({ esito, onChiudi }: { esito: Esito; onChiudi: () => voi
 export default function Amministrazione({ ctx }: { ctx: Contesto }) {
   const [sezione, setSezione] = useState<Sezione>('account')
   const nomeCitta = ctx.citta.find((c) => c.id === ctx.cittaId)?.nome
+  const generale = ctx.utente.ruolo === 'admin_generale'
+  const sezioni: Sezione[] = [...(AREE_ATTIVE ? ['account', 'uffici', 'aree'] as Sezione[] : ['account', 'uffici'] as Sezione[]), ...(generale ? ['backup'] as Sezione[] : [])]
   return (
     <div className="pagina entra">
       <div className="intestazione">
@@ -50,9 +53,9 @@ export default function Amministrazione({ ctx }: { ctx: Contesto }) {
           <h1 className="titolo-pagina">{nomeCitta}</h1>
         </div>
         <div className="segmentato" role="tablist">
-          {(AREE_ATTIVE ? ['account', 'uffici', 'aree'] as const : ['account', 'uffici'] as const).map((s) => (
+          {sezioni.map((s) => (
             <button key={s} role="tab" aria-selected={sezione === s} className={sezione === s ? 'attivo' : ''} onClick={() => setSezione(s)}>
-              <Icona nome={{ account: 'users', uffici: 'buildings', aree: 'map-trifold' }[s]} />{{ account: 'Account', uffici: 'Uffici', aree: 'Aree' }[s]}
+              <Icona nome={{ account: 'users', uffici: 'buildings', aree: 'map-trifold', backup: 'download-simple' }[s]} />{{ account: 'Account', uffici: 'Uffici', aree: 'Aree', backup: 'Backup' }[s]}
             </button>
           ))}
         </div>
@@ -60,6 +63,7 @@ export default function Amministrazione({ ctx }: { ctx: Contesto }) {
       {sezione === 'account' && <SezioneAccount ctx={ctx} />}
       {sezione === 'uffici' && <SezioneUffici ctx={ctx} />}
       {sezione === 'aree' && <SezioneAree ctx={ctx} />}
+      {sezione === 'backup' && generale && <SezioneBackup ctx={ctx} />}
     </div>
   )
 }
@@ -133,7 +137,8 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
   const descrizione = (u: Utente) =>
     u.ruolo === 'responsabile' ? nomeArea(ctx, u.area_id)
       : ctx.uffici.find((x) => x.id === u.ufficio_id)?.nome ?? (u.ruolo === 'ufficio' ? '?' : '—')
-  const senzaAccount = ufficiCitta.filter((uf) => !(elenco.dati ?? []).some((u) => u.ufficio_id === uf.id && u.ruolo === 'ufficio'))
+  // conta qualsiasi account collegato all'ufficio, anche un amministratore di città che compila per il proprio ufficio
+  const senzaAccount = ufficiCitta.filter((uf) => !(elenco.dati ?? []).some((u) => u.ufficio_id === uf.id))
 
   return (
     <>
@@ -412,6 +417,64 @@ function SezioneAree({ ctx }: { ctx: Contesto }) {
         )}
       </section>
       {dialogo}
+    </>
+  )
+}
+
+// ---------------------------------------------------------------- BACKUP (solo amministratore generale)
+
+function SezioneBackup({ ctx }: { ctx: Contesto }) {
+  const [stato, setStato] = useState<'pronto' | 'raccolta' | 'file'>('pronto')
+  const [esito, setEsito] = useState<Esito>(null)
+  const [toast, mostraToast] = useToast()
+
+  async function scarica() {
+    setEsito(null)
+    try {
+      setStato('raccolta')
+      const [dati, { creaBackup, nomeFileBackup }] = await Promise.all([caricaTuttoPerBackup(), import('../lib/backup')])
+      setStato('file')
+      const adesso = new Date()
+      const wb = creaBackup({ ...dati, citta: ctx.citta, uffici: ctx.uffici, generatoDa: ctx.utente.nome || ctx.utente.nome_utente, adesso })
+      const contenuto = await wb.xlsx.writeBuffer()
+      const url = URL.createObjectURL(new Blob([contenuto], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = nomeFileBackup(adesso)
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+      const testo = `Backup scaricato: ${ctx.uffici.length} uffici, ${dati.rilevazioni.length.toLocaleString('it-IT')} valori, ${dati.note.length} note.`
+      setEsito({ tipo: 'ok', testo })
+      mostraToast('Backup scaricato.')
+    } catch (e) {
+      setEsito({ tipo: 'errore', testo: `Backup non riuscito: ${(e as Error).message}` })
+    } finally {
+      setStato('pronto')
+    }
+  }
+
+  return (
+    <>
+      <MessaggioEsito esito={esito} onChiudi={() => setEsito(null)} />
+      <section className="scheda" style={{ maxWidth: 860, gap: 18 }}>
+        <h2 className="titolo-icona"><span className="icona-quadrata icona-blu"><Icona nome="file-xls" /></span>Backup in Excel</h2>
+        <p>Scarica sul computer un file Excel con <strong>tutti i dati della piattaforma</strong>, di Roma e di Milano.</p>
+        <ul className="elenco-icone" style={{ fontSize: 15 }}>
+          <li><Icona nome="storefront" />un foglio per ogni ufficio, impostato come i vecchi rapportini: mesi uno sotto l'altro, 5 settimane con obiettivo, risultato ed esito, totale del mese, dati di zona, quota di mercato e note;</li>
+          <li><Icona nome="table" />il foglio "Dati" con tutti i valori, uno per riga, da filtrare e ordinare;</li>
+          <li><Icona nome="note" />i fogli "Note", "Uffici" e "Account" (senza password).</li>
+        </ul>
+        <p className="piccolo">Il file si crea nel browser e va nella cartella Download. Conviene scaricarlo una volta al mese e conservarlo in un posto sicuro: contiene i dati di tutti gli uffici.</p>
+        <div>
+          <button className="btn btn-primario btn-grande" onClick={scarica} disabled={stato !== 'pronto'}>
+            <Icona nome={stato === 'pronto' ? 'download-simple' : 'circle-notch'} className={stato === 'pronto' ? '' : 'gira'} />
+            {stato === 'raccolta' ? 'Raccolta dei dati…' : stato === 'file' ? 'Preparazione del file…' : 'Scarica il backup (.xlsx)'}
+          </button>
+        </div>
+      </section>
+      {toast}
     </>
   )
 }

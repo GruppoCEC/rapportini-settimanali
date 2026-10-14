@@ -114,7 +114,7 @@ try {
   if (tipo === 'venerdi' || tipo === 'domenica') {
     const mancanti = uffici.filter((u) => stato(u.id) === 'mancante')
     for (const u of mancanti) {
-      const dest = indirizzi(utenti.filter((x) => x.ufficio_id === u.id && x.ruolo === 'ufficio'))
+      const dest = indirizzi(utenti.filter((x) => x.ufficio_id === u.id))   // anche l'amministratore di città che è un ufficio
       if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
       const sollecito = tipo === 'domenica' ? 'Ultimo promemoria: ' : ''
       await invia(dest, `${sollecito}inserisci i dati della settimana (${intervallo})`,
