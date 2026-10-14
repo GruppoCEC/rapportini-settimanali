@@ -71,6 +71,11 @@ export function indicatori(voci: VoceMensile[], ruolo?: RuoloPersona): VoceMensi
   return voci.filter((v) => v.solo_ruolo && (!ruolo || v.solo_ruolo === ruolo))
 }
 
+/** Gli indicatori da mostrare tra parentesi in una colonna, per una persona con quel ruolo */
+export function indicatoriAccanto(voci: VoceMensile[], colonna: string, ruolo: RuoloPersona): VoceMensile[] {
+  return indicatori(voci, ruolo).filter((v) => v.accanto_a === colonna)
+}
+
 // ---------------------------------------------------------------- Persone
 
 /** La persona era in ufficio in quel mese? (iniziata entro la fine del mese, non uscita prima dell'inizio) */

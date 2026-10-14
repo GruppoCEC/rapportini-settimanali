@@ -79,6 +79,7 @@ export interface VoceMensile {
   sotto: string | null
   ordine: number
   solo_ruolo?: RuoloPersona | null   // indicatore di un solo ruolo, fuori dai totali (es. App. vendita fix delle coordinatrici)
+  accanto_a?: string | null          // colonna in cui l'indicatore si mostra tra parentesi (es. appuntamenti_vendita)
 }
 
 export interface ValoreMensile {

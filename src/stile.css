@@ -626,13 +626,12 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .quadratino.riga-entrata { background: var(--ok-bg); border: 2px solid var(--ok); }
 .quadratino.riga-uscita { background: var(--ko-bg); border: 2px solid var(--ko); }
 
-/* Indicatore delle coordinatrici (App. vendita fix): colonna a parte, fuori dai totali */
-.testa-indicatore { hyphens: manual; -webkit-hyphens: manual; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--secondario-800); }
-.testa-indicatore > span { font-size: 9px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--testo-tenue); }
-.tabella-mensile th.testa-ultima { min-width: 52px; border-left: 2px dashed var(--secondario-300); }
-.tabella-mensile td.cella-indicatore { border-left: 2px dashed var(--secondario-300); background: var(--secondario-100); }
-.tabella-mensile tr.riga-entrata td.cella-indicatore, .tabella-mensile tr.riga-uscita td.cella-indicatore { background: var(--secondario-100); }
-.tabella-mensile td.cella-esclusa { border-left: 2px dashed var(--secondario-300); background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--testo) 5%, transparent) 6px 7px); }
+/* Indicatore delle coordinatrici (App. vendita fix): tra parentesi nella colonna degli appuntamenti, fuori dai totali */
+.nota-fix { display: block; font-size: 9px; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--secondario-700); }
+.valore-fix { color: var(--secondario-700); font-weight: 600; font-size: .9em; }
+.tabella-mensile td.cella-con-fix { white-space: nowrap; }
+.parentesi-fix { display: inline-flex; align-items: center; gap: 1px; margin-left: 3px; color: var(--secondario-700); font-weight: 700; }
+.tabella-mensile-modifica input.input-fix { width: 38px; padding-inline: 4px; border-color: var(--secondario-300); background: var(--secondario-100); color: var(--secondario-900); }
 
 /* ---------------------------------------------------------------- Stampa (report mensile su A4 orizzontale) */
 @media print {
@@ -673,7 +672,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .tabella-report tbody th, .tabella-report tbody th.ufficio-fisso, .tabella-report td { font-size: 6.5pt; }
   .tabella-report td { white-space: nowrap; }
   .tag-movimento { font-size: 6pt; padding: 0 4px; margin: 0 0 0 4px; display: inline; }
-  .testa-indicatore > span { display: none; }
+  .tabella-mensile-modifica input.input-fix { width: auto; }
   .legenda-movimenti { font-size: 7pt; margin-top: 3px; }
   .nome-persona .piccolo { font-size: 6pt; }
   .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 100%; font-size: 8pt; box-shadow: none !important; }

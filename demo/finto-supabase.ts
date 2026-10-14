@@ -104,7 +104,7 @@ const voci_mensili = [
   ['incarichi_scaduti', 'Incarichi scaduti', null],
 ].map(([codice, gruppo, sotto], i) => ({ codice, gruppo, sotto, ordine: i + 1, solo_ruolo: null as string | null, attiva: true }))
 // Indicatore di qualità delle coordinatrici, fuori dai totali
-voci_mensili.push({ codice: 'appuntamenti_vendita_fix', gruppo: 'App. vendita fix', sotto: null, ordine: 50, solo_ruolo: 'coordinatrice', attiva: true })
+voci_mensili.push({ codice: 'appuntamenti_vendita_fix', gruppo: 'App. vendita fix', sotto: null, ordine: 50, solo_ruolo: 'coordinatrice', accanto_a: 'appuntamenti_vendita', attiva: true } as any)
 // Valori tipici di un mese per un funzionario [min, max]
 const TIPICI: Record<string, [number, number]> = {
   portafoglio_vendita: [2, 14], portafoglio_locazione: [0, 4], acquisizioni: [0, 4], appuntamenti_vendita: [6, 36], appuntamenti_locazione: [0, 10],

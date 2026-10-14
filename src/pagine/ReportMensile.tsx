@@ -7,7 +7,7 @@ import { leggiNumero } from '../lib/calcoli'
 import { caricaConfronto, caricaPersone, caricaValoriMensili, caricaVociMensili } from '../lib/dati'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio,
-  indicatori, movimentoNelMese, ordinaPersone, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleUfficio, variazione,
+  indicatoriAccanto, movimentoNelMese, ordinaPersone, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleUfficio, variazione,
   vociDelRapportino, type TotaliMese,
 } from '../lib/mensile'
 import { supabase } from '../lib/supabase'
@@ -17,7 +17,9 @@ import type { StatoCompilazione } from '../lib/aggregazioni'
 import { BadgeStato, Caricamento, CLASSE_STATO, ETICHETTA_STATO } from '../componenti/Celle'
 import { Icona, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
-import { classeMovimento, EtichettaMovimento, LegendaMovimenti, TabellaRapportino, TestaIndicatore, TestataVoci } from '../componenti/TabellaMensile'
+import {
+  annotazioniIndicatori, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
+} from '../componenti/TabellaMensile'
 
 type Scheda = 'panoramica' | 'rapportini' | 'personale'
 
@@ -280,7 +282,6 @@ function ListePersonale({ dati, mese, generale, ctx }: { dati: DatiMese; mese: s
       </div>
       {LISTE.map(({ ruolo, titolo }) => {
         const colonne = vociDelRapportino(dati.voci)
-        const extra = indicatori(dati.voci, ruolo)
         const righe = uffici
           .flatMap((u) => u.persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese)).map((p) => ({ p, u })))
           .sort((a, b) => ordineUfficio.get(a.u.ufficio.id)! - ordineUfficio.get(b.u.ufficio.id)! || ordinaPersone(a.p, b.p))
@@ -290,8 +291,8 @@ function ListePersonale({ dati, mese, generale, ctx }: { dati: DatiMese; mese: s
             {righe.length === 0 ? <p className="piccolo">Nessuna persona con questo ruolo.</p> : (
               <div className="tabella-scorrevole">
                 <table className="tabella tabella-mensile tabella-report">
-                  <TestataVoci voci={colonne} prime={['Nome', 'Ufficio', 'Inizio · anzianità']}
-                    ultime={[...extra.map((v) => <TestaIndicatore key={v.codice} voce={v} />), 'Punteggio']}
+                  <TestataVoci voci={colonne} prime={['Nome', 'Ufficio', 'Inizio · anzianità']} ultime={['Punteggio']}
+                    annotazioni={annotazioniIndicatori(dati.voci, righe.map((x) => x.p)).annotazioni}
                     titoloStampa={`${titolo} · ${titoloMese(mese)} (${righe.length})`} />
                   <tbody>
                     {righe.map(({ p, u }) => (
@@ -299,9 +300,15 @@ function ListePersonale({ dati, mese, generale, ctx }: { dati: DatiMese; mese: s
                         <th scope="row" className="ufficio-fisso">{p.nome}<EtichettaMovimento persona={p} mese={mese} /></th>
                         <td>{u.ufficio.nome}</td>
                         <td className="cella-inizio">{dataItaliana(p.data_inizio)}<span className="piccolo">{formattaAnzianita(mesiDiServizio(p.data_inizio, mese))}</span></td>
-                        {[...colonne, ...extra].map((v) => {
-                          const valore = u.valori.find((x) => x.persona_id === p.id && x.voce === v.codice)?.valore ?? null
-                          return <td key={v.codice} className={`destra ${v.solo_ruolo ? 'cella-indicatore' : ''} ${valore === null ? 'cella-vuota' : ''}`}>{formattaNumero(valore)}</td>
+                        {colonne.map((v) => {
+                          const valoreDi = (voce: string) => u.valori.find((x) => x.persona_id === p.id && x.voce === voce)?.valore ?? null
+                          const accanto = indicatoriAccanto(dati.voci, v.codice, p.ruolo)   // es. App. vendita fix delle coordinatrici
+                          const valore = valoreDi(v.codice)
+                          return (
+                            <td key={v.codice} className={`destra ${accanto.length ? 'cella-con-fix' : ''} ${valore === null ? 'cella-vuota' : ''}`}>
+                              <ValoreConIndicatori valore={valore} tra={accanto.map((a) => valoreDi(a.codice))} />
+                            </td>
+                          )
                         })}
                         <td className="centro-testo cella-vuota" title="Criteri da definire">—</td>
                       </tr>
@@ -310,6 +317,7 @@ function ListePersonale({ dati, mese, generale, ctx }: { dati: DatiMese; mese: s
                 </table>
               </div>
             )}
+            <LegendaIndicatori usati={annotazioniIndicatori(dati.voci, righe.map((x) => x.p)).usati} voci={colonne} />
             {righe.some(({ p }) => movimentoNelMese(p, mese)) && <LegendaMovimenti />}
           </section>
         )

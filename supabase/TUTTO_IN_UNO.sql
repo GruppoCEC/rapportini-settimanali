@@ -566,12 +566,14 @@ create index persone_ufficio_idx on persone (ufficio_id);
 -- solo_ruolo: voce che si compila solo per quel ruolo ed è un indicatore a parte:
 -- non entra nel totale dell'ufficio, nello stato di compilazione né nel report di gruppo
 -- (es. "App. vendita fix" delle coordinatrici, indicatore di qualità).
+-- accanto_a: la colonna in cui l'indicatore si mostra tra parentesi (es. 12 (9) negli appuntamenti vendita).
 create table voci_mensili (
   codice     text primary key,
   gruppo     text not null,
   sotto      text,
   ordine     smallint not null,
   solo_ruolo text check (solo_ruolo in ('responsabile', 'funzionario', 'coordinatrice', 'marketer')),
+  accanto_a  text references voci_mensili,
   attiva     boolean not null default true
 );
 
@@ -758,6 +760,6 @@ insert into voci_mensili (codice, gruppo, sotto, ordine) values
   ('richieste_locazione',    'Richieste',            'locazione', 18),
   ('incarichi_scaduti',      'Incarichi scaduti',    null,        19);
 
--- Indicatore di qualità delle coordinatrici: fuori dal rapportino e dai totali
-insert into voci_mensili (codice, gruppo, sotto, ordine, solo_ruolo) values
-  ('appuntamenti_vendita_fix', 'App. vendita fix', null, 50, 'coordinatrice');
+-- Indicatore di qualità delle coordinatrici: tra parentesi negli appuntamenti vendita, fuori dai totali
+insert into voci_mensili (codice, gruppo, sotto, ordine, solo_ruolo, accanto_a) values
+  ('appuntamenti_vendita_fix', 'App. vendita fix', null, 50, 'coordinatrice', 'appuntamenti_vendita');
