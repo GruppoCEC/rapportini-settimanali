@@ -51,6 +51,10 @@ export default function App() {
 
   // Dati di base, caricati dopo l'accesso (e ricaricati dopo modifiche in Amministrazione)
   const email = sessione?.user.email?.toLowerCase()
+  // Cambiando account nella stessa finestra si riparte dalla città del nuovo utente
+  // (prima restava quella dell'account precedente, e a un amministratore di Milano
+  // entrato dopo l'amministratore generale su Roma sparivano gli uffici da compilare)
+  useEffect(() => { setCittaScelta(null) }, [email])
   useEffect(() => {
     if (!email) { setDati(null); return }
     let annullato = false
@@ -118,13 +122,15 @@ export default function App() {
     )
   }
 
+  // Solo l'amministratore generale sceglie la città; tutti gli altri vedono sempre la propria
+  const cittaId = utente.ruolo === 'admin_generale' ? cittaScelta : utente.citta_id ?? cittaScelta
   const ctx: Contesto = {
-    ...dati, utente, cittaId: cittaScelta, ricaricaBase,
+    ...dati, utente, cittaId, ricaricaBase,
     // aree disattivate: il sito si comporta come se nessun ufficio ne avesse una
     aree: AREE_ATTIVE ? dati.aree : [],
     uffici: AREE_ATTIVE ? dati.uffici : dati.uffici.map((u) => ({ ...u, area_id: null })),
   }
-  const compilabili = ufficiCompilabili(utente, dati.uffici, cittaScelta)
+  const compilabili = ufficiCompilabili(utente, dati.uffici, cittaId)
   const vedeInsieme = utente.ruolo !== 'ufficio'
 
   // Voci di menu in base al ruolo
@@ -148,7 +154,7 @@ export default function App() {
       <Testata ctx={ctx} menu={menu} attiva={attiva} onVai={(p) => vaiA(p as Pagina)} onCitta={setCittaScelta}
         onEsci={() => supabase.auth.signOut()} aggiornamento={aggiornamento} />
 
-      <main className="contenuto" key={`${attiva}-${cittaScelta}`}>
+      <main className="contenuto" key={`${attiva}-${cittaId}`}>
         {attiva === 'inserisci' && <InserisciSettimana uffici={compilabili} metriche={dati.metriche} ufficioPredefinito={utente.ufficio_id} onSalvato={() => setAggiornamento((n) => n + 1)} />}
         {attiva === 'mensile' && <RapportinoMensile uffici={compilabili} ufficioPredefinito={utente.ufficio_id} amministratore={isAmministratore(utente)} />}
         {attiva === 'andamento' && <AndamentoUfficio ctx={ctx} />}

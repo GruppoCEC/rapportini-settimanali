@@ -26,6 +26,7 @@
   - GitHub prova a tre orari invece di due, così c'è sempre un secondo tentativo (anche d'inverno).
 - Azioni di GitHub aggiornate (checkout e setup-node v5): sparisce l'avviso "Node.js 20 is deprecated".
 - **Promemoria accesi** (configurati e provati il 15 ottobre): il sito li annuncia nella pagina di accesso, nella testata ("Prossimo promemoria") e in Stato compilazione; nel riquadro "Scadenza" del Report mensile spiega quando partono quelli mensili.
+- **Corretto**: entrando con un altro account nella stessa finestra (es. prima l'amministratore generale su Roma, poi Beato Angelico), il sito restava sulla città dell'account precedente. Così a Beato Angelico spariva "Inserisci settimana". Ora a ogni accesso si riparte dalla città del nuovo utente, e solo l'amministratore generale può cambiare città.
 - Nessuna modifica al database.
 
 ## 0.5.1 — 14 ottobre 2026
