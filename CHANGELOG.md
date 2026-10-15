@@ -25,6 +25,7 @@
   - un indirizzo rifiutato da Gmail non blocca gli altri uffici, e viene segnalato alla fine;
   - GitHub prova a tre orari invece di due, così c'è sempre un secondo tentativo (anche d'inverno).
 - Azioni di GitHub aggiornate (checkout e setup-node v5): sparisce l'avviso "Node.js 20 is deprecated".
+- **Promemoria accesi** (configurati e provati il 15 ottobre): il sito li annuncia nella pagina di accesso, nella testata ("Prossimo promemoria") e in Stato compilazione; nel riquadro "Scadenza" del Report mensile spiega quando partono quelli mensili.
 - Nessuna modifica al database.
 
 ## 0.5.1 — 14 ottobre 2026

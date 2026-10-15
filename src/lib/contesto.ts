@@ -8,10 +8,11 @@ import type { Area, Citta, Metrica, Ufficio, Utente } from './tipi'
 export const AREE_ATTIVE = false
 
 /**
- * Promemoria via email (venerdì 16:00 e domenica 10:00): finché non sono configurati
- * (passo 8 di docs/GUIDA_SETUP.md) il sito non li annuncia. Dopo la configurazione: true.
+ * Promemoria via email (settimanale: venerdì 16:00 e domenica 10:00; mensile: 3 giorni prima
+ * e il giorno prima della scadenza). Configurati e provati da Davide il 15/10/2026, quindi il
+ * sito li annuncia. Se un giorno si spengono su GitHub, rimettere false.
  */
-export const PROMEMORIA_ATTIVI = false
+export const PROMEMORIA_ATTIVI = true
 
 /**
  * Rapportino mensile (pagine "Rapportino mensile" e "Report mensile").
