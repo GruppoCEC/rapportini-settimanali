@@ -206,5 +206,6 @@ Da quel momento potrà creare da solo uffici e account di Milano, senza vedere R
 | "La piattaforma non è ancora configurata" | Manca la prima riga SQL del passo 6.1 |
 | Creando un account: "La funzione gestione-account non risponde" | La funzione del passo 5 non è installata o ha un nome diverso |
 | Creando un account: "Invalid JWT" | In Supabase → **Edge Functions → gestione-account → Details**, disattiva **Verify JWT** e salva: la funzione controlla da sola chi la chiama |
+| Errore `421 … Temporary System Problem` | Gmail era occupato. Lo script riprova da solo e, un'ora dopo, GitHub fa un secondo tentativo: chi ha già ricevuto l'email non la riceve di nuovo. Se resta rosso, rilancia a mano **Run workflow** con lo stesso tipo (senza *email_prova*): partono solo le email mancanti |
 | I promemoria non arrivano | Scheda **Actions → Promemoria**: apri l'ultima esecuzione e leggi l'errore. Spesso è la password per app Gmail |
 | Il segno nella scheda Actions è rosso ❌ | Apri l'esecuzione, copia il messaggio d'errore e mandalo a Claude |

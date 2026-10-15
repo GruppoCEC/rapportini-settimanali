@@ -13,6 +13,9 @@ describe('promemoria settimanali', () => {
     expect(tipoSettimanale(inItalia('2026-10-16T14:00:00Z'))).toBe('venerdi')   // ora legale: 16:00
     expect(tipoSettimanale(inItalia('2026-11-20T14:00:00Z'))).toBe(null)        // ora solare: 15:00, troppo presto
     expect(tipoSettimanale(inItalia('2026-11-20T15:00:00Z'))).toBe('venerdi')   // ora solare: 16:00
+    // terzo orario di GitHub: secondo tentativo, sia d'estate (18:00) sia d'inverno (17:00)
+    expect(tipoSettimanale(inItalia('2026-10-16T16:00:00Z'))).toBe('venerdi')
+    expect(tipoSettimanale(inItalia('2026-11-20T16:00:00Z'))).toBe('venerdi')
   })
   it('domenica alle 10 italiane', () => {
     expect(tipoSettimanale(inItalia('2026-10-18T08:00:00Z'))).toBe('domenica')

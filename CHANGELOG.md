@@ -18,6 +18,13 @@
   - pulsanti blu della piattaforma che dicono cosa fare ("Inserisci i dati della settimana", "Inserisci il rapportino del mese").
   - Tutti i testi sono in un'unica sezione di `scripts/promemoria.mjs` ("TESTI DELLE EMAIL"), così si ritoccano facilmente.
 - Nel riquadro "Scadenza" del Report mensile, una riga spiega quando partono i promemoria. Compare quando i promemoria sono attivi.
+- **Invio più robusto**, dopo un errore "421 Temporary System Problem" di Gmail durante una prova:
+  - 2 secondi di pausa tra un'email e l'altra, così Gmail non vede raffiche;
+  - se Gmail risponde "riprova più tardi", lo script aspetta (30 secondi, poi 90, poi 3 minuti) e riprova;
+  - ogni email viene registrata appena parte: se l'invio si interrompe a metà, il tentativo successivo manda solo quelle mancanti, senza doppioni;
+  - un indirizzo rifiutato da Gmail non blocca gli altri uffici, e viene segnalato alla fine;
+  - GitHub prova a tre orari invece di due, così c'è sempre un secondo tentativo (anche d'inverno).
+- Azioni di GitHub aggiornate (checkout e setup-node v5): sparisce l'avviso "Node.js 20 is deprecated".
 - Nessuna modifica al database.
 
 ## 0.5.1 — 14 ottobre 2026

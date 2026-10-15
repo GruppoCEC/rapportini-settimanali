@@ -1,14 +1,15 @@
 # Promemoria automatici via email (vedi scripts/promemoria.mjs).
-# GitHub ragiona in ora UTC e non conosce l'ora legale: ogni promemoria è
-# programmato in due orari e lo script invia solo a quello giusto, una volta sola.
+# GitHub ragiona in ora UTC e non conosce l'ora legale: ogni promemoria è programmato
+# in tre orari. Lo script invia solo nella finestra giusta (3 ore) e ogni email una volta
+# sola: così, con o senza ora legale, se Gmail è occupato c'è sempre un secondo tentativo.
 # Ogni giorno alle 10 lo script controlla se tocca un promemoria: la domenica il
 # settimanale, e il mensile 3 giorni prima, il giorno prima e il giorno dopo la scadenza.
 name: Promemoria
 
 on:
   schedule:
-    - cron: '0 14,15 * * 5'    # venerdì ore 16:00 italiane (settimanale)
-    - cron: '0 8,9 * * *'      # ogni giorno ore 10:00 italiane (settimanale della domenica e mensile)
+    - cron: '0 14,15,16 * * 5'   # venerdì ore 16:00 italiane (settimanale)
+    - cron: '0 8,9,10 * * *'     # ogni giorno ore 10:00 italiane (settimanale della domenica e mensile)
   workflow_dispatch:
     inputs:
       tipo:
@@ -31,9 +32,10 @@ permissions:
 jobs:
   invia:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm

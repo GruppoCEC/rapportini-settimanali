@@ -9,8 +9,8 @@
 //   il giorno prima               → ultimo promemoria agli uffici ancora mancanti
 //   il giorno dopo                → all'amministratore generale, chi manca, chi è incompleto e chi è in ritardo
 // Le regole del calendario sono in scripts/promemoria-calendario.mjs.
-// Le email partono dal Gmail dedicato ai rapportini. Ogni promemoria viene
-// inviato una volta sola (tabella promemoria_inviati).
+// Le email partono dal Gmail indicato in GMAIL_UTENTE. Ogni email viene inviata una volta
+// sola (tabella promemoria_inviati); se Gmail è occupato lo script aspetta e riprova.
 //
 // Variabili richieste: SUPABASE_URL, SUPABASE_SERVICE_KEY, GMAIL_UTENTE,
 // GMAIL_PASSWORD_APP, SITO_URL. Facoltative: TIPO (forza venerdi | domenica |
@@ -74,41 +74,64 @@ const indirizzi = (lista) => [...new Set(lista.flatMap((u) => (u.email_promemori
 // anche l'amministratore di città che è un ufficio riceve i promemoria del suo ufficio
 const emailUfficio = (u) => indirizzi(utenti.filter((x) => x.ufficio_id === u.id))
 
-/**
- * Esegue un promemoria una volta sola: lo registra prima di inviare (salvo le prove)
- * e, se l'invio fallisce, cancella la registrazione così il prossimo tentativo riprova.
- */
-async function unaVolta({ tipo, settimana }, invio) {
-  if (!emailProva) {
-    const { error } = await db.from('promemoria_inviati').insert({ tipo, settimana })
-    if (error?.code === '23505') { console.log(`Promemoria "${tipo}" del ${settimana} già inviato.`); return }
-    if (error) throw new Error(error.message)
-  }
-  try {
-    await invio()
-  } catch (e) {
-    if (!emailProva) await db.from('promemoria_inviati').delete().eq('tipo', tipo).eq('settimana', settimana)
-    throw e
-  }
-}
-
 // ---------- Invio ----------
 const posta = nodemailer.createTransport({
   host: 'smtp.gmail.com', port: 465, secure: true,
   auth: { user: env('GMAIL_UTENTE'), pass: env('GMAIL_PASSWORD_APP') },
 })
+const PAUSA_TRA_EMAIL = 2                 // secondi: Gmail non gradisce le raffiche di email
+const ATTESE_SE_GMAIL_OCCUPATO = [30, 90, 180]   // secondi prima di ogni nuovo tentativo
+const pausa = (secondi) => new Promise((ok) => setTimeout(ok, secondi * 1000))
 let inviate = 0
-async function invia(destinatari, oggetto, html) {
-  if (destinatari.length === 0) return
+const scartate = []   // email rifiutate da Gmail per sempre (es. indirizzo sbagliato)
+
+/** Invia un'email; se Gmail risponde "riprova più tardi" (codici 4xx) aspetta e riprova */
+async function inviaConPazienza(destinatari, oggetto, html) {
   const a = emailProva ? [emailProva] : destinatari
-  await posta.sendMail({
-    from: `"${MITTENTE}" <${env('GMAIL_UTENTE')}>`,
-    to: a.join(', '),
-    subject: emailProva ? `[PROVA → ${destinatari.join(', ')}] ${oggetto}` : oggetto,
-    html,
-  })
-  inviate++
+  for (let tentativo = 0; ; tentativo++) {
+    try {
+      await posta.sendMail({
+        from: `"${MITTENTE}" <${env('GMAIL_UTENTE')}>`,
+        to: a.join(', '),
+        subject: emailProva ? `[PROVA → ${destinatari.join(', ')}] ${oggetto}` : oggetto,
+        html,
+      })
+      inviate++
+      await pausa(PAUSA_TRA_EMAIL)
+      return
+    } catch (e) {
+      const temporaneo = e.code !== 'EAUTH' && (!e.responseCode || (e.responseCode >= 400 && e.responseCode < 500))
+      if (!temporaneo || tentativo >= ATTESE_SE_GMAIL_OCCUPATO.length) throw e
+      const attesa = ATTESE_SE_GMAIL_OCCUPATO[tentativo]
+      console.log(`  Gmail occupato (${e.responseCode ?? e.code}): riprovo tra ${attesa} secondi`)
+      await pausa(attesa)
+    }
+  }
 }
+
+/**
+ * Invia un promemoria a un destinatario una volta sola. Ogni email si registra in
+ * promemoria_inviati (salvo le prove): se l'esecuzione si interrompe a metà, quella
+ * successiva manda solo le email che mancano, senza doppioni.
+ */
+async function inviaUnaVolta({ tipo, settimana }, { id, chi }, destinatari, oggetto, html) {
+  const chiave = { tipo: `${tipo}|${id}`, settimana }
+  if (!emailProva) {
+    const { error } = await db.from('promemoria_inviati').insert(chiave)
+    if (error?.code === '23505') { console.log(`· ${chi}: già inviato`); return false }
+    if (error) throw new Error(error.message)
+  }
+  try {
+    await inviaConPazienza(destinatari, oggetto, html)
+    return true
+  } catch (e) {
+    if (!emailProva) await db.from('promemoria_inviati').delete().eq('tipo', chiave.tipo).eq('settimana', settimana)
+    // indirizzo rifiutato per sempre: si segnala e si passa agli altri; altrimenti (Gmail giù, password errata) ci si ferma
+    if (e.code === 'EENVELOPE' && e.responseCode >= 500) { scartate.push(`${chi} (${destinatari.join(', ')}): ${e.response}`); return false }
+    throw e
+  }
+}
+const perUfficio = (u) => ({ id: `ufficio-${u.id}`, chi: u.nome })
 
 // =====================================================================
 // TESTI DELLE EMAIL — per cambiare le parole basta modificare questa sezione.
@@ -163,19 +186,16 @@ const TESTI = {
 async function settimanale(tipo) {
   const settimana = lunediDi(oggi)
   const intervallo = dalAl(settimana, aggiungiGiorni(settimana, 6))
-  await unaVolta({ tipo, settimana }, async () => {
-    const rilevazioni = await tutte('rilevazioni', 'ufficio_id', (q) => q.eq('settimana', settimana).not('risultato', 'is', null))
-    const conDati = new Set(rilevazioni.map((r) => r.ufficio_id))
-    const mancanti = uffici.filter((u) => !conDati.has(u.id))
-    for (const u of mancanti) {
-      const dest = emailUfficio(u)
-      if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
-      const { oggetto, html } = TESTI.settimanale({ tipo, ufficio: u.nome, settimana: intervallo })
-      await invia(dest, oggetto, html)
-      console.log(`✓ ${u.nome} → ${dest.join(', ')}`)
-    }
-    console.log(`Settimana ${intervallo}: uffici mancanti ${mancanti.length}`)
-  })
+  const rilevazioni = await tutte('rilevazioni', 'ufficio_id', (q) => q.eq('settimana', settimana).not('risultato', 'is', null))
+  const conDati = new Set(rilevazioni.map((r) => r.ufficio_id))
+  const mancanti = uffici.filter((u) => !conDati.has(u.id))
+  for (const u of mancanti) {
+    const dest = emailUfficio(u)
+    if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
+    const { oggetto, html } = TESTI.settimanale({ tipo, ufficio: u.nome, settimana: intervallo })
+    if (await inviaUnaVolta({ tipo, settimana }, perUfficio(u), dest, oggetto, html)) console.log(`✓ ${u.nome} → ${dest.join(', ')}`)
+  }
+  console.log(`Settimana ${intervallo}: uffici mancanti ${mancanti.length}`)
 }
 
 // ---------- Rapportino mensile ----------
@@ -205,44 +225,41 @@ async function statiDelMese(mese, scadenza) {
 async function mensile({ tipo, mese, scadenza }) {
   const titolo = nomeMese(mese)
   const entro = `${conGiorno(scadenza.giorno)} alle ${scadenza.orario}`
-  await unaVolta(chiaveMensile(tipo, mese, scadenza.giorno), async () => {
-    const stati = await statiDelMese(mese, scadenza)
+  const chiave = chiaveMensile(tipo, mese, scadenza.giorno)
+  const stati = await statiDelMese(mese, scadenza)
 
-    if (tipo !== 'mensile_riepilogo') {
-      const mancanti = stati.filter((s) => s.stato === 'mancante').map((s) => s.ufficio)
-      const vigilia = tipo === 'mensile_vigilia'
-      for (const u of mancanti) {
-        const dest = emailUfficio(u)
-        if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
-        const { oggetto, html } = TESTI.mensileUfficio({ vigilia, ufficio: u.nome, mese: titolo, giorno: conGiorno(scadenza.giorno), entro, blocca: scadenza.blocca })
-        await invia(dest, oggetto, html)
-        console.log(`✓ ${u.nome} → ${dest.join(', ')}`)
-      }
-      console.log(`Mensile ${titolo} (${tipo}): uffici mancanti ${mancanti.length}`)
-      return
+  if (tipo !== 'mensile_riepilogo') {
+    const mancanti = stati.filter((s) => s.stato === 'mancante').map((s) => s.ufficio)
+    const vigilia = tipo === 'mensile_vigilia'
+    for (const u of mancanti) {
+      const dest = emailUfficio(u)
+      if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
+      const { oggetto, html } = TESTI.mensileUfficio({ vigilia, ufficio: u.nome, mese: titolo, giorno: conGiorno(scadenza.giorno), entro, blocca: scadenza.blocca })
+      if (await inviaUnaVolta(chiave, perUfficio(u), dest, oggetto, html)) console.log(`✓ ${u.nome} → ${dest.join(', ')}`)
     }
+    console.log(`Mensile ${titolo} (${tipo}): uffici mancanti ${mancanti.length}`)
+    return
+  }
 
-    // Riepilogo del giorno dopo: solo all'amministratore generale, Roma e Milano insieme
-    const admin = indirizzi(utenti.filter((x) => x.ruolo === 'admin_generale'))
-    if (admin.length === 0) { console.log('Nessun amministratore generale con email per i promemoria: riepilogo non inviato'); return }
-    const elenco = (filtro, testo = (s) => s.ufficio.nome) => stati.filter(filtro).sort((a, b) => a.ufficio.nome.localeCompare(b.ufficio.nome)).map(testo)
-    const lista = (titoloLista, nomi) => nomi.length ? `<p><strong>${titoloLista} (${nomi.length}):</strong></p><ul>${nomi.map((n) => `<li>${n}</li>`).join('')}</ul>` : ''
-    const perCitta = citta.map((c) => {
-      const qui = (f) => (s) => s.ufficio.citta_id === c.id && f(s)
-      const totale = stati.filter(qui(() => true)).length
-      if (totale === 0) return ''
-      const mancanti = elenco(qui((s) => s.stato === 'mancante'))
-      return `<h3 style="margin:20px 0 4px;color:#0057A3">${c.nome}</h3>
-        <p style="margin-top:0">Hanno inserito ${totale - mancanti.length} uffici su ${totale}.</p>
-        ${lista('Nessun dato inserito', mancanti)}
-        ${lista('Rapportino incompleto', elenco(qui((s) => s.stato === 'parziale')))}
-        ${lista('Inserito o modificato dopo la scadenza', elenco(qui((s) => s.ritardo), (s) => `${s.ufficio.nome} — ${dataOraItaliana(s.ritardo)}`))}`
-    }).join('')
-    const nMancanti = stati.filter((s) => s.stato === 'mancante').length
-    const { oggetto, html } = TESTI.mensileRiepilogo({ mese: titolo, entro, blocca: scadenza.blocca, mancanti: nMancanti, perCitta })
-    await invia(admin, oggetto, html)
-    console.log(`✓ Riepilogo mensile ${titolo} → ${admin.join(', ')}`)
-  })
+  // Riepilogo del giorno dopo: solo all'amministratore generale, Roma e Milano insieme
+  const admin = indirizzi(utenti.filter((x) => x.ruolo === 'admin_generale'))
+  if (admin.length === 0) { console.log('Nessun amministratore generale con email per i promemoria: riepilogo non inviato'); return }
+  const elenco = (filtro, testo = (s) => s.ufficio.nome) => stati.filter(filtro).sort((a, b) => a.ufficio.nome.localeCompare(b.ufficio.nome)).map(testo)
+  const lista = (titoloLista, nomi) => nomi.length ? `<p><strong>${titoloLista} (${nomi.length}):</strong></p><ul>${nomi.map((n) => `<li>${n}</li>`).join('')}</ul>` : ''
+  const perCitta = citta.map((c) => {
+    const qui = (f) => (s) => s.ufficio.citta_id === c.id && f(s)
+    const totale = stati.filter(qui(() => true)).length
+    if (totale === 0) return ''
+    const mancanti = elenco(qui((s) => s.stato === 'mancante'))
+    return `<h3 style="margin:20px 0 4px;color:#0057A3">${c.nome}</h3>
+      <p style="margin-top:0">Hanno inserito ${totale - mancanti.length} uffici su ${totale}.</p>
+      ${lista('Nessun dato inserito', mancanti)}
+      ${lista('Rapportino incompleto', elenco(qui((s) => s.stato === 'parziale')))}
+      ${lista('Inserito o modificato dopo la scadenza', elenco(qui((s) => s.ritardo), (s) => `${s.ufficio.nome} — ${dataOraItaliana(s.ritardo)}`))}`
+  }).join('')
+  const nMancanti = stati.filter((s) => s.stato === 'mancante').length
+  const { oggetto, html } = TESTI.mensileRiepilogo({ mese: titolo, entro, blocca: scadenza.blocca, mancanti: nMancanti, perCitta })
+  if (await inviaUnaVolta(chiave, { id: 'riepilogo', chi: 'Riepilogo' }, admin, oggetto, html)) console.log(`✓ Riepilogo mensile ${titolo} → ${admin.join(', ')}`)
 }
 
 /** Scadenza del mese per un invio forzato a mano; nelle prove, se manca, si usa la proposta (il 5 del mese dopo alle 23:59) */
@@ -292,4 +309,5 @@ if (daFare.length === 0) {
 } else {
   for (const fai of daFare) await fai()
   console.log(`Email inviate: ${inviate}`)
+  if (scartate.length) throw new Error(`Gmail ha rifiutato ${scartate.length} email (controlla l'email per i promemoria in Amministrazione):\n${scartate.join('\n')}`)
 }
