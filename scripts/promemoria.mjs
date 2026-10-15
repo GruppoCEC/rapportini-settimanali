@@ -21,7 +21,7 @@
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import {
-  aggiungiGiorni, aggiungiMesi, chiaveMensile, inItalia, inServizio, lunediDi, oraMensile,
+  aggiungiGiorni, aggiungiMesi, chiaveMensile, dalAl, inItalia, inServizio, lunediDi, oraMensile,
   promemoriaMensiliDiOggi, statoMensile, tipoSettimanale, ultimoRitardo, TIPI_MENSILI, TIPI_SETTIMANALI,
 } from './promemoria-calendario.mjs'
 
@@ -47,8 +47,10 @@ const emailProva = env('EMAIL_PROVA', false)
 const sito = env('SITO_URL')
 
 const formattaData = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })
+const conGiorno = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
 const nomeMese = (mese) => new Date(`${mese}T12:00:00Z`).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 const dataOraItaliana = (istante) => { const x = inItalia(istante); return `${formattaData(x.data)} alle ${x.orario}` }
+
 
 // ---------- Dati ----------
 const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_KEY'), { auth: { persistSession: false } })
@@ -100,20 +102,67 @@ async function invia(destinatari, oggetto, html) {
   if (destinatari.length === 0) return
   const a = emailProva ? [emailProva] : destinatari
   await posta.sendMail({
-    from: `"Rapportini Settimanali" <${env('GMAIL_UTENTE')}>`,
+    from: `"${MITTENTE}" <${env('GMAIL_UTENTE')}>`,
     to: a.join(', '),
     subject: emailProva ? `[PROVA → ${destinatari.join(', ')}] ${oggetto}` : oggetto,
     html,
   })
   inviate++
 }
-const pulsante = `<p><a href="${sito}" style="display:inline-block;background:#0057A3;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">Apri Rapportini Settimanali</a></p>`
-const firma = '<p style="color:#666;font-size:13px">Messaggio automatico, non rispondere.</p>'
+
+// =====================================================================
+// TESTI DELLE EMAIL — per cambiare le parole basta modificare questa sezione.
+// Tono deciso da Davide: "voi", cordiale, senza firma; chi ha problemi può rispondere.
+// =====================================================================
+const MITTENTE = 'Rapportini Gruppo CEC'
+
+const pulsante = (testo) => `<p style="margin:24px 0"><a href="${sito}" style="display:inline-block;background:#0057A3;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">${testo}</a></p>`
+const aiuto = '<p style="color:#666;font-size:13px">Avete difficoltà a inserire i dati? Rispondete pure a questa email.</p>'
+const pagina = (contenuto) => `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#222;max-width:600px">${contenuto}</div>`
+
+const TESTI = {
+  // Settimanale: venerdì alle 16 (primo) e domenica alle 10 (ultimo)
+  settimanale: ({ tipo, ufficio, settimana }) => {
+    const ultimo = tipo === 'domenica'
+    return {
+      oggetto: `${ultimo ? 'Ultimo promemoria' : 'Promemoria'}: dati della settimana ${settimana}`,
+      html: pagina(`
+        <p>${ultimo ? 'Buongiorno' : 'Buon pomeriggio'},</p>
+        <p>per l'ufficio <strong>${ufficio}</strong> non risultano ancora inseriti i dati della settimana <strong>${settimana}</strong>.</p>
+        <p>${ultimo
+          ? 'Domani c\'è la riunione: vi chiediamo di inserirli <strong>entro stasera</strong>.'
+          : 'Vi chiediamo di inserirli <strong>entro domenica sera</strong>, così saranno pronti per la riunione di lunedì.'}</p>
+        ${pulsante('Inserisci i dati della settimana')}${aiuto}`),
+    }
+  },
+
+  // Mensile: 3 giorni prima e il giorno prima della scadenza, alle 10
+  mensileUfficio: ({ vigilia, ufficio, mese, giorno, entro, blocca }) => ({
+    oggetto: vigilia ? `Scade domani: rapportino di ${mese}` : `Promemoria: rapportino di ${mese}, scadenza ${giorno}`,
+    html: pagina(`
+      <p>Buongiorno,</p>
+      <p>per l'ufficio <strong>${ufficio}</strong> non risulta ancora inserito il <strong>rapportino mensile di ${mese}</strong>.</p>
+      <p>La scadenza è ${vigilia ? '<strong>domani</strong>, ' : ''}<strong>${entro}</strong>.
+         ${blocca ? 'Dopo la scadenza l\'inserimento si chiude.' : 'Dopo la scadenza potrete ancora inserirlo, ma risulterà in ritardo.'}</p>
+      <p>Lo trovate nel menu <strong>Inserisci mese</strong>.</p>
+      ${pulsante('Inserisci il rapportino del mese')}${aiuto}`),
+  }),
+
+  // Mensile: il giorno dopo la scadenza, solo all'amministratore generale
+  mensileRiepilogo: ({ mese, entro, blocca, mancanti, perCitta }) => ({
+    oggetto: `Rapportino di ${mese}: ${mancanti === 0 ? 'tutti gli uffici hanno inserito' : mancanti === 1 ? '1 ufficio senza dati' : `${mancanti} uffici senza dati`}`,
+    html: pagina(`
+      <p>Buongiorno,</p>
+      <p>ecco come è andato il <strong>rapportino mensile di ${mese}</strong>. La scadenza era <strong>${entro}</strong>${blocca ? ' e ora l\'inserimento è chiuso per gli uffici' : ''}.</p>
+      ${perCitta}
+      ${pulsante('Apri il report mensile')}`),
+  }),
+}
 
 // ---------- Rapportino settimanale ----------
 async function settimanale(tipo) {
   const settimana = lunediDi(oggi)
-  const intervallo = `${formattaData(settimana)} – ${formattaData(aggiungiGiorni(settimana, 6))}`
+  const intervallo = dalAl(settimana, aggiungiGiorni(settimana, 6))
   await unaVolta({ tipo, settimana }, async () => {
     const rilevazioni = await tutte('rilevazioni', 'ufficio_id', (q) => q.eq('settimana', settimana).not('risultato', 'is', null))
     const conDati = new Set(rilevazioni.map((r) => r.ufficio_id))
@@ -121,12 +170,8 @@ async function settimanale(tipo) {
     for (const u of mancanti) {
       const dest = emailUfficio(u)
       if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
-      const sollecito = tipo === 'domenica' ? 'Ultimo promemoria: ' : ''
-      await invia(dest, `${sollecito}inserisci i dati della settimana (${intervallo})`,
-        `<p>Ciao ${u.nome},</p>
-         <p>non risultano ancora inseriti i dati della settimana <strong>${intervallo}</strong>.</p>
-         <p>Ti chiediamo di compilarli entro <strong>domenica sera</strong>: lunedì si fa la riunione.</p>
-         ${pulsante}${firma}`)
+      const { oggetto, html } = TESTI.settimanale({ tipo, ufficio: u.nome, settimana: intervallo })
+      await invia(dest, oggetto, html)
       console.log(`✓ ${u.nome} → ${dest.join(', ')}`)
     }
     console.log(`Settimana ${intervallo}: uffici mancanti ${mancanti.length}`)
@@ -159,7 +204,7 @@ async function statiDelMese(mese, scadenza) {
 
 async function mensile({ tipo, mese, scadenza }) {
   const titolo = nomeMese(mese)
-  const entro = `${formattaData(scadenza.giorno)} alle ${scadenza.orario}`
+  const entro = `${conGiorno(scadenza.giorno)} alle ${scadenza.orario}`
   await unaVolta(chiaveMensile(tipo, mese, scadenza.giorno), async () => {
     const stati = await statiDelMese(mese, scadenza)
 
@@ -169,13 +214,8 @@ async function mensile({ tipo, mese, scadenza }) {
       for (const u of mancanti) {
         const dest = emailUfficio(u)
         if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
-        await invia(dest, `${vigilia ? 'Scade domani: ' : ''}rapportino mensile di ${titolo}, da inserire entro il ${entro}`,
-          `<p>Ciao ${u.nome},</p>
-           <p>non risultano ancora inseriti i numeri del <strong>rapportino mensile di ${titolo}</strong>.</p>
-           <p>La scadenza è ${vigilia ? '<strong>domani</strong>, ' : ''}il <strong>${entro}</strong>.
-              ${scadenza.blocca ? 'Dopo la scadenza l\'inserimento si chiude.' : 'Dopo la scadenza potrai ancora inserirli, ma risulteranno in ritardo.'}</p>
-           <p>Li trovi nel menu <strong>Inserisci mese</strong>.</p>
-           ${pulsante}${firma}`)
+        const { oggetto, html } = TESTI.mensileUfficio({ vigilia, ufficio: u.nome, mese: titolo, giorno: conGiorno(scadenza.giorno), entro, blocca: scadenza.blocca })
+        await invia(dest, oggetto, html)
         console.log(`✓ ${u.nome} → ${dest.join(', ')}`)
       }
       console.log(`Mensile ${titolo} (${tipo}): uffici mancanti ${mancanti.length}`)
@@ -192,16 +232,15 @@ async function mensile({ tipo, mese, scadenza }) {
       const totale = stati.filter(qui(() => true)).length
       if (totale === 0) return ''
       const mancanti = elenco(qui((s) => s.stato === 'mancante'))
-      return `<h3 style="margin-bottom:4px">${c.nome}</h3>
+      return `<h3 style="margin:20px 0 4px;color:#0057A3">${c.nome}</h3>
         <p style="margin-top:0">Hanno inserito ${totale - mancanti.length} uffici su ${totale}.</p>
         ${lista('Nessun dato inserito', mancanti)}
         ${lista('Rapportino incompleto', elenco(qui((s) => s.stato === 'parziale')))}
         ${lista('Inserito o modificato dopo la scadenza', elenco(qui((s) => s.ritardo), (s) => `${s.ufficio.nome} — ${dataOraItaliana(s.ritardo)}`))}`
     }).join('')
     const nMancanti = stati.filter((s) => s.stato === 'mancante').length
-    await invia(admin, `Rapportino mensile di ${titolo}: ${nMancanti === 0 ? 'tutti gli uffici hanno inserito' : `${nMancanti} uffici senza dati`}`,
-      `<p>Riepilogo del <strong>rapportino mensile di ${titolo}</strong>. La scadenza era il <strong>${entro}</strong>${scadenza.blocca ? ' (inserimento chiuso per gli uffici)' : ''}.</p>
-       ${perCitta}${pulsante}`)
+    const { oggetto, html } = TESTI.mensileRiepilogo({ mese: titolo, entro, blocca: scadenza.blocca, mancanti: nMancanti, perCitta })
+    await invia(admin, oggetto, html)
     console.log(`✓ Riepilogo mensile ${titolo} → ${admin.join(', ')}`)
   })
 }

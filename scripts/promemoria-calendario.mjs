@@ -45,6 +45,15 @@ export function aggiungiMesi(mese, n) {
   return `${Math.floor(totale / 12)}-${String((totale % 12) + 1).padStart(2, '0')}-01`
 }
 
+const giornoMese = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })
+
+/** "dal 12 al 18 ottobre", "dal 28 settembre al 4 ottobre", "dall'8 al 14 giugno", "dal 1° al 7 giugno" */
+export function dalAl(inizio, fine) {
+  const g = Number(inizio.slice(8))
+  const dal = g === 1 ? 'dal 1°' : g === 8 || g === 11 ? `dall'${g}` : `dal ${g}`
+  return inizio.slice(0, 7) === fine.slice(0, 7) ? `${dal} al ${giornoMese(fine)}` : `${dal} ${giornoMese(inizio).replace(/^\d+ /, '')} al ${giornoMese(fine)}`
+}
+
 /** Promemoria settimanale che tocca adesso: 'venerdi', 'domenica' oppure null */
 export function tipoSettimanale({ giorno, ora }) {
   if (giorno === 'Fri' && ora >= ORA_VENERDI && ora < ORA_VENERDI + FINESTRA_ORE) return 'venerdi'

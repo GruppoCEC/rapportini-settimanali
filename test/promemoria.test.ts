@@ -2,7 +2,7 @@
 // quando parte ogni email e quali uffici risultano senza rapportino mensile.
 import { describe, expect, it } from 'vitest'
 import {
-  chiaveMensile, inItalia, oraMensile, promemoriaMensiliDiOggi, statoMensile as statoScript, tipoSettimanale,
+  chiaveMensile, dalAl, inItalia, oraMensile, promemoriaMensiliDiOggi, statoMensile as statoScript, tipoSettimanale,
 } from '../scripts/promemoria-calendario.mjs'
 import { statoMensile as statoSito, inServizio } from '../src/lib/mensile'
 import type { Persona, ValoreMensile, VoceMensile } from '../src/lib/tipi'
@@ -18,6 +18,12 @@ describe('promemoria settimanali', () => {
     expect(tipoSettimanale(inItalia('2026-10-18T08:00:00Z'))).toBe('domenica')
     expect(tipoSettimanale(inItalia('2026-11-22T08:00:00Z'))).toBe(null)
     expect(tipoSettimanale(inItalia('2026-11-22T09:00:00Z'))).toBe('domenica')
+  })
+  it('la settimana si scrive in italiano corretto', () => {
+    expect(dalAl('2026-10-12', '2026-10-18')).toBe('dal 12 al 18 ottobre')
+    expect(dalAl('2026-09-28', '2026-10-04')).toBe('dal 28 settembre al 4 ottobre')
+    expect(dalAl('2026-06-08', '2026-06-14')).toBe("dall'8 al 14 giugno")
+    expect(dalAl('2026-06-01', '2026-06-07')).toBe('dal 1° al 7 giugno')
   })
   it('il lunedì non parte più nulla', () => {
     expect(tipoSettimanale(inItalia('2026-10-19T05:30:00Z'))).toBe(null)

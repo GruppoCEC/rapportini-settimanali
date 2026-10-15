@@ -10,7 +10,13 @@
   - la scadenza è quella fissata in Report mensile → Panoramica. Se un mese non ha una scadenza, non partono promemoria. Se la scadenza viene spostata, i promemoria ripartono per la nuova data;
   - non parte nulla finché il mensile è in prova ("Work in progress").
 - Prova manuale da GitHub (Actions → Promemoria → Run workflow): nuovi tipi `mensile_3giorni`, `mensile_vigilia` e `mensile_riepilogo`, e campo *mese*.
-- Il pulsante nelle email ha il blu della piattaforma.
+- **Testi delle email riscritti** (scelte di Davide):
+  - tono con il "voi", cordiale, senza firma;
+  - mittente "Rapportini Gruppo CEC";
+  - in fondo, invece di "non rispondere": "Avete difficoltà a inserire i dati? Rispondete pure a questa email";
+  - date più leggibili ("dal 12 al 18 ottobre", "lunedì 5 ottobre alle 23:59");
+  - pulsanti blu della piattaforma che dicono cosa fare ("Inserisci i dati della settimana", "Inserisci il rapportino del mese").
+  - Tutti i testi sono in un'unica sezione di `scripts/promemoria.mjs` ("TESTI DELLE EMAIL"), così si ritoccano facilmente.
 - Nel riquadro "Scadenza" del Report mensile, una riga spiega quando partono i promemoria. Compare quando i promemoria sono attivi.
 - Nessuna modifica al database.
 
