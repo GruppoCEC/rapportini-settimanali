@@ -90,7 +90,7 @@ funzione che gira su Supabase.
    values ('davide', 'Davide', 'admin_generale', 1, 'la.tua.email@gmail.com');
    ```
 
-   La seconda email (`email_promemoria`) è quella su cui riceverai il riepilogo del lunedì mattina.
+   La seconda email (`email_promemoria`) è quella su cui riceverai il riepilogo del rapportino mensile.
 2. Apri **Authentication → Users → Add user → Create new user**:
    - **Email**: `rapportini.gruppo+davide@gmail.com`, cioè il vostro Gmail con `+davide` prima della `@`
    - **Password**: scegline una, di almeno 8 caratteri
@@ -123,8 +123,14 @@ li creerai dalla pagina **Amministrazione** della piattaforma.
 
 ## Passo 8 — Promemoria automatici via Gmail
 
-I promemoria partono da GitHub: il venerdì alle 16 e la domenica alle 10 agli uffici che non hanno
-inserito nulla, il lunedì alle 7:30 agli amministratori con l'elenco di chi manca.
+I promemoria partono da GitHub:
+
+- **rapportino settimanale**: il venerdì alle 16 e la domenica alle 10, agli uffici che non hanno inserito nulla;
+- **rapportino mensile**: alle 10, 3 giorni prima e il giorno prima della scadenza, agli uffici che non hanno
+  inserito nulla. Il giorno dopo la scadenza l'amministratore generale riceve il riepilogo: chi manca, chi
+  è incompleto e chi ha inserito in ritardo. Partono solo se:
+  - il mensile è aperto agli uffici (`mensile_aperto = 'si'`);
+  - per quel mese è fissata una scadenza in **Report mensile → Panoramica**.
 
 1. Accedi al Gmail dei rapportini e attiva la **verifica in due passaggi** su
    <https://myaccount.google.com/security>.
@@ -143,6 +149,12 @@ inserito nulla, il lunedì alle 7:30 agli amministratori con l'elenco di chi man
 5. **Prova**: scheda **Actions** → *Promemoria* → **Run workflow**. Scegli `venerdi`, nel campo
    *email_prova* scrivi la **tua** email e clicca **Run workflow**. Riceverai le email che sarebbero
    partite: l'oggetto inizia con `[PROVA → …]` e indica a chi sarebbero andate.
+6. **Prova del mensile**: come al punto 5, ma scegli `mensile_3giorni`, `mensile_vigilia` oppure
+   `mensile_riepilogo`. Nel campo *mese* scrivi il mese, per esempio `2026-09`; se lo lasci vuoto vale
+   il mese appena concluso. In prova le email partono anche se il mensile non è ancora aperto. Se il
+   mese non ha una scadenza, si usa la proposta: il 5 del mese dopo alle 23:59.
+7. Quando le prove vanno bene, chiedi a Claude di mettere `PROMEMORIA_ATTIVI = true`: il sito
+   comincerà ad annunciare i promemoria agli uffici.
 
 > Gli uffici ricevono i promemoria solo se il loro account ha un'**email per i promemoria**:
 > si imposta in Amministrazione, dove gli account senza email sono segnalati in rosso.

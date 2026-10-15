@@ -1,13 +1,14 @@
 # Promemoria automatici via email (vedi scripts/promemoria.mjs).
 # GitHub ragiona in ora UTC e non conosce l'ora legale: ogni promemoria è
 # programmato in due orari e lo script invia solo a quello giusto, una volta sola.
+# Ogni giorno alle 10 lo script controlla se tocca un promemoria: la domenica il
+# settimanale, e il mensile 3 giorni prima, il giorno prima e il giorno dopo la scadenza.
 name: Promemoria
 
 on:
   schedule:
-    - cron: '0 14,15 * * 5'    # venerdì ore 16:00 italiane
-    - cron: '0 8,9 * * 0'      # domenica ore 10:00 italiane
-    - cron: '30 5,6 * * 1'     # lunedì ore 7:30 italiane
+    - cron: '0 14,15 * * 5'    # venerdì ore 16:00 italiane (settimanale)
+    - cron: '0 8,9 * * *'      # ogni giorno ore 10:00 italiane (settimanale della domenica e mensile)
   workflow_dispatch:
     inputs:
       tipo:
@@ -15,7 +16,10 @@ on:
         required: true
         default: venerdi
         type: choice
-        options: [venerdi, domenica, lunedi]
+        options: [venerdi, domenica, mensile_3giorni, mensile_vigilia, mensile_riepilogo]
+      mese:
+        description: 'Solo per i promemoria mensili: il mese, es. 2026-09 (vuoto = il mese appena concluso)'
+        required: false
       email_prova:
         description: 'Prova: se compilato, TUTTE le email vanno solo a questo indirizzo'
         required: false
@@ -43,6 +47,7 @@ jobs:
           GMAIL_UTENTE: ${{ secrets.GMAIL_UTENTE }}
           GMAIL_PASSWORD_APP: ${{ secrets.GMAIL_PASSWORD_APP }}
           TIPO: ${{ inputs.tipo }}
+          MESE: ${{ inputs.mese }}
           EMAIL_PROVA: ${{ inputs.email_prova }}
       # GitHub sospende le azioni programmate dopo 60 giorni senza modifiche al
       # repository: questo passo le riattiva a ogni esecuzione.

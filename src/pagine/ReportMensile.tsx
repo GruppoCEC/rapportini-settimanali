@@ -2,7 +2,7 @@
 // come il file Excel "Modello rapportino mensile gruppo", stampabile; i rapportini dei
 // singoli uffici; le liste di collaboratori, coordinatrici e marketer, con la gara a punti dei collaboratori.
 import { useEffect, useMemo, useState } from 'react'
-import type { Contesto } from '../lib/contesto'
+import { PROMEMORIA_ATTIVI, type Contesto } from '../lib/contesto'
 import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
 import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaValoriMensili, caricaValoriMesi, caricaVociMensili, mensileAperto } from '../lib/dati'
 import { AvvisoProva } from './RapportinoMensile'
@@ -275,7 +275,10 @@ function GestioneScadenza({ dati, mese, modificabile, onSalvato }: { dati: DatiM
           Gli uffici devono compilare entro il <strong>{dataOra(s.scadenza)}</strong>.{' '}
           {s.blocca ? (passata ? 'Inserimento chiuso: gli uffici non possono più modificare.' : 'Dopo la scadenza l\'inserimento si chiude.') : 'Dopo la scadenza possono ancora inserire, ma vengono segnalati in ritardo.'}
         </p>
-      ) : <p className="piccolo">Nessuna scadenza per questo mese: gli uffici possono compilare quando vogliono e nessuno viene segnalato in ritardo.</p>}
+      ) : <p className="piccolo">Nessuna scadenza per questo mese: gli uffici possono compilare quando vogliono e nessuno viene segnalato in ritardo.{PROMEMORIA_ATTIVI && ' Senza scadenza non partono nemmeno i promemoria email.'}</p>}
+      {s && PROMEMORIA_ATTIVI && (
+        <p className="piccolo">Promemoria email agli uffici che non hanno inserito nulla: 3 giorni prima e il giorno prima della scadenza, alle 10. Il giorno dopo l'amministratore generale riceve il riepilogo.</p>
+      )}
       {modificabile && (
         <div className="riga-modulo">
           <label className="campo"><span className="etichetta">Data e ora di scadenza</span>

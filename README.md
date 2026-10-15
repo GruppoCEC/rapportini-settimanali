@@ -5,8 +5,8 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 
 - **Ogni ufficio** compila la propria settimana da computer o telefono, entrando con **nome utente e password**. Gli account li creano gli amministratori dalla piattaforma.
 - **Promemoria automatici** via Gmail:
-  - il venerdì e la domenica agli uffici che non hanno compilato;
-  - il lunedì mattina agli amministratori, con l'elenco di chi manca.
+  - rapportino settimanale: il venerdì e la domenica agli uffici che non hanno compilato;
+  - rapportino mensile: 3 giorni prima e il giorno prima della scadenza agli uffici che non hanno compilato, e il giorno dopo il riepilogo all'amministratore generale.
 - **Cruscotto, stato compilazione, grafici e modalità riunione** a tutto schermo per la riunione del lunedì.
 - **Esiti, totali del mese e quota di mercato** si calcolano da soli: niente più #DIV/0! o totali sbagliati.
 - **Roma e Milano** sono sezioni separate, ognuna con la propria riunione del lunedì.
@@ -37,7 +37,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 Colleghi (browser/telefono)
    → Sito (GitHub Pages, pubblicato in automatico a ogni modifica)
    → Supabase (database + accesso con nome utente e password + regole di sicurezza)
-   ← GitHub Actions (promemoria via Gmail: venerdì, domenica, lunedì)
+   ← GitHub Actions (promemoria via Gmail: settimanali e mensili)
 ```
 
 | Percorso | Contenuto |
@@ -46,7 +46,7 @@ Colleghi (browser/telefono)
 | `src/lib/settimane.ts`, `src/lib/calcoli.ts` | Regole di calcolo (settimane, esiti, quota) |
 | `supabase/migrations/` | Struttura del database e regole di accesso |
 | `supabase/functions/gestione-account/` | Funzione sul server che crea gli account e reimposta le password |
-| `scripts/promemoria.mjs` + `.github/workflows/promemoria.yml` | Promemoria email automatici |
+| `scripts/promemoria.mjs` + `.github/workflows/promemoria.yml` | Promemoria email automatici (il calendario è in `scripts/promemoria-calendario.mjs`) |
 | `demo/` | Versione dimostrativa con finto database (`npm run demo`) |
 | `supabase/TUTTO_IN_UNO.sql` | Le migrazioni unite, da incollare in Supabase (si rigenera con `npm run sql:unico`) |
 | `test/` e `src/**/*.test.ts` | Test automatici, compresi quelli sulle regole di sicurezza |

@@ -1,5 +1,19 @@
 # Storia delle versioni
 
+## 0.5.2 — 15 ottobre 2026
+
+**Promemoria via email** (si attivano quando si completa il passo 8 di `docs/GUIDA_SETUP.md`):
+- **rapportino settimanale**: restano le email del venerdì alle 16 e della domenica alle 10 agli uffici che non hanno inserito nulla. **Tolto il riepilogo del lunedì** agli amministratori (decisione di Davide);
+- **rapportino mensile** (nuovo), sempre alle 10:
+  - 3 giorni prima e il giorno prima della scadenza, agli uffici che non hanno ancora inserito nulla nel mese. L'email dice entro quando compilare e se dopo la scadenza l'inserimento si chiude;
+  - il giorno dopo la scadenza, il riepilogo solo all'amministratore generale, città per città: uffici senza dati, rapportini incompleti e inserimenti arrivati dopo la scadenza;
+  - la scadenza è quella fissata in Report mensile → Panoramica. Se un mese non ha una scadenza, non partono promemoria. Se la scadenza viene spostata, i promemoria ripartono per la nuova data;
+  - non parte nulla finché il mensile è in prova ("Work in progress").
+- Prova manuale da GitHub (Actions → Promemoria → Run workflow): nuovi tipi `mensile_3giorni`, `mensile_vigilia` e `mensile_riepilogo`, e campo *mese*.
+- Il pulsante nelle email ha il blu della piattaforma.
+- Nel riquadro "Scadenza" del Report mensile, una riga spiega quando partono i promemoria. Compare quando i promemoria sono attivi.
+- Nessuna modifica al database.
+
 ## 0.5.1 — 14 ottobre 2026
 
 - **Riepilogo anno** (Report mensile → Riepilogo anno), per la riunione di chiusura dell'anno a gennaio:
