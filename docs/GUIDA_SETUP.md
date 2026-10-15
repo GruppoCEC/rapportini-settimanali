@@ -156,6 +156,11 @@ I promemoria partono da GitHub:
 7. Quando le prove vanno bene, chiedi a Claude di mettere `PROMEMORIA_ATTIVI = true`: il sito
    comincerà ad annunciare i promemoria agli uffici.
 
+> **Se Google blocca il Gmail dei rapportini** ("Non è stato possibile verificare la tua identità",
+> succede con gli account creati da pochi giorni): usa intanto un Gmail più vecchio, ripetendo i punti
+> 1–2 con quell'account e mettendo il suo indirizzo in `GMAIL_UTENTE`. Quando il Gmail dei rapportini
+> si sblocca, basta aggiornare `GMAIL_UTENTE` e `GMAIL_PASSWORD_APP`: non serve cambiare altro.
+
 > Gli uffici ricevono i promemoria solo se il loro account ha un'**email per i promemoria**:
 > si imposta in Amministrazione, dove gli account senza email sono segnalati in rosso.
 
