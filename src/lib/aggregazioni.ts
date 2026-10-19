@@ -39,6 +39,20 @@ export function quotaDaTotali(t: Totali | undefined): number | null {
   return quotaMercato(t.get('portafoglio')?.risultato ?? null, t.get('incarichi_zona')?.risultato ?? null)
 }
 
+/**
+ * Variazione di un dato di zona (es. portafoglio) rispetto alla settimana prima, sommata sugli uffici.
+ * Conta solo gli uffici che l'hanno inserito in entrambe le settimane: chi non ha compilato non sembra un calo.
+ * confrontati < conDato quando qualche ufficio manca nella settimana prima.
+ */
+export function variazioneZona(uffici: Ufficio[], ora: Map<number, Totali>, prima: Map<number, Totali>, codice: string):
+  { variazione: number | null; confrontati: number; conDato: number } {
+  const di = (t: Map<number, Totali>, u: Ufficio) => t.get(u.id)?.get(codice)?.risultato ?? null
+  const conDato = uffici.filter((u) => di(ora, u) !== null)
+  const confrontati = conDato.filter((u) => di(prima, u) !== null)
+  const variazione = confrontati.length === 0 ? null : confrontati.reduce((s, u) => s + di(ora, u)! - di(prima, u)!, 0)
+  return { variazione, confrontati: confrontati.length, conDato: conDato.length }
+}
+
 /** Percentuale di raggiungimento dell'obiettivo (1 = 100%) */
 export function raggiungimento(t: Totale | undefined): number | null {
   if (!t || t.obiettivo === null || t.risultato === null || t.obiettivo === 0) return null

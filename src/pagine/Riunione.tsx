@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   classifica, classificaQuota, quotaDaTotali, raggiungimento, serieQuota, serieSettimanale, sommaTotali,
-  statoCompilazione, totaliPerUfficio, type StatoCompilazione as Stato, type Totali,
+  statoCompilazione, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali,
 } from '../lib/aggregazioni'
 import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../lib/calcoli'
 import { AREE_ATTIVE, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
@@ -196,6 +196,14 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
     return { nome, valore: (t: number) => x?.risultato != null ? conta(x.risultato, t) : '—', sotto: x?.obiettivo ? `obiettivo ${x.obiettivo} · ${formattaPercentuale(r)}` : '', ok: r !== null && r >= 1 }
   }
   const statistiche = [statCopertina('Incarichi', 'incarichi'), statCopertina('Vendite', 'vendite')]
+
+  // Portafoglio: totale degli uffici e variazione sulla settimana prima (solo uffici con il dato in entrambe)
+  const portafoglio = totaleCitta.get('portafoglio')?.risultato ?? null
+  const { variazione: variazionePortafoglio, confrontati, conDato } = variazioneZona(uffici, totali, totaliPrec, 'portafoglio')
+  const testoVariazione = variazionePortafoglio === null ? 'nessun confronto con la settimana prima'
+    : `${variazionePortafoglio === 0 ? 'invariato' : formattaEsito(variazionePortafoglio)} rispetto alla settimana prima`
+      + (confrontati < conDato ? ` (su ${confrontati} uffici)` : '')
+  const colorePortafoglio = variazionePortafoglio === null || variazionePortafoglio === 0 ? '#AFC0D4' : variazionePortafoglio > 0 ? VERDE_CHIARO : ROSA
   out.push({
     titolo: 'Riunione settimanale',
     contenuto: (t) => (
@@ -211,6 +219,10 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
                 <span>{s.nome}</span><strong>{s.valore(t)}</strong><span style={{ color: s.ok ? VERDE_CHIARO : ROSA }}>{s.sotto}</span>
               </div>
             ))}
+            <div className="cop-stat">
+              <span>Portafoglio</span><strong>{portafoglio === null ? '—' : conta(portafoglio, t)}</strong>
+              <span style={{ color: colorePortafoglio }}>{testoVariazione}</span>
+            </div>
             <div className="cop-stat">
               <span>Quota di mercato</span><strong>{formattaPercentuale(quotaCitta === null ? null : quotaCitta * t)}</strong>
               <span style={{ color: quotaCitta !== null && quotaCitta >= OBIETTIVO_QUOTA ? VERDE_CHIARO : ROSA }}>obiettivo {formattaPercentuale(OBIETTIVO_QUOTA)}</span>

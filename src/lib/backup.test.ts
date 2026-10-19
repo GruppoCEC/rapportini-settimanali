@@ -60,7 +60,7 @@ describe('backup in Excel', () => {
     expect(riga.getCell(17).value).toMatchObject({ result: 6 })                     // obiettivo del mese
     expect(riga.getCell(18).value).toMatchObject({ result: 6 })                     // risultato del mese
     const quota = ws.getRow(trovaRiga(ws, 'Quota di mercato (obiettivo 20%)', mese))
-    expect(quota.getCell(6).value).toMatchObject({ result: 0.2 })                   // 10 ÷ (10 + 40)
+    expect(quota.getCell(6).value).toMatchObject({ result: 0.25 })                  // 10 ÷ 40
     const note = ws.getRow(trovaRiga(ws, 'Note', mese))
     expect(note.getCell(5).value).toBe('Nuovo incarico in via Mogadiscio')
   })

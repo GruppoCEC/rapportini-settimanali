@@ -101,7 +101,7 @@ export function creaBackup(d: DatiBackup): ExcelJS.Workbook {
   ]
   for (const [k, v] of fogli) { const r = leggimi.addRow([k, v]); r.getCell(1).font = { bold: true }; r.getCell(2).alignment = { wrapText: true } }
   leggimi.addRow([])
-  leggimi.addRow(['Regole', 'Le settimane vanno da lunedì a domenica e contano nel mese in cui cade il loro giovedì. Nel totale del mese le attività si sommano; i dati di zona prendono il valore dell\'ultima settimana. Quota di mercato = Portafoglio ÷ (Portafoglio + Incarichi in zona), obiettivo 20%.'])
+  leggimi.addRow(['Regole', 'Le settimane vanno da lunedì a domenica e contano nel mese in cui cade il loro giovedì. Nel totale del mese le attività si sommano; i dati di zona prendono il valore dell\'ultima settimana. Quota di mercato = Portafoglio ÷ Incarichi in zona (che comprendono già il portafoglio), obiettivo 20%.'])
     .getCell(2).alignment = { wrapText: true }
 
   // ---------------------------------------------------------------- Un foglio per ufficio
@@ -228,7 +228,7 @@ export function creaBackup(d: DatiBackup): ExcelJS.Workbook {
           const inc = idx < SETTIMANE_PER_MESE ? (sett ? valore(sett, 'incarichi_zona')?.risultato ?? null : null) : totMese.get('incarichi_zona')?.risultato ?? null
           const q = quotaMercato(port, inc)
           const cella = rQuota.getCell(c)
-          cella.value = { formula: `IF(AND(ISNUMBER(${p}),ISNUMBER(${z})),IF(${p}+${z}>0,${p}/(${p}+${z}),""),"")`, result: q ?? '' }
+          cella.value = { formula: `IF(AND(ISNUMBER(${p}),ISNUMBER(${z})),IF(${z}>0,${p}/${z},""),"")`, result: q ?? '' }
           cella.numFmt = '0.0%'
           if (q !== null) cella.fill = riempi(q >= 0.2 ? VERDE : ROSSO)
         })

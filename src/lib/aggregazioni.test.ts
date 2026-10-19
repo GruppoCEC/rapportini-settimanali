@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  classifica, classificaQuota, quotaDaTotali, raggiungimento, semaforo, serieQuota, serieSettimanale,
+  classifica, classificaQuota, quotaDaTotali, raggiungimento, semaforo, serieQuota, serieSettimanale, variazioneZona,
   sommaTotali, statoCompilazione, totaliPerUfficio,
 } from './aggregazioni'
 import type { Metrica, Rilevazione, Ufficio } from './tipi'
@@ -37,7 +37,7 @@ describe('totali per ufficio e somma per città', () => {
     const citta = sommaTotali([...totali.values()])
     expect(citta.get('incarichi')).toEqual({ obiettivo: 5, risultato: 4 })
     expect(citta.get('portafoglio')!.risultato).toBe(15)
-    expect(quotaDaTotali(citta)).toBeCloseTo(15 / 90, 6)
+    expect(quotaDaTotali(citta)).toBeCloseTo(15 / 75, 6)
   })
 })
 
@@ -77,6 +77,21 @@ describe('serie per i grafici', () => {
     ])
     const q = serieQuota(dati, ['2026-10-05', '2026-10-12'])
     expect(q[0]).toBeNull()                       // manca incarichi in zona
-    expect(q[1]).toBeCloseTo(15 / 90, 6)
+    expect(q[1]).toBeCloseTo(15 / 75, 6)
+  })
+})
+
+describe('variazione del portafoglio rispetto alla settimana prima', () => {
+  const ora = totaliPerUfficio([r(1, '2026-10-12', 'portafoglio', null, 5), r(2, '2026-10-12', 'portafoglio', null, 10)], metriche)
+  it('somma le differenze degli uffici', () => {
+    const prima = totaliPerUfficio([r(1, '2026-10-05', 'portafoglio', null, 4), r(2, '2026-10-05', 'portafoglio', null, 12)], metriche)
+    expect(variazioneZona(uffici, ora, prima, 'portafoglio')).toEqual({ variazione: -1, confrontati: 2, conDato: 2 })   // +1 e −2
+  })
+  it('un ufficio che non aveva compilato la settimana prima non conta come aumento', () => {
+    const prima = totaliPerUfficio([r(1, '2026-10-05', 'portafoglio', null, 4)], metriche)
+    expect(variazioneZona(uffici, ora, prima, 'portafoglio')).toEqual({ variazione: 1, confrontati: 1, conDato: 2 })
+  })
+  it('senza dati della settimana prima non c\'è confronto', () => {
+    expect(variazioneZona(uffici, ora, new Map(), 'portafoglio').variazione).toBeNull()
   })
 })

@@ -61,7 +61,7 @@ Colleghi (browser/telefono)
 - **Mese**:
   - le attività si sommano;
   - i dati di zona (Portafoglio, Incarichi in zona…) prendono il valore dell'ultima settimana.
-- **Quota di mercato** = Portafoglio ÷ (Portafoglio + Incarichi in zona). L'obiettivo è il 20%.
+- **Quota di mercato** = Portafoglio ÷ Incarichi in zona: gli incarichi in zona comprendono già quelli in portafoglio. L'obiettivo è il 20%.
 
 ## Comandi (per chi sviluppa)
 

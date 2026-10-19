@@ -279,7 +279,10 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
                     <div className={`riempimento ${classe}`} style={{ width: `${quota === null ? 0 : Math.min(100, quota / (OBIETTIVO_QUOTA * 2) * 100)}%` }} />
                     <div className="tacca" />
                   </div>
-                  <div className="scala-didascalia"><span>0%</span><span>obiettivo {formattaPercentuale(OBIETTIVO_QUOTA)} · Portafoglio ÷ (Portafoglio + Incarichi in zona)</span><span>{formattaPercentuale(OBIETTIVO_QUOTA * 2).replace(',0', '')}</span></div>
+                  <div className="scala-didascalia"><span>0%</span><span>obiettivo {formattaPercentuale(OBIETTIVO_QUOTA)} · Portafoglio ÷ Incarichi in zona</span><span>{formattaPercentuale(OBIETTIVO_QUOTA * 2).replace(',0', '')}</span></div>
+                  {quota !== null && quota > 1 && (
+                    <p className="avviso avviso-arancio"><Icona nome="warning" /><span>Il portafoglio è più alto degli incarichi in zona: controlla i numeri. Gli incarichi in zona comprendono anche quelli in portafoglio.</span></p>
+                  )}
                 </div>
               )
             })()}

@@ -238,7 +238,7 @@ describe('Calcoli', () => {
 
     const quota = await come<{ settimana: string; quota: string }>('davide@test.it',
       `select to_char(settimana, 'YYYY-MM-DD') as settimana, quota from v_quota_settimanale where ufficio_id = $1 order by settimana`, [u])
-    expect(quota.map((q) => Number(q.quota))).toEqual([0.0556, 0.0789, 0.0286, 0.0286])
+    expect(quota.map((q) => Number(q.quota))).toEqual([0.0588, 0.0857, 0.0294, 0.0294])   // Portafoglio ÷ Incarichi in zona
   })
 
   it('le viste rispettano le regole di accesso', async () => {

@@ -210,6 +210,14 @@ Poi, per ogni affiliato (solo l'amministratore generale può farlo):
 Gli affiliati sono elencati in fondo alla pagina, nella sezione **Affiliati**: da lì cambi gli uffici
 (**Modifica**), dai una nuova password, disattivi o elimini l'account.
 
+## Nuova formula della quota di mercato (dalla versione 0.6.2)
+
+Da ora la quota è **Portafoglio ÷ Incarichi in zona**, perché gli incarichi in zona comprendono già
+quelli in portafoglio. Il sito la calcola già così; va aggiornato **una volta sola** anche il database:
+1. Supabase → il progetto → **SQL Editor** → **New query**.
+2. Copia **tutto** il file `supabase/migrations/007_quota_mercato.sql`, incollalo e premi **Run**.
+   Deve comparire "Success. No rows returned".
+
 ---
 
 ## Provare il sito sul Mac

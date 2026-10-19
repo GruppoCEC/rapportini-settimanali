@@ -1,5 +1,5 @@
 // Calcoli sui dati: esito, quota di mercato, totali del mese.
-// Le stesse regole sono nel database (supabase/migrations/003_viste_calcoli.sql).
+// Le stesse regole sono nel database (supabase/migrations/003_viste_calcoli.sql; quota in 007_quota_mercato.sql).
 
 import type { Metrica, Rilevazione } from './tipi'
 
@@ -12,11 +12,13 @@ export function esito(obiettivo: number | null, risultato: number | null): numbe
   return risultato - obiettivo
 }
 
-/** Quota di mercato = Portafoglio ÷ (Portafoglio + Incarichi in zona). Mai #DIV/0!: vuota se non calcolabile. */
+/**
+ * Quota di mercato = Portafoglio ÷ Incarichi in zona (gli incarichi in zona comprendono già il portafoglio).
+ * Mai #DIV/0!: vuota se non calcolabile.
+ */
 export function quotaMercato(portafoglio: number | null, incarichiZona: number | null): number | null {
-  if (portafoglio === null || incarichiZona === null) return null
-  const totale = portafoglio + incarichiZona
-  return totale === 0 ? null : portafoglio / totale
+  if (portafoglio === null || incarichiZona === null || incarichiZona === 0) return null
+  return portafoglio / incarichiZona
 }
 
 export interface Totale {

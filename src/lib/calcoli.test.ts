@@ -19,13 +19,15 @@ describe('esito', () => {
 })
 
 describe('quota di mercato', () => {
-  it('riproduce i valori del file di Somalia', () => {
-    expect(quotaMercato(2, 34)!).toBeCloseTo(0.0556, 4)   // feb, 1ª settimana
-    expect(quotaMercato(3, 35)!).toBeCloseTo(0.0789, 4)   // feb, 2ª settimana
-    expect(quotaMercato(2, 39)!).toBeCloseTo(0.0488, 4)   // mar, 1ª settimana
+  it('Portafoglio ÷ Incarichi in zona (che comprendono già il portafoglio), con i numeri del file di Somalia', () => {
+    expect(quotaMercato(2, 34)!).toBeCloseTo(0.0588, 4)   // feb, 1ª settimana
+    expect(quotaMercato(3, 35)!).toBeCloseTo(0.0857, 4)   // feb, 2ª settimana
+    expect(quotaMercato(2, 39)!).toBeCloseTo(0.0513, 4)   // mar, 1ª settimana
+    expect(quotaMercato(10, 50)).toBe(0.2)                // esattamente l'obiettivo
   })
   it('non divide mai per zero', () => {
     expect(quotaMercato(0, 0)).toBeNull()
+    expect(quotaMercato(5, 0)).toBeNull()
     expect(quotaMercato(null, 10)).toBeNull()
   })
 })

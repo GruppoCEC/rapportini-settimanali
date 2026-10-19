@@ -508,7 +508,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .cop-marchio { display: flex; align-items: center; gap: 14px; font-size: 14px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--secondario-300); }
 .cop-citta { font-size: clamp(80px, 10vw, 150px); line-height: .9; color: #fff; letter-spacing: -0.04em; }
 .cop-settimana { align-self: flex-start; font-size: 24px; font-weight: 800; padding: 10px 22px; border-radius: 999px; background: var(--secondario); color: var(--primario-900); }
-.cop-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
+.cop-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
 .cop-stat { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; border-radius: 14px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .12); }
 .cop-stat span:first-child { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #AFC0D4; }
 .cop-stat strong { font: 800 40px/1 var(--font-titoli); font-variant-numeric: tabular-nums; }

@@ -1,5 +1,20 @@
 # Storia delle versioni
 
+## 0.6.2 — 19 ottobre 2026
+
+**Quota di mercato: nuova formula** (richiesta di Davide):
+- ora è **Portafoglio ÷ Incarichi in zona**, perché gli incarichi in zona comprendono già quelli in portafoglio. Prima era Portafoglio ÷ (Portafoglio + Incarichi in zona). L'obiettivo resta il 20%;
+- vale ovunque: Inserisci settimana, Il mio ufficio / Andamento, Cruscotto, Riunione, backup Excel (anche la formula nelle celle) e calcoli del database;
+- la quota viene ricalcolata anche per le **settimane passate**: tutti i valori storici salgono un po' (es. Somalia, prima settimana di febbraio: da 5,6% a 5,9%);
+- in Inserisci settimana, se il portafoglio supera gli incarichi in zona compare un avviso: probabilmente i numeri vanno controllati;
+- **da fare una volta in Supabase**: eseguire `supabase/migrations/007_quota_mercato.sql` (vedi `docs/GUIDA_SETUP.md`).
+
+**Riunione: portafoglio nella copertina**:
+- nella prima pagina della presentazione, accanto a Incarichi, Vendite e Quota di mercato, c'è il **Portafoglio** totale degli uffici;
+- sotto c'è la variazione rispetto alla settimana prima, in verde se sale e in rosa se scende;
+- la variazione conta solo gli uffici che hanno inserito il portafoglio in entrambe le settimane, così un ufficio che non ha compilato non sembra un calo. In quel caso è indicato "(su N uffici)";
+- i quattro riquadri ora sono disposti su due righe.
+
 ## 0.6.1 — 19 ottobre 2026
 
 **Nuovi orari dei promemoria settimanali** (richiesta di Davide):
