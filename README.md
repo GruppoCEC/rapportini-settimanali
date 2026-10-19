@@ -27,6 +27,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 | 4 | Grafici di andamento e modalità riunione | Codice pronto: da provare sul proiettore |
 | 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.635 valori (gen–ott 2026) |
 | 6 | Avvio per tutti gli uffici | Da fare |
+| — | Account affiliati in sola consultazione (0.6.0) | Codice pronto: prima di usarli eseguire `006_affiliati.sql` in Supabase (vedi `docs/GUIDA_SETUP.md`, "Affiliati") |
 | — | Rapportino mensile (0.5.0) | Online in prova ("Work in progress"): gli uffici non possono ancora inserire. Si apre con `mensile_aperto = 'si'` (vedi CHANGELOG) |
 
 **Vederlo subito con dati inventati**: `npm install`, poi `npm run demo`.

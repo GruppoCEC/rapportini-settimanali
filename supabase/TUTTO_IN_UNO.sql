@@ -1,5 +1,5 @@
 -- FILE GENERATO AUTOMATICAMENTE da scripts/unisci-sql.mjs — non modificarlo a mano.
--- Contiene, in ordine: 001_tabelle.sql, 002_sicurezza.sql, 003_viste_calcoli.sql, 004_dati_iniziali.sql, 005_mensile.sql
+-- Contiene, in ordine: 001_tabelle.sql, 002_sicurezza.sql, 003_viste_calcoli.sql, 004_dati_iniziali.sql, 005_mensile.sql, 006_affiliati.sql
 -- Da incollare UNA SOLA VOLTA in Supabase → SQL Editor → New query → Run.
 
 -- ▼▼▼ 001_tabelle.sql ▼▼▼
@@ -861,3 +861,72 @@ update voci_mensili set meglio_se_scende = true where codice = 'incarichi_scadut
 -- Indicatore di qualità delle coordinatrici: tra parentesi negli appuntamenti vendita, fuori dai totali
 insert into voci_mensili (codice, gruppo, sotto, ordine, solo_ruolo, accanto_a, con_punti) values
   ('appuntamenti_vendita_fix', 'App. vendita fix', null, 50, 'coordinatrice', 'appuntamenti_vendita', false);
+
+
+-- ▼▼▼ 006_affiliati.sql ▼▼▼
+-- =====================================================================
+-- 006 — AFFILIATI (account in sola consultazione)
+-- Un affiliato vede gli uffici che gli assegna l'amministratore generale,
+-- anche di città diverse: dati settimanali e rapportino mensile, senza
+-- poter scrivere nulla. Non vede la gara a punti (punti_mensili resta
+-- riservata agli amministratori, 005_mensile.sql) né il confronto con l'anno prima.
+-- Da eseguire una volta in Supabase → SQL Editor, dopo 001–005.
+-- =====================================================================
+
+-- Nuovo ruolo. citta_id resta obbligatorio: per l'affiliato è la città del primo
+-- ufficio assegnato e serve solo all'elenco in Amministrazione.
+alter table utenti drop constraint utenti_ruolo_check;
+alter table utenti add constraint utenti_ruolo_check
+  check (ruolo in ('ufficio', 'responsabile', 'admin_citta', 'admin_generale', 'affiliato'));
+-- un affiliato non compila nessun ufficio (posso_scrivere_ufficio guarda ufficio_id)
+alter table utenti add constraint utenti_affiliato_check
+  check (ruolo <> 'affiliato' or (ufficio_id is null and area_id is null));
+
+-- Uffici che ogni affiliato può consultare
+create table uffici_affiliato (
+  nome_utente text   not null references utenti (nome_utente) on delete cascade,
+  ufficio_id  bigint not null references uffici on delete cascade,
+  primary key (nome_utente, ufficio_id)
+);
+
+-- Solo gli account con ruolo affiliato possono avere uffici in questa tabella
+create function uffici_affiliato_coerenza() returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not exists (select 1 from utenti where nome_utente = new.nome_utente and ruolo = 'affiliato') then
+    raise exception 'L''account % non è un affiliato', new.nome_utente;
+  end if;
+  return new;
+end $$;
+
+create trigger uffici_affiliato_coerenza before insert or update on uffici_affiliato
+for each row execute function uffici_affiliato_coerenza();
+
+-- Posso vedere i dati di questo ufficio? (come in 002_sicurezza.sql, più gli affiliati)
+create or replace function posso_leggere_ufficio(p_ufficio bigint) returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select exists (
+    select 1 from utenti me join uffici u on u.id = p_ufficio
+    where me.email = email_corrente() and me.attivo
+      and (   me.ruolo = 'admin_generale'
+           or (me.ruolo = 'admin_citta'  and u.citta_id = me.citta_id)
+           or (me.ruolo = 'responsabile' and u.area_id  = me.area_id)
+           or (me.ruolo = 'affiliato' and exists (
+                 select 1 from uffici_affiliato ua where ua.nome_utente = me.nome_utente and ua.ufficio_id = p_ufficio))
+           or me.ufficio_id = p_ufficio)
+  )
+$$;
+
+-- Regole di accesso: l'affiliato vede i propri uffici, l'amministratore generale li assegna
+alter table uffici_affiliato enable row level security;
+
+create policy uffici_affiliato_lettura on uffici_affiliato for select to authenticated
+  using (sono_admin_generale()
+         or nome_utente = (select nome_utente from utenti where email = email_corrente() and attivo));
+create policy uffici_affiliato_gestione on uffici_affiliato for all to authenticated
+  using (sono_admin_generale()) with check (sono_admin_generale());
+
+revoke all on uffici_affiliato from anon;
+grant select, insert, delete on uffici_affiliato to authenticated;

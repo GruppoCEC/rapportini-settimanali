@@ -46,7 +46,9 @@ export default function Cruscotto({ ctx }: { ctx: Contesto }) {
   const ultima = lunediDi(oggiISO())
   const settimaneAndamento = Array.from({ length: SETTIMANE_ANDAMENTO }, (_, i) => aggiungiSettimane(ultima, i - SETTIMANE_ANDAMENTO + 1))
   const generale = ctx.utente.ruolo === 'admin_generale'
-  const nomeCitta = ctx.citta.find((c) => c.id === ctx.cittaId)?.nome ?? ''
+  // l'affiliato vede i suoi uffici, anche di città diverse
+  const affiliato = ctx.utente.ruolo === 'affiliato'
+  const nomeCitta = affiliato ? 'I miei uffici' : ctx.citta.find((c) => c.id === ctx.cittaId)?.nome ?? ''
 
   const periodoDati = useDati(() => caricaRilevazioni(da, a, ids), [da, a, ids.join(',')])
   const andamento = useDati(() => caricaRilevazioni(settimaneAndamento[0], ultima, ids), [ultima, ids.join(',')])
@@ -159,7 +161,7 @@ export default function Cruscotto({ ctx }: { ctx: Contesto }) {
                       )
                     })}
                     <tr className="riga-totale-citta">
-                      <th scope="row" className="ufficio-fisso">Totale {areaFiltro === 'tutte' ? nomeCitta : nomeArea(ctx, areaFiltro)}</th>
+                      <th scope="row" className="ufficio-fisso">Totale {areaFiltro === 'tutte' ? (affiliato ? 'miei uffici' : nomeCitta) : nomeArea(ctx, areaFiltro)}</th>
                       {attivita.map((m) => <CellaRisultato key={m.codice} totale={totaleCitta.get(m.codice)} />)}
                       <CellaQuota quota={quota} />
                     </tr>
@@ -209,7 +211,7 @@ export default function Cruscotto({ ctx }: { ctx: Contesto }) {
 
       <section className="scheda">
         <div className="scheda-titolo">
-          <h2>Andamento {areaFiltro === 'tutte' ? 'della città' : 'dell\'area'} · ultime {SETTIMANE_ANDAMENTO} settimane</h2>
+          <h2>Andamento {affiliato ? 'dei miei uffici' : areaFiltro === 'tutte' ? 'della città' : 'dell\'area'} · ultime {SETTIMANE_ANDAMENTO} settimane</h2>
           <select value={voceAndamento} onChange={(e) => setVoceAndamento(e.target.value)} aria-label="Voce del grafico">
             {attivita.map((m) => <option key={m.codice} value={m.codice}>{m.nome}</option>)}
             <option value={QUOTA}>Quota di mercato</option>

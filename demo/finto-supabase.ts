@@ -52,11 +52,14 @@ const utenti: any[] = [
   { nome_utente: 'davide', nome: 'Davide', ruolo: 'admin_generale', citta_id: 1, ufficio_id: null, area_id: null, email_promemoria: 'rapportini.gruppo@gmail.com' },
   { nome_utente: 'admin-milano', nome: 'Admin Milano (Brera)', ruolo: 'admin_citta', citta_id: 2, ufficio_id: 12, area_id: null, email_promemoria: 'brera@gmail.com' },
   { nome_utente: 'resp-roma-nord', nome: 'Responsabile Roma Nord', ruolo: 'responsabile', citta_id: 1, ufficio_id: null, area_id: 1, email_promemoria: null },
+  { nome_utente: 'affiliato-demo', nome: 'Mario Affiliato', ruolo: 'affiliato', citta_id: 1, ufficio_id: null, area_id: null, email_promemoria: null },
   ...uffici.map((u) => ({
     nome_utente: slug(u.nome), nome: `Ufficio ${u.nome}`, ruolo: 'ufficio', citta_id: u.citta_id, ufficio_id: u.id, area_id: null,
     email_promemoria: u.id % 5 === 0 ? null : `${slug(u.nome)}@gmail.com`,
   })),
 ].map((u) => ({ ...u, email: `${u.nome_utente}@demo`, attivo: true, auth_id: null }))
+// Uffici consultati dall'affiliato di prova: Somalia e Trieste (Roma), Brera (Milano)
+const uffici_affiliato: any[] = [1, 2, 12].map((ufficio_id) => ({ nome_utente: 'affiliato-demo', ufficio_id }))
 
 const metriche = [
   ['app_vendita', 'App.ti Vendita', 'attivita', 1], ['proposte', 'Proposte', 'attivita', 2], ['incarichi', 'Incarichi', 'attivita', 3],
@@ -188,7 +191,7 @@ for (const mese of mesiDemo.slice(-3)) {
 // Scadenza di esempio per il mese da compilare: il 5 del mese dopo alle 23:59, senza blocco
 const scadenze_mensili: any[] = [{ mese: meseDaCompilare, scadenza: new Date(`${aggiungiMesi(meseDaCompilare, 1).slice(0, 8)}05T23:59:00`).toISOString(), blocca: false }]
 
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili }
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili }
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
 const CHIAVE = 'rapportini.demo.utente'
@@ -203,7 +206,8 @@ function ufficiLeggibili(): Set<number> {
   if (!me) return new Set()
   return new Set(uffici.filter((u) =>
     me.ruolo === 'admin_generale' || (me.ruolo === 'admin_citta' && u.citta_id === me.citta_id)
-    || (me.ruolo === 'responsabile' && u.area_id === me.area_id) || u.id === me.ufficio_id).map((u) => u.id))
+    || (me.ruolo === 'responsabile' && u.area_id === me.area_id) || u.id === me.ufficio_id
+    || (me.ruolo === 'affiliato' && uffici_affiliato.some((x) => x.nome_utente === me.nome_utente && x.ufficio_id === u.id))).map((u) => u.id))
 }
 function visibile(tabella: string, riga: any): boolean {
   const me = io()
@@ -213,6 +217,7 @@ function visibile(tabella: string, riga: any): boolean {
     case 'uffici': return ufficiLeggibili().has(riga.id) || gestisce(riga.citta_id)
     case 'aree': return riga.citta_id === me.citta_id || gestisce(riga.citta_id)
     case 'utenti': return riga.email === me.email || gestisce(riga.citta_id)
+    case 'uffici_affiliato': return me.ruolo === 'admin_generale' || riga.nome_utente === me.nome_utente
     case 'rilevazioni': case 'note_settimana': case 'persone': case 'valori_mensili': return ufficiLeggibili().has(riga.ufficio_id)
     case 'confronto_anno_prima': return me.ruolo === 'admin_generale'
     case 'punti_mensili': return me.ruolo === 'admin_generale' || me.ruolo === 'admin_citta'
@@ -256,6 +261,10 @@ class Interrogazione {
     const op = this.operazione
     if (op) {
       if (!me) return { data: null, error: { message: 'permission denied' } }
+      // affiliato: sola consultazione; gli uffici agli affiliati li assegna solo l'amministratore generale
+      if (me.ruolo === 'affiliato' || (this.tabella === 'uffici_affiliato' && me.ruolo !== 'admin_generale')) {
+        return { data: null, error: { message: 'new row violates row-level security policy' } }
+      }
       const ora = new Date().toISOString()
       if (op.tipo === 'insert' || op.tipo === 'upsert') {
         const inseriti: any[] = []
@@ -357,6 +366,7 @@ export const supabase: any = {
       if (body.azione === 'elimina') {
         const i = utenti.findIndex((u) => u.nome_utente === body.nome_utente)
         if (i >= 0) utenti.splice(i, 1)
+        for (let j = uffici_affiliato.length - 1; j >= 0; j--) if (uffici_affiliato[j].nome_utente === body.nome_utente) uffici_affiliato.splice(j, 1)   // come "on delete cascade"
       }
       return { data: { ok: true }, error: null }
     },

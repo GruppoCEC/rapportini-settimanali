@@ -30,9 +30,12 @@ export interface Contesto {
   ricaricaBase: () => void       // da chiamare dopo modifiche in Amministrazione
 }
 
-/** Uffici attivi visibili all'utente nella città selezionata */
+/**
+ * Uffici attivi visibili all'utente nella città selezionata.
+ * L'affiliato vede tutti i suoi uffici insieme, di qualunque città (il database gli manda solo quelli).
+ */
 export function ufficiVisibili(c: Contesto): Ufficio[] {
-  return c.uffici.filter((u) => u.attivo && u.citta_id === c.cittaId)
+  return c.uffici.filter((u) => u.attivo && (c.utente.ruolo === 'affiliato' || u.citta_id === c.cittaId))
 }
 
 export function nomeArea(c: Contesto, areaId: number | null): string {

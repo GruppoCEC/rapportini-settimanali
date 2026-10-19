@@ -48,6 +48,7 @@ export default function Testata({ ctx, menu, attiva, onVai, onCitta, onEsci, agg
   const compilazione = useDati(() => caricaRilevazioni(settimana, settimana, ids), [settimana, ids.join(','), aggiornamento])
   const ufficio = utente.ruolo === 'ufficio' ? uffici.find((u) => u.id === utente.ufficio_id) : undefined
   const nomeCitta = ctx.citta.find((c) => c.id === ctx.cittaId)?.nome ?? ''
+  const affiliato = utente.ruolo === 'affiliato'   // sola consultazione: niente compilazione né promemoria
 
   const stati = compilazione.dati
     ? uffici.map((u) => statoCompilazione(compilazione.dati!.filter((r) => r.ufficio_id === u.id), ctx.metriche))
@@ -73,7 +74,7 @@ export default function Testata({ ctx, menu, attiva, onVai, onCitta, onEsci, agg
               ))}
             </div>
           ) : (
-            <span className="citta-fissa">{nomeCitta}</span>
+            <span className="citta-fissa">{affiliato ? 'Sola consultazione' : nomeCitta}</span>
           )}
 
           <div className="riquadri-testata">
@@ -92,7 +93,7 @@ export default function Testata({ ctx, menu, attiva, onVai, onCitta, onEsci, agg
                   {stati ? <BadgeStato stato={stati[uffici.indexOf(ufficio)]} /> : <strong className="info-testata-valore">…</strong>}
                 </div>
               </div>
-            ) : uffici.length > 0 && (
+            ) : uffici.length > 0 && !affiliato && (
               <div className="info-testata">
                 <Icona nome="list-checks" />
                 <div className="info-testata-testi">
@@ -102,7 +103,7 @@ export default function Testata({ ctx, menu, attiva, onVai, onCitta, onEsci, agg
                 </div>
               </div>
             )}
-            {PROMEMORIA_ATTIVI && (
+            {PROMEMORIA_ATTIVI && !affiliato && (
               <div className="info-testata">
                 <Icona nome="bell-ringing" />
                 <div className="info-testata-testi">

@@ -1,9 +1,9 @@
-// Amministrazione della città: account (nome utente + password), uffici e (se attive) aree.
+// Amministrazione della città: account (nome utente + password), affiliati, uffici e (se attive) aree.
 import { useState } from 'react'
 import { gestioneAccount, generaPassword, suggerisciNomeUtente } from '../lib/account'
 import { AREE_ATTIVE, MENSILE_ATTIVO, type Contesto, nomeArea } from '../lib/contesto'
 import { supabase } from '../lib/supabase'
-import { NOMI_RUOLO, type Ruolo, type Utente } from '../lib/tipi'
+import { NOMI_RUOLO, type Ruolo, type Ufficio, type Utente } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { caricaMensilePerBackup, caricaTuttoPerBackup } from '../lib/dati'
 import { Caricamento } from '../componenti/Celle'
@@ -31,7 +31,7 @@ function MessaggioEsito({ esito, onChiudi }: { esito: Esito; onChiudi: () => voi
               `Accesso a Rapportini Settimanali\nIndirizzo: ${location.origin + location.pathname}\nNome utente: ${esito.credenziali!.utente}\nPassword: ${esito.credenziali!.password}`)
             setCopiato(true)
           }}>
-            <Icona nome={copiato ? 'check' : 'copy'} />{copiato ? 'Copiato' : 'Copia da inviare all\'ufficio'}
+            <Icona nome={copiato ? 'check' : 'copy'} />{copiato ? 'Copiato' : 'Copia da inviare'}
           </button>
           <span style={{ fontSize: 13 }}>Annotala ora: per sicurezza la password non sarà più visibile.</span>
         </div>
@@ -70,10 +70,14 @@ export default function Amministrazione({ ctx }: { ctx: Contesto }) {
 
 // ---------------------------------------------------------------- ACCOUNT
 
+/** Affiliato con gli uffici che può consultare */
+type Affiliato = Utente & { uffici: number[] }
+
 function SezioneAccount({ ctx }: { ctx: Contesto }) {
   const generale = ctx.utente.ruolo === 'admin_generale'
-  const ruoli: Ruolo[] = (generale ? ['ufficio', 'responsabile', 'admin_citta', 'admin_generale'] as Ruolo[] : ['ufficio', 'responsabile'] as Ruolo[])
+  const ruoli: Ruolo[] = (generale ? ['ufficio', 'responsabile', 'admin_citta', 'admin_generale', 'affiliato'] as Ruolo[] : ['ufficio', 'responsabile'] as Ruolo[])
     .filter((r) => AREE_ATTIVE || r !== 'responsabile')
+  const ruoliModifica = ruoli.filter((r) => r !== 'affiliato')   // un account esistente non diventa affiliato (e viceversa)
   const ufficiCitta = ctx.uffici.filter((u) => u.citta_id === ctx.cittaId && u.attivo)
   const areeCitta = ctx.aree.filter((a) => a.citta_id === ctx.cittaId)
   const [esito, setEsito] = useState<Esito>(null)
@@ -83,17 +87,30 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
   const [toast, mostraToast] = useToast()
 
   const elenco = useDati(async () => {
-    const { data, error } = await supabase.from('utenti').select('*').eq('citta_id', ctx.cittaId).order('ruolo').order('nome_utente')
+    const { data, error } = await supabase.from('utenti').select('*').eq('citta_id', ctx.cittaId).neq('ruolo', 'affiliato').order('ruolo').order('nome_utente')
     if (error) throw new Error(error.message)
     return data as Utente[]
   }, [ctx.cittaId])
 
-  const vuoto = { nome_utente: '', nome: '', ruolo: 'ufficio' as Ruolo, ufficio_id: '', area_id: '', email_promemoria: '', password: generaPassword() }
+  // Gli affiliati possono avere uffici in entrambe le città: elenco unico, solo per l'amministratore generale
+  const affiliati = useDati(async () => {
+    if (!generale) return [] as Affiliato[]
+    const [a, ua] = await Promise.all([
+      supabase.from('utenti').select('*').eq('ruolo', 'affiliato').order('nome_utente'),
+      supabase.from('uffici_affiliato').select('nome_utente, ufficio_id'),
+    ])
+    const errore = a.error ?? ua.error
+    if (errore) throw new Error(/uffici_affiliato/.test(errore.message) ? 'Manca la tabella degli affiliati: esegui 006_affiliati.sql in Supabase (vedi guida).' : errore.message)
+    const righe = (ua.data ?? []) as { nome_utente: string; ufficio_id: number }[]
+    return (a.data as Utente[]).map((u) => ({ ...u, uffici: righe.filter((r) => r.nome_utente === u.nome_utente).map((r) => Number(r.ufficio_id)) }))
+  }, [generale])
+
+  const vuoto = { nome_utente: '', nome: '', ruolo: 'ufficio' as Ruolo, ufficio_id: '', area_id: '', email_promemoria: '', password: generaPassword(), uffici: [] as number[] }
   const [nuovo, setNuovo] = useState(vuoto)
 
   async function esegui(azione: () => Promise<void>, ok: Esito) {
     setAttesa(true); setEsito(null)
-    try { await azione(); setEsito(ok); if (ok) mostraToast(ok.testo); elenco.ricarica() }
+    try { await azione(); setEsito(ok); if (ok) mostraToast(ok.testo); elenco.ricarica(); affiliati.ricarica() }
     catch (e) { setEsito({ tipo: 'errore', testo: (e as Error).message }) }
     finally { setAttesa(false) }
   }
@@ -101,16 +118,32 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
   function crea(e: React.FormEvent) {
     e.preventDefault()
     const dati = { ...nuovo, nome_utente: nuovo.nome_utente.trim().toLowerCase() }
+    const affiliato = dati.ruolo === 'affiliato'
+    if (affiliato && dati.uffici.length === 0) { setEsito({ tipo: 'errore', testo: 'Scegli almeno un ufficio che l\'affiliato può consultare.' }); return }
     esegui(async () => {
       await gestioneAccount({
         azione: 'crea', nome_utente: dati.nome_utente, password: dati.password, nome: dati.nome, ruolo: dati.ruolo,
-        citta_id: ctx.cittaId,
-        ufficio_id: dati.ufficio_id ? Number(dati.ufficio_id) : null,
-        area_id: dati.area_id ? Number(dati.area_id) : null,
-        email_promemoria: dati.email_promemoria,
+        // l'affiliato prende la città del primo ufficio scelto (serve solo agli elenchi)
+        citta_id: affiliato ? ctx.uffici.find((u) => u.id === dati.uffici[0])?.citta_id ?? ctx.cittaId : ctx.cittaId,
+        ufficio_id: !affiliato && dati.ufficio_id ? Number(dati.ufficio_id) : null,
+        area_id: !affiliato && dati.area_id ? Number(dati.area_id) : null,
+        email_promemoria: affiliato ? '' : dati.email_promemoria,
       })
+      if (affiliato) {
+        try { await salvaUfficiAffiliato(dati.nome_utente, dati.uffici) }
+        catch (e) { throw new Error(`Account creato, ma gli uffici non sono stati salvati (${(e as Error).message}). Assegnali con "Modifica" nella sezione Affiliati.`) }
+      }
       setNuovo({ ...vuoto, password: generaPassword() })
     }, { tipo: 'ok', testo: `Account "${dati.nome_utente}" creato.`, credenziali: { utente: dati.nome_utente, password: dati.password } })
+  }
+
+  function aggiornaAffiliato(a: Affiliato, nome: string, uffici: number[]) {
+    esegui(async () => {
+      const { error } = await supabase.from('utenti').update({ nome: nome || null }).eq('email', a.email)
+      if (error) throw new Error(error.message)
+      await salvaUfficiAffiliato(a.nome_utente, uffici)
+      setModifica(null)
+    }, { tipo: 'ok', testo: `Affiliato "${a.nome_utente}" aggiornato.` })
   }
 
   async function nuovaPassword(u: Utente) {
@@ -152,7 +185,7 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
               {ruoli.map((r) => <option key={r} value={r}>{NOMI_RUOLO[r]}</option>)}
             </select>
           </label>
-          {nuovo.ruolo !== 'responsabile' && (
+          {nuovo.ruolo !== 'responsabile' && nuovo.ruolo !== 'affiliato' && (
             <label className="campo"><span className="etichetta">Ufficio {nuovo.ruolo !== 'ufficio' && <span style={{ fontSize: 11, fontWeight: 400 }}>(facoltativo: se compila anche un ufficio)</span>}</span>
               <select required={nuovo.ruolo === 'ufficio'} value={nuovo.ufficio_id} onChange={(e) => {
                 const uf = ufficiCitta.find((u) => u.id === Number(e.target.value))
@@ -176,11 +209,13 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
               autoCapitalize="none" value={nuovo.nome_utente} onChange={(e) => setNuovo({ ...nuovo, nome_utente: e.target.value.toLowerCase() })} placeholder="es. somalia" />
           </label>
           <label className="campo"><span className="etichetta">Nome descrittivo</span>
-            <input value={nuovo.nome} onChange={(e) => setNuovo({ ...nuovo, nome: e.target.value })} placeholder="es. Ufficio Somalia" />
+            <input value={nuovo.nome} onChange={(e) => setNuovo({ ...nuovo, nome: e.target.value })} placeholder={nuovo.ruolo === 'affiliato' ? 'es. Mario Rossi' : 'es. Ufficio Somalia'} />
           </label>
-          <label className="campo"><span className="etichetta">Email per i promemoria <span style={{ fontSize: 11, fontWeight: 400 }}>(una o più, separate da virgola)</span></span>
-            <input value={nuovo.email_promemoria} onChange={(e) => setNuovo({ ...nuovo, email_promemoria: e.target.value })} placeholder="es. somalia@gmail.com" />
-          </label>
+          {nuovo.ruolo !== 'affiliato' && (
+            <label className="campo"><span className="etichetta">Email per i promemoria <span style={{ fontSize: 11, fontWeight: 400 }}>(una o più, separate da virgola)</span></span>
+              <input value={nuovo.email_promemoria} onChange={(e) => setNuovo({ ...nuovo, email_promemoria: e.target.value })} placeholder="es. somalia@gmail.com" />
+            </label>
+          )}
           <div className="campo"><label htmlFor="password-nuova">Password iniziale</label>
             <div style={{ display: 'flex', gap: 6 }}>
               <input id="password-nuova" className="mono" required minLength={8} value={nuovo.password} onChange={(e) => setNuovo({ ...nuovo, password: e.target.value })} />
@@ -188,6 +223,12 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
             </div>
           </div>
         </div>
+        {nuovo.ruolo === 'affiliato' && (
+          <div className="campo">
+            <span className="etichetta">Uffici che può consultare ({nuovo.uffici.length} scelti) <span style={{ fontSize: 11, fontWeight: 400 }}>· vede settimanale e mensile in sola lettura, senza gara a punti</span></span>
+            <SceltaUffici uffici={ctx.uffici} citta={ctx.citta} scelti={nuovo.uffici} onCambia={(uffici) => setNuovo({ ...nuovo, uffici })} />
+          </div>
+        )}
         <div><button type="submit" className="btn btn-primario" disabled={attesa}><Icona nome="user-plus" />{attesa ? 'Attendere…' : 'Crea account'}</button></div>
       </form>
 
@@ -202,7 +243,7 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
               <thead><tr><th>Nome utente</th><th>Nome</th><th>Ruolo</th><th>{AREE_ATTIVE ? 'Ufficio / Area' : 'Ufficio'}</th><th>Email promemoria</th><th>Stato</th><th>Azioni</th></tr></thead>
               <tbody>
                 {elenco.dati.map((u) => modifica === u.email ? (
-                  <RigaModificaAccount key={u.email} u={u} ctx={ctx} ruoli={ruoli} onAnnulla={() => setModifica(null)}
+                  <RigaModificaAccount key={u.email} u={u} ctx={ctx} ruoli={ruoliModifica} onAnnulla={() => setModifica(null)}
                     onSalva={(campi) => aggiorna(u, campi, `Account "${u.nome_utente}" aggiornato.`)} />
                 ) : (
                   <tr key={u.email} className={u.attivo ? '' : 'disattivo'}>
@@ -228,6 +269,41 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
           <p className="piccolo">"Disattiva" blocca subito l'accesso senza cancellare nulla. Il nome utente non si può cambiare: in caso, crea un nuovo account ed elimina il vecchio.</p>
         </section>
       )}
+
+      {generale && (affiliati.caricamento || affiliati.errore || !affiliati.dati ? <Caricamento errore={affiliati.errore} /> : (
+        <section className="scheda">
+          <h2>Affiliati ({affiliati.dati.length})</h2>
+          <p className="piccolo">Consultano in sola lettura gli uffici assegnati, di Roma e di Milano: Cruscotto, Andamento uffici e Report mensile (senza gara a punti). Non ricevono promemoria.</p>
+          {affiliati.dati.length === 0 ? <p className="piccolo">Nessun affiliato: per crearne uno scegli il ruolo "{NOMI_RUOLO.affiliato}" qui sopra.</p> : (
+            <div className="tabella-scorrevole">
+              <table className="tabella tabella-admin" style={{ minWidth: 900 }}>
+                <thead><tr><th>Nome utente</th><th>Nome</th><th>Uffici</th><th>Stato</th><th>Azioni</th></tr></thead>
+                <tbody>
+                  {affiliati.dati.map((a) => modifica === a.email ? (
+                    <RigaModificaAffiliato key={a.email} a={a} ctx={ctx} onAnnulla={() => setModifica(null)}
+                      onSalva={(nome, uffici) => aggiornaAffiliato(a, nome, uffici)} />
+                  ) : (
+                    <tr key={a.email} className={a.attivo ? '' : 'disattivo'}>
+                      <th scope="row" className="mono" style={{ fontSize: 14, fontWeight: 600 }}>{a.nome_utente}</th>
+                      <td>{a.nome ?? '—'}</td>
+                      <td className="uffici-affiliato">{descriviUffici(ctx, a.uffici)}</td>
+                      <td><span className={`tag ${a.attivo ? 'tag-accento' : 'tag-neutro'}`}>{a.attivo ? 'Attivo' : 'Disattivato'}</span></td>
+                      <td>
+                        <div className="azioni">
+                          <button className="btn btn-fantasma" onClick={() => setModifica(a.email)}>Modifica</button>
+                          <button className="btn btn-fantasma" onClick={() => nuovaPassword(a)}>Nuova password</button>
+                          <button className="btn btn-fantasma" onClick={() => aggiorna(a, { attivo: !a.attivo }, `Account "${a.nome_utente}" ${a.attivo ? 'disattivato' : 'riattivato'}.`)}>{a.attivo ? 'Disattiva' : 'Riattiva'}</button>
+                          <button className="btn btn-fantasma btn-pericolo" onClick={() => elimina(a)}>Elimina</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ))}
       {dialogo}
       {toast}
     </>
@@ -270,6 +346,70 @@ function RigaModificaAccount({ u, ctx, ruoli, onAnnulla, onSalva }: {
           area_id: campi.ruolo === 'responsabile' && campi.area_id ? Number(campi.area_id) : null,
           email_promemoria: campi.email_promemoria || null,
         })}>Salva</button>
+        <button className="btn btn-fantasma" onClick={onAnnulla}>Annulla</button>
+      </div></td>
+    </tr>
+  )
+}
+
+/** Sostituisce gli uffici che l'affiliato può consultare */
+async function salvaUfficiAffiliato(nomeUtente: string, uffici: number[]) {
+  const { error: e1 } = await supabase.from('uffici_affiliato').delete().eq('nome_utente', nomeUtente)
+  if (e1) throw new Error(e1.message)
+  if (uffici.length === 0) return
+  const { error: e2 } = await supabase.from('uffici_affiliato').insert(uffici.map((ufficio_id) => ({ nome_utente: nomeUtente, ufficio_id })))
+  if (e2) throw new Error(e2.message)
+}
+
+/** "Somalia, Trieste (Roma) · Brera (Milano)" */
+function descriviUffici(ctx: Contesto, ids: number[]): string {
+  if (ids.length === 0) return 'nessuno'
+  return ctx.citta.map((c) => {
+    const nomi = ctx.uffici.filter((u) => u.citta_id === c.id && ids.includes(u.id)).map((u) => u.nome).sort((a, b) => a.localeCompare(b, 'it'))
+    return nomi.length ? `${nomi.join(', ')} (${c.nome})` : ''
+  }).filter(Boolean).join(' · ')
+}
+
+/** Caselle con gli uffici attivi, divisi per città */
+function SceltaUffici({ uffici, citta, scelti, onCambia }: {
+  uffici: Ufficio[]; citta: { id: number; nome: string }[]; scelti: number[]; onCambia: (scelti: number[]) => void
+}) {
+  const cambia = (id: number, si: boolean) => onCambia(si ? [...scelti, id] : scelti.filter((x) => x !== id))
+  return (
+    <div className="scelta-uffici">
+      {citta.map((c) => {
+        const lista = uffici.filter((u) => u.attivo && u.citta_id === c.id).sort((a, b) => a.nome.localeCompare(b.nome, 'it'))
+        if (lista.length === 0) return null
+        return (
+          <fieldset key={c.id}>
+            <legend>{c.nome}</legend>
+            <div className="scelta-uffici-griglia">
+              {lista.map((u) => (
+                <label key={u.id} className="casella-spunta">
+                  <input type="checkbox" checked={scelti.includes(u.id)} onChange={(e) => cambia(u.id, e.target.checked)} />{u.nome}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )
+      })}
+    </div>
+  )
+}
+
+function RigaModificaAffiliato({ a, ctx, onAnnulla, onSalva }: {
+  a: Affiliato; ctx: Contesto; onAnnulla: () => void; onSalva: (nome: string, uffici: number[]) => void
+}) {
+  const [nome, setNome] = useState(a.nome ?? '')
+  const [uffici, setUffici] = useState(a.uffici)
+  return (
+    <tr className="riga-modifica">
+      <th scope="row" className="mono" style={{ fontSize: 14, fontWeight: 600, verticalAlign: 'top' }}>{a.nome_utente}</th>
+      <td style={{ verticalAlign: 'top' }}><input value={nome} onChange={(e) => setNome(e.target.value)} aria-label="Nome" /></td>
+      <td colSpan={2}><SceltaUffici uffici={ctx.uffici} citta={ctx.citta} scelti={uffici} onCambia={setUffici} /></td>
+      <td style={{ verticalAlign: 'top' }}><div className="azioni" style={{ gap: 6 }}>
+        <button className="btn btn-primario" disabled={uffici.length === 0} title={uffici.length === 0 ? 'Scegli almeno un ufficio' : undefined}
+          onClick={() => onSalva(nome, uffici)}>Salva</button>
         <button className="btn btn-fantasma" onClick={onAnnulla}>Annulla</button>
       </div></td>
     </tr>

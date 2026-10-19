@@ -382,6 +382,13 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabella-admin input, .tabella-admin select { min-width: 8rem; min-height: 38px; }
 .input-nascosto { background: transparent !important; border-color: transparent !important; font-size: 15px; }
 .input-nascosto:hover, .input-nascosto:focus-visible { border-color: var(--bordo-input) !important; background: #fff !important; }
+/* Affiliati: caselle per scegliere gli uffici da consultare, divisi per città */
+.scelta-uffici { display: flex; flex-direction: column; gap: 12px; }
+.scelta-uffici fieldset { border: 1px solid var(--bordo-input); border-radius: 12px; padding: 8px 14px 10px; margin: 0; }
+.scelta-uffici legend { font-size: 13px; font-weight: 700; color: var(--testo-2); padding: 0 6px; }
+.scelta-uffici-griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 0 16px; }
+.scelta-uffici .casella-spunta { font-weight: 500; min-height: 36px; }
+.uffici-affiliato { font-size: 14px; line-height: 1.5; }
 .dati-account { display: grid; grid-template-columns: max-content 1fr; gap: 12px 28px; margin: 0; font-size: 16px; }
 .dati-account dt { color: var(--testo-tenue); }
 .dati-account dd { margin: 0; }

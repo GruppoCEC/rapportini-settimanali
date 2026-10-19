@@ -6,6 +6,11 @@ export function isAmministratore(u: Utente): boolean {
   return u.ruolo === 'admin_generale' || u.ruolo === 'admin_citta'
 }
 
+/** Affiliato: consulta gli uffici che gli sono stati assegnati, senza scrivere nulla */
+export function isAffiliato(u: Utente): boolean {
+  return u.ruolo === 'affiliato'
+}
+
 /** Uffici di cui l'utente può inserire i dati, nella città selezionata */
 export function ufficiCompilabili(u: Utente, uffici: Ufficio[], cittaId: number): Ufficio[] {
   const attivi = uffici.filter((uf) => uf.attivo && uf.citta_id === cittaId)

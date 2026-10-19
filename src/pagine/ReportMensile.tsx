@@ -1,4 +1,4 @@
-// Pagina "Report mensile" (amministratori): il riepilogo di fine mese di tutto il gruppo,
+// Pagina "Report mensile" (amministratori; gli affiliati la consultano per i loro uffici, senza gara a punti): il riepilogo di fine mese di tutto il gruppo,
 // come il file Excel "Modello rapportino mensile gruppo", stampabile; i rapportini dei
 // singoli uffici; le liste di collaboratori, coordinatrici e marketer, con la gara a punti dei collaboratori.
 import { useEffect, useMemo, useState } from 'react'
@@ -25,6 +25,11 @@ import {
 
 type Scheda = 'panoramica' | 'rapportini' | 'personale' | 'anno'
 
+/** Titolo del report per l'affiliato, che vede i suoi uffici anche di città diverse */
+const TITOLO_AFFILIATO = 'I miei uffici'
+/** "Totale gruppo", "Totale Roma", "Totale miei uffici" */
+const nomeTotale = (titolo: string) => titolo === 'Gruppo' ? 'gruppo' : titolo === TITOLO_AFFILIATO ? 'miei uffici' : titolo
+
 interface DatiUfficio {
   ufficio: Ufficio
   persone: Persona[]
@@ -46,18 +51,20 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
   const [scheda, setScheda] = useState<Scheda>('panoramica')
   const [mese, setMese] = useState(mesePredefinito())
   const generale = ctx.utente.ruolo === 'admin_generale'
+  const affiliato = ctx.utente.ruolo === 'affiliato'
 
   // Il report è unico per tutto il gruppo: l'amministratore generale vede Roma e Milano insieme,
-  // l'amministratore di città la sua città (le regole del database filtrano comunque)
-  const uffici = useMemo(() => ordinaUfficiReport(ctx.uffici.filter((u) => u.attivo && (generale || u.citta_id === ctx.utente.citta_id))),
-    [ctx.uffici, generale, ctx.utente.citta_id])
+  // l'amministratore di città la sua città, l'affiliato i suoi uffici (le regole del database filtrano comunque)
+  const uffici = useMemo(() => ordinaUfficiReport(ctx.uffici.filter((u) => u.attivo && (generale || affiliato || u.citta_id === ctx.utente.citta_id))),
+    [ctx.uffici, generale, affiliato, ctx.utente.citta_id])
   const ids = uffici.map((u) => u.id)
 
   const dati = useDati<DatiMese>(async () => {
     const [voci, persone, valori, confronto, punti, scadenza] = await Promise.all([
       caricaVociMensili(), caricaPersone(ids), caricaValoriMensili(mese, ids),
       generale ? caricaConfronto(aggiungiMesi(mese, -12)) : Promise.resolve(new Map<string, number | null>()),
-      caricaPunti(), caricaScadenza(mese),
+      affiliato ? Promise.resolve(new Map<string, number>()) : caricaPunti(),   // la gara a punti è riservata agli amministratori
+      caricaScadenza(mese),
     ])
     return {
       voci,
@@ -75,15 +82,15 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
         }
       }),
     }
-  }, [mese, ids.join(','), generale])
+  }, [mese, ids.join(','), generale, affiliato])
 
   const aperto = useDati(mensileAperto, [])
   const nomeCitta = ctx.citta.find((c) => c.id === ctx.utente.citta_id)?.nome ?? ''
-  const titolo = generale ? 'Gruppo' : nomeCitta
+  const titolo = generale ? 'Gruppo' : affiliato ? TITOLO_AFFILIATO : nomeCitta
 
   return (
     <div className="pagina entra">
-      {aperto.dati === false && <div className="non-stampa"><AvvisoProva amministratore /></div>}
+      {aperto.dati === false && !affiliato && <div className="non-stampa"><AvvisoProva amministratore /></div>}
       <div className="intestazione non-stampa">
         <div className="intestazione-titoli">
           <span className="kicker">Report mensile</span>
@@ -103,12 +110,12 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
         <button className="btn btn-secondario" onClick={() => window.print()} disabled={scheda !== 'anno' && !dati.dati}><Icona nome="printer" />Stampa</button>
       </div>
 
-      {scheda === 'anno' && <RiepilogoAnno uffici={uffici} titolo={generale ? 'Gruppo' : titolo} ctx={ctx} />}
+      {scheda === 'anno' && <RiepilogoAnno uffici={uffici} titolo={titolo} ctx={ctx} />}
       {scheda !== 'anno' && (!dati.dati ? <Caricamento errore={dati.errore} /> : (
         <>
-          {scheda === 'panoramica' && <Panoramica dati={dati.dati} mese={mese} titolo={titolo} generale={generale} ctx={ctx} onSalvato={dati.ricarica} />}
-          {scheda === 'rapportini' && <SingoliRapportini dati={dati.dati} mese={mese} />}
-          {scheda === 'personale' && <ListePersonale dati={dati.dati} mese={mese} generale={generale} ctx={ctx} onSalvato={dati.ricarica} />}
+          {scheda === 'panoramica' && <Panoramica dati={dati.dati} mese={mese} titolo={titolo} generale={generale} affiliato={affiliato} ctx={ctx} onSalvato={dati.ricarica} />}
+          {scheda === 'rapportini' && <SingoliRapportini dati={dati.dati} mese={mese} affiliato={affiliato} />}
+          {scheda === 'personale' && <ListePersonale dati={dati.dati} mese={mese} generale={generale} affiliato={affiliato} ctx={ctx} onSalvato={dati.ricarica} />}
         </>
       ))}
     </div>
@@ -121,8 +128,8 @@ const nomeCittaBreve = (ctx: Contesto, id: number) => (ctx.citta.find((c) => c.i
 
 // ---------------------------------------------------------------- Panoramica di gruppo
 
-function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
-  dati: DatiMese; mese: string; titolo: string; generale: boolean; ctx: Contesto; onSalvato: () => void
+function Panoramica({ dati, mese, titolo, generale, affiliato, ctx, onSalvato }: {
+  dati: DatiMese; mese: string; titolo: string; generale: boolean; affiliato: boolean; ctx: Contesto; onSalvato: () => void
 }) {
   const voci = vociDelRapportino(dati.voci)          // l'indicatore delle coordinatrici non va nel report di gruppo
   const colonne = [STAFF, ...voci.map((v) => v.codice)]
@@ -159,7 +166,7 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
     <tr key={u.ufficio.id}>
       <th scope="row" className="ufficio-fisso">
         {u.ufficio.nome}{piuCitta && u.ufficio.citta_id !== ctx.citta[0]?.id && <span className="sigla-citta">{nomeCittaBreve(ctx, u.ufficio.citta_id)}</span>}
-        {u.ritardo && <span className="tag tag-ritardo" title={`Ultimo inserimento il ${dataOra(u.ritardo)}`}>in ritardo</span>}
+        {u.ritardo && !affiliato && <span className="tag tag-ritardo" title={`Ultimo inserimento il ${dataOra(u.ritardo)}`}>in ritardo</span>}
       </th>
       {colonne.map((c) => <td key={c} className={`destra ${u.totale.get(c) == null ? 'cella-vuota' : ''}`}>{formattaNumero(u.totale.get(c))}</td>)}
     </tr>
@@ -173,19 +180,19 @@ function Panoramica({ dati, mese, titolo, generale, ctx, onSalvato }: {
         <span className="tag tag-ko">✗ {plurale(conta('mancante'), 'mancante', 'mancanti')}</span>
         <span className="piccolo">su {dati.uffici.length} uffici · {titoloMese(mese)}</span>
       </div>
-      <GestioneScadenza dati={dati} mese={mese} modificabile={generale} onSalvato={onSalvato} />
+      {!affiliato && <GestioneScadenza dati={dati} mese={mese} modificabile={generale} onSalvato={onSalvato} />}
       <section className="scheda scheda-stampa">
         <div className="tabella-scorrevole">
           <table className="tabella tabella-mensile tabella-report">
             <TestataVoci voci={voci} prime={['Ufficio', 'Staff']} titoloStampa={
-              <TitoloStampa titolo={`Report mensile · ${generale ? 'Gruppo' : titolo}`} sottotitolo={titoloMese(mese)} />} />
+              <TitoloStampa titolo={`Report mensile · ${titolo}`} sottotitolo={titoloMese(mese)} />} />
             <tbody>
               {blocchi.map((b, i) => [
                 i > 0 && <tr key={`sep${i}`} className="separatore-blocco"><td colSpan={colonne.length + 1} /></tr>,
                 ...b.map(rigaUfficio),
               ])}
               <tr className="riga-totale-mese">
-                <th scope="row" className="ufficio-fisso">Totale {generale ? 'gruppo' : titolo}</th>
+                <th scope="row" className="ufficio-fisso">Totale {nomeTotale(titolo)}</th>
                 {colonne.map((c) => <td key={c} className="destra">{formattaNumero(totale.get(c))}</td>)}
               </tr>
               {generale && (
@@ -377,7 +384,7 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
                         )),
                       ])}
                       <tr className="riga-totale-mese">
-                        <th scope="row" className="ufficio-fisso">Totale {titolo === 'Gruppo' ? 'gruppo' : titolo}</th>
+                        <th scope="row" className="ufficio-fisso">Totale {nomeTotale(titolo)}</th>
                         {colonne.map((c) => <td key={c} className="destra">{formattaNumero(totale.get(c))}</td>)}
                       </tr>
                     </tbody>
@@ -387,7 +394,7 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
               </section>
 
               <section className="scheda scheda-stampa">
-                <h2 className="non-stampa">Totale {titolo === 'Gruppo' ? 'del gruppo' : `di ${titolo}`} mese per mese</h2>
+                <h2 className="non-stampa">Totale {titolo === 'Gruppo' ? 'del gruppo' : titolo === TITOLO_AFFILIATO ? 'dei miei uffici' : `di ${titolo}`} mese per mese</h2>
                 <div className="tabella-scorrevole">
                   <table className="tabella tabella-mensile tabella-report">
                     <TestataVoci voci={voci} prime={['Mese', 'Staff']}
@@ -419,7 +426,7 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
 
 // ---------------------------------------------------------------- Singoli rapportini
 
-function SingoliRapportini({ dati, mese }: { dati: DatiMese; mese: string }) {
+function SingoliRapportini({ dati, mese, affiliato }: { dati: DatiMese; mese: string; affiliato: boolean }) {
   const [ufficioId, setUfficioId] = useState(dati.uffici[0]?.ufficio.id)
   const u = dati.uffici.find((x) => x.ufficio.id === ufficioId) ?? dati.uffici[0]
   if (!u) return <div className="scheda"><p className="piccolo">Nessun ufficio.</p></div>
@@ -438,7 +445,7 @@ function SingoliRapportini({ dati, mese }: { dati: DatiMese; mese: string }) {
       {u.stato === 'mancante' && <p className="avviso avviso-arancio non-stampa"><Icona nome="warning-circle" /><span>{u.ufficio.nome} non ha ancora inserito i numeri di {titoloMese(mese).toLowerCase()}.</span></p>}
       <TabellaRapportino voci={dati.voci} mese={mese} righe={righeDelMese(u.persone, mese)} totale={u.totale} testo={testo}
         titoloStampa={<TitoloStampa titolo={`Rapportino mensile · ${u.ufficio.nome}`} sottotitolo={titoloMese(mese)} info={`Staff: ${formattaNumero(u.totale.get(STAFF))} persone`} />} />
-      <p className="piccolo non-stampa">Per correggere i numeri di un ufficio apri <strong>Rapportino mensile</strong> e scegli l'ufficio in alto.</p>
+      {!affiliato && <p className="piccolo non-stampa">Per correggere i numeri di un ufficio apri <strong>Rapportino mensile</strong> e scegli l'ufficio in alto.</p>}
     </section>
   )
 }
@@ -451,8 +458,12 @@ const LISTE: { ruolo: RuoloPersona; titolo: string }[] = [
   { ruolo: 'marketer', titolo: 'Marketer' },
 ]
 
-function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMese; mese: string; generale: boolean; ctx: Contesto; onSalvato: () => void }) {
+function ListePersonale({ dati, mese, generale, affiliato, ctx, onSalvato }: {
+  dati: DatiMese; mese: string; generale: boolean; affiliato: boolean; ctx: Contesto; onSalvato: () => void
+}) {
   const [citta, setCitta] = useState<number | 'tutte'>('tutte')
+  const conGara = !affiliato                  // punteggi e criteri dei punti: solo gli amministratori
+  const piuCitta = new Set(dati.uffici.map((u) => u.ufficio.citta_id)).size > 1
   const [vista, setVista] = useState<'liste' | 'scheda' | 'uscite'>('liste')
   const uffici = dati.uffici.filter((u) => citta === 'tutte' || u.ufficio.citta_id === citta)
   const ordineUfficio = new Map(dati.uffici.map((u, i) => [u.ufficio.id, i]))
@@ -475,10 +486,10 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
       <div className="comandi non-stampa">
         <div className="segmentato">
           <button className={vista === 'liste' ? 'attivo' : ''} onClick={() => setVista('liste')}><Icona nome="table" />Liste con i numeri</button>
-          <button className={vista === 'scheda' ? 'attivo' : ''} onClick={() => setVista('scheda')}><Icona nome="clipboard-text" />Scheda punteggi</button>
+          {conGara && <button className={vista === 'scheda' ? 'attivo' : ''} onClick={() => setVista('scheda')}><Icona nome="clipboard-text" />Scheda punteggi</button>}
           <button className={vista === 'uscite' ? 'attivo' : ''} onClick={() => setVista('uscite')}><Icona nome="sign-out" />Usciti nell'anno</button>
         </div>
-        {generale && (
+        {(generale || (affiliato && piuCitta)) && (
           <div className="segmentato">
             {(['tutte', ...ctx.citta.map((c) => c.id)] as (number | 'tutte')[]).map((c) => (
               <button key={c} className={citta === c ? 'attivo' : ''} onClick={() => setCitta(c)}>
@@ -487,14 +498,14 @@ function ListePersonale({ dati, mese, generale, ctx, onSalvato }: { dati: DatiMe
             ))}
           </div>
         )}
-        {vista !== 'uscite' && <p className="avviso"><Icona nome="info" /><span>Persone in servizio a {titoloMese(mese).toLowerCase()}. Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</span></p>}
+        {vista !== 'uscite' && <p className="avviso"><Icona nome="info" /><span>Persone in servizio a {titoloMese(mese).toLowerCase()}.{conGara && <> Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</>}</span></p>}
       </div>
       {vista === 'uscite' && <SchedaUscite uffici={uffici} annoIniziale={mese.slice(0, 4)} />}
-      {vista === 'scheda' && <SchedaPunteggi righe={righeDi(RUOLO_GARA)} migliore={migliore} mese={mese} conPunti={conPunti} />}
-      {vista === 'liste' && <TabellaPunti voci={dati.voci} punti={dati.punti} modificabile={generale} onSalvato={onSalvato} />}
+      {vista === 'scheda' && conGara && <SchedaPunteggi righe={righeDi(RUOLO_GARA)} migliore={migliore} mese={mese} conPunti={conPunti} />}
+      {vista === 'liste' && conGara && <TabellaPunti voci={dati.voci} punti={dati.punti} modificabile={generale} onSalvato={onSalvato} />}
       {vista === 'liste' && LISTE.map(({ ruolo, titolo }) => {
         const colonne = vociDelRapportino(dati.voci)
-        const gara = ruolo === RUOLO_GARA
+        const gara = ruolo === RUOLO_GARA && conGara
         const righe = righeDi(ruolo)
         const primo = (punti: number | null) => gara && punti !== null && punti === migliore
         return (

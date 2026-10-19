@@ -1,6 +1,6 @@
 // Forma dei dati che arrivano dal database
 
-export type Ruolo = 'ufficio' | 'responsabile' | 'admin_citta' | 'admin_generale'
+export type Ruolo = 'ufficio' | 'responsabile' | 'admin_citta' | 'admin_generale' | 'affiliato'
 
 export interface Utente {
   email: string               // email tecnica di accesso (generata dal nome utente)
@@ -57,6 +57,7 @@ export const NOMI_RUOLO: Record<Ruolo, string> = {
   responsabile: 'Responsabile d\'area',
   admin_citta: 'Amministratore di città',
   admin_generale: 'Amministratore generale',
+  affiliato: 'Affiliato (consultazione)',
 }
 
 // ---------------------------------------------------------------- Rapportino mensile

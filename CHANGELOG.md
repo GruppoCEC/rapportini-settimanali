@@ -1,5 +1,26 @@
 # Storia delle versioni
 
+## 0.6.0 — 19 ottobre 2026
+
+**Account per gli affiliati, in sola consultazione** (richiesta di Davide):
+- nuovo ruolo **Affiliato (consultazione)**. Ogni affiliato vede solo gli uffici che gli vengono assegnati, anche di Roma e Milano insieme;
+- menu con tre voci:
+  - **Cruscotto**: settimana o mese, con il "Totale miei uffici";
+  - **Andamento uffici**;
+  - **Report mensile**: Panoramica, Singoli rapportini, Personale e Riepilogo anno;
+- non vede la **gara a punti** (punteggi, Scheda punteggi, punti per voce), la scadenza, i ritardi né il confronto con l'anno prima. Queste parti restano agli amministratori (decisione di Davide);
+- nella testata compare "Sola consultazione" al posto della città, senza conteggio di compilazione né promemoria. Gli affiliati non ricevono email;
+- **Amministrazione → Account** (solo amministratore generale):
+  - nel menu Ruolo c'è "Affiliato", con le caselle degli uffici divise tra Roma e Milano;
+  - nuova sezione **Affiliati** in fondo: si modificano gli uffici e il nome, si dà una nuova password, si disattiva o si elimina l'account;
+- la sola lettura è garantita dal **database**, non solo dal sito:
+  - nuova tabella `uffici_affiliato`;
+  - `posso_leggere_ufficio` riconosce gli affiliati, mentre le regole di scrittura non cambiano;
+  - i punti della gara erano già riservati agli amministratori;
+- **da fare una volta in Supabase**: eseguire `supabase/migrations/006_affiliati.sql` (vedi `docs/GUIDA_SETUP.md`, "Affiliati"). La funzione `gestione-account` non cambia;
+- test del database sulle nuove regole: l'affiliato legge solo i suoi uffici, non scrive, non vede i punti e non si assegna altri uffici. Solo l'amministratore generale crea affiliati;
+- demo: nuovo account di prova `affiliato-demo` (Somalia, Trieste, Brera).
+
 ## 0.5.2 — 15 ottobre 2026
 
 **Promemoria via email** (si attivano quando si completa il passo 8 di `docs/GUIDA_SETUP.md`):

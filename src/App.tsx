@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { configurato, supabase } from './lib/supabase'
 import { AREE_ATTIVE, MENSILE_ATTIVO, type Contesto } from './lib/contesto'
-import { isAmministratore, ufficiCompilabili } from './lib/permessi'
+import { isAffiliato, isAmministratore, ufficiCompilabili } from './lib/permessi'
 import { type Area, type Citta, type Metrica, type Ufficio, type Utente } from './lib/tipi'
 import Accesso from './pagine/Accesso'
 import Account from './pagine/Account'
@@ -132,6 +132,7 @@ export default function App() {
   }
   const compilabili = ufficiCompilabili(utente, dati.uffici, cittaId)
   const vedeInsieme = utente.ruolo !== 'ufficio'
+  const affiliato = isAffiliato(utente)       // sola consultazione: niente pagine sulla compilazione
 
   // Voci di menu in base al ruolo
   const menu: (VoceMenu & { id: Pagina })[] = [
@@ -140,10 +141,12 @@ export default function App() {
     { id: 'andamento', etichetta: vedeInsieme ? 'Andamento uffici' : 'Il mio ufficio', icona: 'chart-line-up' },
     ...(vedeInsieme ? [
       { id: 'cruscotto' as Pagina, etichetta: 'Cruscotto', icona: 'gauge' },
-      { id: 'compilazione' as Pagina, etichetta: 'Stato compilazione', icona: 'list-checks' },
-      { id: 'riunione' as Pagina, etichetta: 'Riunione', icona: 'presentation-chart' },
+      ...(affiliato ? [] : [
+        { id: 'compilazione' as Pagina, etichetta: 'Stato compilazione', icona: 'list-checks' },
+        { id: 'riunione' as Pagina, etichetta: 'Riunione', icona: 'presentation-chart' },
+      ]),
     ] : []),
-    ...(isAmministratore(utente) && MENSILE_ATTIVO ? [{ id: 'report-mensile' as Pagina, etichetta: 'Report mensile', icona: 'printer' }] : []),
+    ...((isAmministratore(utente) || affiliato) && MENSILE_ATTIVO ? [{ id: 'report-mensile' as Pagina, etichetta: 'Report mensile', icona: 'printer' }] : []),
     ...(isAmministratore(utente) ? [{ id: 'amministrazione' as Pagina, etichetta: 'Amministrazione', icona: 'gear-six' }] : []),
   ]
   const attiva: Pagina = pagina === 'account' || menu.some((v) => v.id === pagina) ? pagina : menu[0].id

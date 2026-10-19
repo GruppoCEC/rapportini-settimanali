@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import { PROMEMORIA_ATTIVI } from '../lib/contesto'
 import { Icona, Logo } from '../componenti/Interfaccia'
 
-const UTENTI_DEMO = [['davide', 'amministratore generale'], ['admin-milano', 'amministratore di Milano'], ['somalia', 'un ufficio']]
+const UTENTI_DEMO = [['davide', 'amministratore generale'], ['admin-milano', 'amministratore di Milano'], ['somalia', 'un ufficio'], ['affiliato-demo', 'un affiliato']]
 
 function traduciErrore(messaggio: string): string {
   if (/invalid login credentials/i.test(messaggio)) return 'Nome utente o password errati.'

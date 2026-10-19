@@ -32,3 +32,11 @@ Puoi correggere anche le settimane passate con le frecce ‹ ›.
 In **Il mio ufficio** trovi:
 - il grafico delle ultime 12 settimane per ogni attività;
 - il riepilogo mese per mese.
+
+## Per gli affiliati (sola consultazione)
+
+Con un account da affiliato vedi solo gli uffici che ti sono stati assegnati, anche di città diverse.
+Non puoi modificare nulla. Nel menu trovi:
+- **Andamento uffici**: scegli un ufficio in alto per vedere il grafico delle ultime 12 settimane e il riepilogo mese per mese;
+- **Cruscotto**: la tabella dei tuoi uffici per la settimana o per il mese (pulsanti *Settimana* / *Mese* e frecce ‹ ›), con il totale e i colori dell'obiettivo;
+- **Report mensile**: il riepilogo di fine mese, il rapportino di ogni ufficio persona per persona, le liste di collaboratori, coordinatrici e marketer e il riepilogo dell'anno. Ogni pagina si può stampare con **Stampa**.

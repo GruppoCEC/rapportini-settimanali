@@ -370,3 +370,60 @@ describe('Rapportino mensile', () => {
     expect(await come('estraneo@test.it', `select * from persone`)).toHaveLength(0)
   })
 })
+
+describe('Affiliato (sola consultazione)', () => {
+  beforeAll(async () => {
+    // l'amministratore generale crea l'affiliato e gli assegna un ufficio di Roma e uno di Milano
+    await come('davide@test.it', `insert into utenti (nome_utente, ruolo, citta_id) values ('aff', 'affiliato', 1)`)
+    await come('davide@test.it', `insert into uffici_affiliato (nome_utente, ufficio_id) values ('aff', $1), ('aff', $2)`, [romaB, milanoA])
+  })
+  const aff = 'rapportini+aff@gmail.com'
+
+  it('vede solo gli uffici assegnati, anche di città diverse', async () => {
+    expect(await ufficiVisti(aff)).toEqual([romaB, milanoA])
+    const uffici = await come<{ nome: string }>(aff, `select nome from uffici order by nome`)
+    expect(uffici.map((u) => u.nome)).toEqual(['Milano A', 'Roma B'])
+    const persone = await come<{ nome: string }>(aff, `select nome from persone order by nome`)
+    expect(persone.map((p) => p.nome)).toEqual(['Bruno Bianchi', 'Marta Meli'])
+    const valori = await come<{ ufficio_id: number }>(aff, `select distinct ufficio_id from valori_mensili order by 1`)
+    expect(valori.map((v) => Number(v.ufficio_id))).toEqual([romaB, milanoA])
+    const utenti = await come<{ nome_utente: string }>(aff, `select nome_utente from utenti`)
+    expect(utenti.map((u) => u.nome_utente)).toEqual(['aff'])
+  })
+
+  it('non può scrivere nulla, nemmeno sui suoi uffici', async () => {
+    await rifiutata(aff, `insert into rilevazioni (ufficio_id, settimana, metrica, risultato) values ($1, '2026-10-12', 'vendite', 1)`, [romaB])
+    await rifiutata(aff, `insert into note_settimana (ufficio_id, settimana, testo) values ($1, '2026-10-12', 'x')`, [romaB])
+    await rifiutata(aff, `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, 'Intruso', 'marketer', '2026-01-01')`, [romaB])
+    expect(await come(aff, `update rilevazioni set risultato = 99 where ufficio_id = $1 returning *`, [romaB])).toHaveLength(0)
+    expect(await come(aff, `update persone set nome = 'X' returning *`)).toHaveLength(0)
+    expect(await come(aff, `delete from valori_mensili returning *`)).toHaveLength(0)
+  })
+
+  it('non vede la gara a punti né il confronto con l\'anno prima', async () => {
+    expect(await come(aff, `select * from punti_mensili`)).toHaveLength(0)
+    expect(await come(aff, `select * from confronto_anno_prima`)).toHaveLength(0)
+  })
+
+  it('non può assegnarsi altri uffici né cambiare ruolo', async () => {
+    await rifiutata(aff, `insert into uffici_affiliato (nome_utente, ufficio_id) values ('aff', $1)`, [romaA])
+    expect(await come(aff, `update utenti set ruolo = 'admin_generale' where nome_utente = 'aff' returning *`)).toHaveLength(0)
+    expect(await come(aff, `select ufficio_id from uffici_affiliato order by 1`)).toHaveLength(2)
+  })
+
+  it('lo crea e lo gestisce solo l\'amministratore generale', async () => {
+    await rifiutata('adminmi@test.it', `insert into utenti (nome_utente, ruolo, citta_id) values ('aff-mi', 'affiliato', 2)`)
+    await rifiutata('adminmi@test.it', `insert into uffici_affiliato (nome_utente, ufficio_id) values ('aff', $1)`, [romaA])
+    expect(await come('adminmi@test.it', `delete from uffici_affiliato returning *`)).toHaveLength(0)
+    // l'affiliato non compila uffici, e solo gli affiliati hanno uffici assegnati
+    await rifiutata('davide@test.it', `insert into utenti (nome_utente, ruolo, citta_id, ufficio_id) values ('aff-x', 'affiliato', 1, $1)`, [romaA])
+    await rifiutata('davide@test.it', `insert into uffici_affiliato (nome_utente, ufficio_id) values ('roma-a', $1)`, [romaB])
+  })
+
+  it('eliminando l\'account spariscono anche i suoi uffici', async () => {
+    await come('davide@test.it', `insert into utenti (nome_utente, ruolo, citta_id) values ('aff-tmp', 'affiliato', 2)`)
+    await come('davide@test.it', `insert into uffici_affiliato (nome_utente, ufficio_id) values ('aff-tmp', $1)`, [milanoA])
+    await come('davide@test.it', `delete from utenti where nome_utente = 'aff-tmp'`)
+    expect((await db.query(`select * from uffici_affiliato where nome_utente = 'aff-tmp'`)).rows).toHaveLength(0)
+  })
+})
