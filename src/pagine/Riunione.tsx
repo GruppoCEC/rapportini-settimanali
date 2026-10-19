@@ -265,6 +265,9 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
     return { m, x, r, diff, serie: serieCitta(m.codice) }
   })
   const quotaOk = quotaCitta !== null && quotaCitta >= OBIETTIVO_QUOTA
+  // Portafoglio: dato di zona, senza obiettivo; stessa variazione della copertina
+  const nomePortafoglio = ctx.metriche.find((m) => m.codice === 'portafoglio')?.nome ?? 'Portafoglio'
+  const seriePortafoglio = serieCitta('portafoglio')
   out.push({
     titolo: `Totali ${titolo}`,
     contenuto: (t) => (
@@ -303,7 +306,20 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
               </div>
             )
           })}
-          <p className="piccolo" style={{ margin: '6px 0 10px' }}>La tacca scura sulla barra è l'obiettivo della città (100%). Barra verde: raggiunto · ambra: almeno 70% · rossa: sotto il 70%.</p>
+          <div className="tabellone-riga riga-zona">
+            <span className="nome">{nomePortafoglio}</span>
+            <span className="valori"><strong>{portafoglio !== null ? conta(portafoglio, t) : '—'}</strong></span>
+            <span className="nota-zona">dato di zona: totale degli uffici, senza obiettivo</span>
+            <span />
+            <span className={`delta ${variazionePortafoglio === null || variazionePortafoglio === 0 ? '' : variazionePortafoglio > 0 ? 'su' : 'giu'}`}>
+              {variazionePortafoglio === null ? '—' : variazionePortafoglio === 0 ? '= uguale' : `${variazionePortafoglio > 0 ? '▲ +' : '▼ '}${variazionePortafoglio} vs scorsa`}
+            </span>
+            <GraficoAndamento spark t={t} etichette={etichetteBrevi} nomeSerie={nomePortafoglio} risultati={seriePortafoglio.map((z) => z.risultato)} />
+          </div>
+          <p className="piccolo" style={{ margin: '6px 0 10px' }}>
+            La tacca scura sulla barra è l'obiettivo della città (100%). Barra verde: raggiunto · ambra: almeno 70% · rossa: sotto il 70%.
+            {confrontati < conDato && ` Portafoglio: variazione calcolata su ${confrontati} uffici su ${conDato}, quelli che l'hanno inserito in entrambe le settimane.`}
+          </p>
         </div>
       </div>
     ),

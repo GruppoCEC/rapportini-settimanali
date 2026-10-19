@@ -14,6 +14,11 @@
 - sotto c'è la variazione rispetto alla settimana prima, in verde se sale e in rosa se scende;
 - la variazione conta solo gli uffici che hanno inserito il portafoglio in entrambe le settimane, così un ufficio che non ha compilato non sembra un calo. In quel caso è indicato "(su N uffici)";
 - i quattro riquadri ora sono disposti su due righe.
+- anche nella **pagina 2** (Totali della città), in fondo al tabellone delle attività, c'è la riga **Portafoglio** con:
+  - il totale degli uffici;
+  - la variazione rispetto alla settimana scorsa (stesso calcolo della copertina);
+  - il grafichetto delle ultime 8 settimane.
+  Non ha la barra dell'obiettivo, perché il portafoglio non ne ha uno.
 
 ## 0.6.1 — 19 ottobre 2026
 
