@@ -125,7 +125,10 @@ li creerai dalla pagina **Amministrazione** della piattaforma.
 
 I promemoria partono da GitHub:
 
-- **rapportino settimanale**: il venerdì alle 16 e la domenica alle 10, agli uffici che non hanno inserito nulla;
+- **rapportino settimanale**, agli uffici che non hanno inserito nulla:
+  - il sabato alle 10, per la settimana in corso;
+  - il lunedì della riunione alle 9:30, per la settimana appena chiusa. Se GitHub è in ritardo, questa
+    email parte al massimo fino alle 11:30, così arriva prima delle riunioni (Milano alle 12, Roma alle 13);
 - **rapportino mensile**: alle 10, 3 giorni prima e il giorno prima della scadenza, agli uffici che non hanno
   inserito nulla. Il giorno dopo la scadenza l'amministratore generale riceve il riepilogo: chi manca, chi
   è incompleto e chi ha inserito in ritardo. Partono solo se:
@@ -146,7 +149,7 @@ I promemoria partono da GitHub:
    | `GMAIL_UTENTE` | `rapportini.gruppo@gmail.com` |
    | `GMAIL_PASSWORD_APP` | il codice di 16 lettere |
 
-5. **Prova**: scheda **Actions** → *Promemoria* → **Run workflow**. Scegli `venerdi`, nel campo
+5. **Prova**: scheda **Actions** → *Promemoria* → **Run workflow**. Scegli `sabato` (oppure `lunedi`), nel campo
    *email_prova* scrivi la **tua** email e clicca **Run workflow**. Riceverai le email che sarebbero
    partite: l'oggetto inizia con `[PROVA → …]` e indica a chi sarebbero andate.
 6. **Prova del mensile**: come al punto 5, ma scegli `mensile_3giorni`, `mensile_vigilia` oppure

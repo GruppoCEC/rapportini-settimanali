@@ -122,7 +122,7 @@ export default function StatoCompilazione({ ctx }: { ctx: Contesto }) {
             </tbody>
           </table>
         </div>
-        <p className="piccolo">"Completo" = tutte le {attivita.length} attività hanno un risultato (anche 0).{PROMEMORIA_ATTIVI ? ' I promemoria automatici del venerdì e della domenica vanno agli uffici "Mancanti".' : ''}</p>
+        <p className="piccolo">"Completo" = tutte le {attivita.length} attività hanno un risultato (anche 0).{PROMEMORIA_ATTIVI ? ' I promemoria automatici del sabato (ore 10) e del lunedì (ore 9:30) vanno agli uffici "Mancanti".' : ''}</p>
       </section>
     </div>
   )

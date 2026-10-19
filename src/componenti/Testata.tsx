@@ -23,14 +23,17 @@ interface Props {
 const GIORNI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab']
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
 
-/** Prossimo invio automatico: venerdì alle 16 o domenica alle 10 (ora italiana) */
+/** Orari dei promemoria settimanali: sabato alle 10 e lunedì alle 9:30 (come scripts/promemoria-calendario.mjs) */
+const ORARI_PROMEMORIA: Record<number, [number, number]> = { 6: [10, 0], 1: [9, 30] }
+
+/** Prossimo invio automatico, es. "sab 24 ottobre, 10:00" (ora italiana) */
 export function prossimoPromemoria(adesso: Date = new Date()): string {
   for (let i = 0; i < 8; i++) {
     const d = new Date(adesso.getFullYear(), adesso.getMonth(), adesso.getDate() + i)
-    const ora = d.getDay() === 5 ? 16 : d.getDay() === 0 ? 10 : null
-    if (ora === null) continue
-    const momento = new Date(d.getFullYear(), d.getMonth(), d.getDate(), ora)
-    if (momento > adesso) return `${GIORNI[d.getDay()]} ${d.getDate()} ${MESI[d.getMonth()]}`
+    const orario = ORARI_PROMEMORIA[d.getDay()]
+    if (!orario) continue
+    const momento = new Date(d.getFullYear(), d.getMonth(), d.getDate(), ...orario)
+    if (momento > adesso) return `${GIORNI[d.getDay()]} ${d.getDate()} ${MESI[d.getMonth()]}, ${orario[0]}:${String(orario[1]).padStart(2, '0')}`
   }
   return '—'
 }

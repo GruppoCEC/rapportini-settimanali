@@ -8,7 +8,7 @@ import type { Area, Citta, Metrica, Ufficio, Utente } from './tipi'
 export const AREE_ATTIVE = false
 
 /**
- * Promemoria via email (settimanale: venerdì 16:00 e domenica 10:00; mensile: 3 giorni prima
+ * Promemoria via email (settimanale: sabato 10:00 e lunedì 9:30; mensile: 3 giorni prima
  * e il giorno prima della scadenza). Configurati e provati da Davide il 15/10/2026, quindi il
  * sito li annuncia. Se un giorno si spengono su GitHub, rimettere false.
  */

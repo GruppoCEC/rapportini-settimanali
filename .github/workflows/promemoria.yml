@@ -2,22 +2,24 @@
 # GitHub ragiona in ora UTC e non conosce l'ora legale: ogni promemoria è programmato
 # in tre orari. Lo script invia solo nella finestra giusta (3 ore) e ogni email una volta
 # sola: così, con o senza ora legale, se Gmail è occupato c'è sempre un secondo tentativo.
-# Ogni giorno alle 10 lo script controlla se tocca un promemoria: la domenica il
+# Ogni giorno alle 10 lo script controlla se tocca un promemoria: il sabato il
 # settimanale, e il mensile 3 giorni prima, il giorno prima e il giorno dopo la scadenza.
+# Il lunedì alle 9:30 l'ultimo settimanale: lo script lo manda solo fino alle 11:30,
+# prima delle riunioni (Milano alle 12, Roma alle 13).
 name: Promemoria
 
 on:
   schedule:
-    - cron: '0 14,15,16 * * 5'   # venerdì ore 16:00 italiane (settimanale)
-    - cron: '0 8,9,10 * * *'     # ogni giorno ore 10:00 italiane (settimanale della domenica e mensile)
+    - cron: '30 7,8,9 * * 1'     # lunedì ore 9:30 italiane (ultimo settimanale, giorno della riunione)
+    - cron: '0 8,9,10 * * *'     # ogni giorno ore 10:00 italiane (settimanale del sabato e mensile)
   workflow_dispatch:
     inputs:
       tipo:
         description: 'Quale promemoria inviare'
         required: true
-        default: venerdi
+        default: sabato
         type: choice
-        options: [venerdi, domenica, mensile_3giorni, mensile_vigilia, mensile_riepilogo]
+        options: [sabato, lunedi, mensile_3giorni, mensile_vigilia, mensile_riepilogo]
       mese:
         description: 'Solo per i promemoria mensili: il mese, es. 2026-09 (vuoto = il mese appena concluso)'
         required: false

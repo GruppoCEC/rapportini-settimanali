@@ -1,7 +1,8 @@
 // =====================================================================
 // CALENDARIO DEI PROMEMORIA — regole pure (senza database né email),
 // usate da scripts/promemoria.mjs e verificate dai test automatici.
-//   Settimanale: venerdì 16:00 e domenica 10:00, agli uffici che non hanno inserito nulla.
+//   Settimanale: sabato 10:00 (settimana in corso) e lunedì 9:30, giorno della riunione
+//                (settimana appena chiusa), agli uffici che non hanno inserito nulla.
 //   Mensile:     3 giorni prima e il giorno prima della scadenza (alle 10:00) agli uffici
 //                che non hanno inserito nulla; il giorno dopo la scadenza il riepilogo
 //                all'amministratore generale. Vale solo per i mesi con una scadenza
@@ -9,14 +10,23 @@
 // Tutte le date sono 'AAAA-MM-GG' e le ore sono quelle italiane.
 // =====================================================================
 
-/** Ore italiane a cui partono i promemoria (GitHub può partire in ritardo: si accettano 3 ore) */
-export const ORA_VENERDI = 16
+/** Ora italiana dei promemoria mensili (GitHub può partire in ritardo: si accettano 3 ore) */
 export const ORA_GIORNALIERA = 10
 export const FINESTRA_ORE = 3
 
+/**
+ * Promemoria settimanali: giorno e orari italiani in cui possono partire ('HH:MM', dalle … fino a prima delle …).
+ * Il lunedì la finestra si chiude alle 11:30, così l'email arriva prima delle riunioni
+ * (Milano alle 12, Roma alle 13) anche se GitHub parte in ritardo.
+ */
+export const PROMEMORIA_SETTIMANALI = {
+  sabato: { giorno: 'Sat', da: '10:00', a: '13:00' },
+  lunedi: { giorno: 'Mon', da: '09:30', a: '11:30' },
+}
+
 /** Promemoria mensili: giorni rispetto al giorno della scadenza */
 export const FASI_MENSILI = { mensile_3giorni: -3, mensile_vigilia: -1, mensile_riepilogo: 1 }
-export const TIPI_SETTIMANALI = ['venerdi', 'domenica']
+export const TIPI_SETTIMANALI = Object.keys(PROMEMORIA_SETTIMANALI)
 export const TIPI_MENSILI = Object.keys(FASI_MENSILI)
 
 /** Data, giorno della settimana e ora in Italia di un istante */
@@ -54,11 +64,16 @@ export function dalAl(inizio, fine) {
   return inizio.slice(0, 7) === fine.slice(0, 7) ? `${dal} al ${giornoMese(fine)}` : `${dal} ${giornoMese(inizio).replace(/^\d+ /, '')} al ${giornoMese(fine)}`
 }
 
-/** Promemoria settimanale che tocca adesso: 'venerdi', 'domenica' oppure null */
-export function tipoSettimanale({ giorno, ora }) {
-  if (giorno === 'Fri' && ora >= ORA_VENERDI && ora < ORA_VENERDI + FINESTRA_ORE) return 'venerdi'
-  if (giorno === 'Sun' && ora >= ORA_GIORNALIERA && ora < ORA_GIORNALIERA + FINESTRA_ORE) return 'domenica'
-  return null
+/** Promemoria settimanale che tocca adesso: 'sabato', 'lunedi' oppure null */
+export function tipoSettimanale({ giorno, orario }) {
+  const [tipo] = Object.entries(PROMEMORIA_SETTIMANALI)
+    .find(([, p]) => p.giorno === giorno && orario >= p.da && orario < p.a) ?? [null]
+  return tipo
+}
+
+/** Settimana (il suo lunedì) di cui si chiedono i dati: il sabato quella in corso, il lunedì quella appena chiusa */
+export function settimanaDelPromemoria(tipo, oggi) {
+  return tipo === 'lunedi' ? aggiungiGiorni(lunediDi(oggi), -7) : lunediDi(oggi)
 }
 
 /** È l'ora dei promemoria mensili (ogni giorno alle 10)? */

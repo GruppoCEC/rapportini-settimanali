@@ -39,7 +39,7 @@ export default function Accesso() {
 
   const punti = [
     { icona: 'device-mobile', testo: 'Compili da computer o da telefono' },
-    ...(PROMEMORIA_ATTIVI ? [{ icona: 'bell-ringing', testo: 'Promemoria automatici il venerdì e la domenica' }] : []),
+    ...(PROMEMORIA_ATTIVI ? [{ icona: 'bell-ringing', testo: 'Promemoria automatici il sabato e il lunedì mattina' }] : []),
     { icona: 'presentation-chart', testo: 'Esiti, totali e quota di mercato calcolati da soli, pronti per la riunione del lunedì' },
   ]
 

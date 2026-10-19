@@ -1,8 +1,8 @@
 // =====================================================================
 // PROMEMORIA AUTOMATICI — eseguito da GitHub Actions (.github/workflows/promemoria.yml)
 // Rapportino settimanale:
-//   venerdì 16:00  → email agli uffici che non hanno ancora inserito nulla
-//   domenica 10:00 → secondo promemoria agli uffici ancora mancanti
+//   sabato 10:00  → email agli uffici che non hanno ancora inserito nulla della settimana in corso
+//   lunedì 9:30   → ultimo promemoria, il giorno della riunione, a chi manca ancora la settimana appena chiusa
 // Rapportino mensile (solo se il mensile è aperto agli uffici e il mese ha una scadenza
 // fissata in Report mensile → Panoramica), ogni volta alle 10:00:
 //   3 giorni prima della scadenza → email agli uffici che non hanno inserito nulla
@@ -13,7 +13,7 @@
 // sola (tabella promemoria_inviati); se Gmail è occupato lo script aspetta e riprova.
 //
 // Variabili richieste: SUPABASE_URL, SUPABASE_SERVICE_KEY, GMAIL_UTENTE,
-// GMAIL_PASSWORD_APP, SITO_URL. Facoltative: TIPO (forza venerdi | domenica |
+// GMAIL_PASSWORD_APP, SITO_URL. Facoltative: TIPO (forza sabato | lunedi |
 // mensile_3giorni | mensile_vigilia | mensile_riepilogo), MESE (AAAA-MM, per i tipi
 // mensili forzati; se manca, il mese appena concluso), EMAIL_PROVA (manda tutto solo
 // a questo indirizzo, senza registrare l'invio).
@@ -21,8 +21,8 @@
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import {
-  aggiungiGiorni, aggiungiMesi, chiaveMensile, dalAl, inItalia, inServizio, lunediDi, oraMensile,
-  promemoriaMensiliDiOggi, statoMensile, tipoSettimanale, ultimoRitardo, TIPI_MENSILI, TIPI_SETTIMANALI,
+  aggiungiGiorni, aggiungiMesi, chiaveMensile, dalAl, inItalia, inServizio, oraMensile,
+  promemoriaMensiliDiOggi, settimanaDelPromemoria, statoMensile, tipoSettimanale, ultimoRitardo, TIPI_MENSILI, TIPI_SETTIMANALI,
 } from './promemoria-calendario.mjs'
 
 const env = (nome, obbligatoria = true) => {
@@ -144,16 +144,16 @@ const aiuto = '<p style="color:#666;font-size:13px">Avete difficoltà a inserire
 const pagina = (contenuto) => `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#222;max-width:600px">${contenuto}</div>`
 
 const TESTI = {
-  // Settimanale: venerdì alle 16 (primo) e domenica alle 10 (ultimo)
+  // Settimanale: sabato alle 10 (primo) e lunedì alle 9:30, giorno della riunione (ultimo)
   settimanale: ({ tipo, ufficio, settimana }) => {
-    const ultimo = tipo === 'domenica'
+    const ultimo = tipo === 'lunedi'
     return {
       oggetto: `${ultimo ? 'Ultimo promemoria' : 'Promemoria'}: dati della settimana ${settimana}`,
       html: pagina(`
-        <p>${ultimo ? 'Buongiorno' : 'Buon pomeriggio'},</p>
+        <p>Buongiorno,</p>
         <p>per l'ufficio <strong>${ufficio}</strong> non risultano ancora inseriti i dati della settimana <strong>${settimana}</strong>.</p>
         <p>${ultimo
-          ? 'Domani c\'è la riunione: vi chiediamo di inserirli <strong>entro stasera</strong>.'
+          ? 'Oggi c\'è la riunione: vi chiediamo di inserirli <strong>subito, prima che inizi</strong>.'
           : 'Vi chiediamo di inserirli <strong>entro domenica sera</strong>, così saranno pronti per la riunione di lunedì.'}</p>
         ${pulsante('Inserisci i dati della settimana')}${aiuto}`),
     }
@@ -184,7 +184,7 @@ const TESTI = {
 
 // ---------- Rapportino settimanale ----------
 async function settimanale(tipo) {
-  const settimana = lunediDi(oggi)
+  const settimana = settimanaDelPromemoria(tipo, oggi)
   const intervallo = dalAl(settimana, aggiungiGiorni(settimana, 6))
   const rilevazioni = await tutte('rilevazioni', 'ufficio_id', (q) => q.eq('settimana', settimana).not('risultato', 'is', null))
   const conDati = new Set(rilevazioni.map((r) => r.ufficio_id))
@@ -305,7 +305,7 @@ if (tipoForzato) {
 }
 
 if (daFare.length === 0) {
-  console.log(`Oggi (${adesso.giorno} ${oggi}, ore ${adesso.ora} in Italia) non tocca nessun promemoria.`)
+  console.log(`Oggi (${adesso.giorno} ${oggi}, ore ${adesso.orario} in Italia) non tocca nessun promemoria.`)
 } else {
   for (const fai of daFare) await fai()
   console.log(`Email inviate: ${inviate}`)

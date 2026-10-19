@@ -2,25 +2,40 @@
 // quando parte ogni email e quali uffici risultano senza rapportino mensile.
 import { describe, expect, it } from 'vitest'
 import {
-  chiaveMensile, dalAl, inItalia, oraMensile, promemoriaMensiliDiOggi, statoMensile as statoScript, tipoSettimanale,
+  chiaveMensile, dalAl, inItalia, oraMensile, promemoriaMensiliDiOggi, settimanaDelPromemoria, statoMensile as statoScript, tipoSettimanale,
 } from '../scripts/promemoria-calendario.mjs'
 import { statoMensile as statoSito, inServizio } from '../src/lib/mensile'
 import type { Persona, ValoreMensile, VoceMensile } from '../src/lib/tipi'
 
 // Orari di GitHub (UTC) → ora italiana, con e senza ora legale
 describe('promemoria settimanali', () => {
-  it('venerdì alle 16 italiane, sia d\'estate sia d\'inverno', () => {
-    expect(tipoSettimanale(inItalia('2026-10-16T14:00:00Z'))).toBe('venerdi')   // ora legale: 16:00
-    expect(tipoSettimanale(inItalia('2026-11-20T14:00:00Z'))).toBe(null)        // ora solare: 15:00, troppo presto
-    expect(tipoSettimanale(inItalia('2026-11-20T15:00:00Z'))).toBe('venerdi')   // ora solare: 16:00
-    // terzo orario di GitHub: secondo tentativo, sia d'estate (18:00) sia d'inverno (17:00)
-    expect(tipoSettimanale(inItalia('2026-10-16T16:00:00Z'))).toBe('venerdi')
-    expect(tipoSettimanale(inItalia('2026-11-20T16:00:00Z'))).toBe('venerdi')
+  it('sabato alle 10 italiane, sia d\'estate sia d\'inverno', () => {
+    expect(tipoSettimanale(inItalia('2026-10-17T08:00:00Z'))).toBe('sabato')    // ora legale: 10:00
+    expect(tipoSettimanale(inItalia('2026-11-21T08:00:00Z'))).toBe(null)        // ora solare: 9:00, troppo presto
+    expect(tipoSettimanale(inItalia('2026-11-21T09:00:00Z'))).toBe('sabato')    // ora solare: 10:00
+    // terzo orario di GitHub: secondo tentativo, sia d'estate (12:00) sia d'inverno (11:00)
+    expect(tipoSettimanale(inItalia('2026-10-17T10:00:00Z'))).toBe('sabato')
+    expect(tipoSettimanale(inItalia('2026-11-21T10:00:00Z'))).toBe('sabato')
   })
-  it('domenica alle 10 italiane', () => {
-    expect(tipoSettimanale(inItalia('2026-10-18T08:00:00Z'))).toBe('domenica')
-    expect(tipoSettimanale(inItalia('2026-11-22T08:00:00Z'))).toBe(null)
-    expect(tipoSettimanale(inItalia('2026-11-22T09:00:00Z'))).toBe('domenica')
+  it('lunedì alle 9:30 italiane, giorno della riunione', () => {
+    expect(tipoSettimanale(inItalia('2026-10-19T07:30:00Z'))).toBe('lunedi')    // ora legale: 9:30
+    expect(tipoSettimanale(inItalia('2026-11-23T07:30:00Z'))).toBe(null)        // ora solare: 8:30, troppo presto
+    expect(tipoSettimanale(inItalia('2026-11-23T08:30:00Z'))).toBe('lunedi')    // ora solare: 9:30
+    expect(tipoSettimanale(inItalia('2026-10-19T07:29:00Z'))).toBe(null)        // 9:29: non ancora
+  })
+  it('il lunedì GitHub può riprovare, ma non oltre le 11:30 (riunioni: Milano alle 12, Roma alle 13)', () => {
+    expect(tipoSettimanale(inItalia('2026-10-19T09:00:00Z'))).toBe('lunedi')    // 11:00 con l'ora legale
+    expect(tipoSettimanale(inItalia('2026-11-23T10:00:00Z'))).toBe('lunedi')    // 11:00 con l'ora solare
+    expect(tipoSettimanale(inItalia('2026-10-19T09:30:00Z'))).toBe(null)        // 11:30: troppo tardi
+    expect(tipoSettimanale(inItalia('2026-11-23T10:45:00Z'))).toBe(null)        // 11:45: troppo tardi
+  })
+  it('il sabato chiede la settimana in corso, il lunedì quella appena chiusa', () => {
+    expect(settimanaDelPromemoria('sabato', '2026-10-17')).toBe('2026-10-12')
+    expect(settimanaDelPromemoria('lunedi', '2026-10-19')).toBe('2026-10-12')
+  })
+  it('venerdì e domenica non parte più nulla', () => {
+    expect(tipoSettimanale(inItalia('2026-10-16T14:00:00Z'))).toBe(null)        // venerdì 16:00
+    expect(tipoSettimanale(inItalia('2026-10-18T08:00:00Z'))).toBe(null)        // domenica 10:00
   })
   it('la settimana si scrive in italiano corretto', () => {
     expect(dalAl('2026-10-12', '2026-10-18')).toBe('dal 12 al 18 ottobre')
@@ -28,13 +43,9 @@ describe('promemoria settimanali', () => {
     expect(dalAl('2026-06-08', '2026-06-14')).toBe("dall'8 al 14 giugno")
     expect(dalAl('2026-06-01', '2026-06-07')).toBe('dal 1° al 7 giugno')
   })
-  it('il lunedì non parte più nulla', () => {
-    expect(tipoSettimanale(inItalia('2026-10-19T05:30:00Z'))).toBe(null)
-    expect(tipoSettimanale(inItalia('2026-10-19T08:00:00Z'))).toBe(null)
-  })
   it('i promemoria mensili si controllano alle 10 di ogni giorno', () => {
     expect(oraMensile(inItalia('2026-10-14T08:00:00Z'))).toBe(true)    // 10:00
-    expect(oraMensile(inItalia('2026-10-16T14:00:00Z'))).toBe(false)   // venerdì 16:00
+    expect(oraMensile(inItalia('2026-10-19T07:30:00Z'))).toBe(false)   // lunedì 9:30
   })
 })
 

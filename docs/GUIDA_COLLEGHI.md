@@ -22,8 +22,9 @@ Se l'hai dimenticata, chiedi all'amministratore.
 4. Se vuoi, scrivi una **nota**: verrà mostrata in riunione.
 5. Clicca **Salva**.
 
-**Scadenza: domenica sera.** Il lunedì c'è la riunione. Se il venerdì pomeriggio non hai ancora
-inserito nulla, ricevi un promemoria via email.
+**Scadenza: domenica sera.** Il lunedì c'è la riunione. Se il sabato mattina non hai ancora
+inserito nulla, ricevi un promemoria via email. Se il lunedì alle 9:30 mancano ancora i dati,
+ricevi l'ultimo promemoria: inseriscili subito, prima della riunione.
 
 Puoi correggere anche le settimane passate con le frecce ‹ ›.
 

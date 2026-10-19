@@ -1,5 +1,16 @@
 # Storia delle versioni
 
+## 0.6.1 — 19 ottobre 2026
+
+**Nuovi orari dei promemoria settimanali** (richiesta di Davide):
+- **sabato alle 10** il primo promemoria, al posto del venerdì alle 16. Riguarda la settimana in corso e chiede di inserire i dati entro domenica sera;
+- **lunedì alle 9:30**, giorno della riunione, l'ultimo promemoria, al posto della domenica alle 10. Riguarda la settimana appena chiusa: "Oggi c'è la riunione: vi chiediamo di inserirli subito, prima che inizi";
+- se GitHub parte in ritardo, il promemoria del lunedì si può mandare **solo fino alle 11:30**. Così arriva sempre prima delle riunioni (Milano alle 12, Roma alle 13);
+- GitHub prova il lunedì alle 9:30, 10:00, 10:30 e 11:00 (con l'ora legale anche alle 11:30, scartata perché troppo tardi). Il sabato prova come prima alle 10, 11 e 12;
+- nella prova manuale da GitHub (Actions → Promemoria → Run workflow) i tipi si chiamano ora `sabato` e `lunedi`;
+- il sito annuncia i nuovi orari: in testata (es. "sab 24 ottobre, 10:00"), nella pagina di accesso e in Stato compilazione;
+- promemoria mensili invariati. Nessuna modifica al database.
+
 ## 0.6.0 — 19 ottobre 2026
 
 **Account per gli affiliati, in sola consultazione** (richiesta di Davide):
