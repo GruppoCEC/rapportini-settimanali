@@ -4,27 +4,29 @@
 -- anche di città diverse: dati settimanali e rapportino mensile, senza
 -- poter scrivere nulla. Non vede la gara a punti (punti_mensili resta
 -- riservata agli amministratori, 005_mensile.sql) né il confronto con l'anno prima.
--- Da eseguire una volta in Supabase → SQL Editor, dopo 001–005.
+-- Da eseguire in Supabase → SQL Editor, dopo 001–005. Si può rieseguire senza
+-- danni (es. se un primo tentativo si è interrotto a metà): ricrea solo ciò che manca.
 -- =====================================================================
 
 -- Nuovo ruolo. citta_id resta obbligatorio: per l'affiliato è la città del primo
 -- ufficio assegnato e serve solo all'elenco in Amministrazione.
-alter table utenti drop constraint utenti_ruolo_check;
+alter table utenti drop constraint if exists utenti_ruolo_check;
 alter table utenti add constraint utenti_ruolo_check
   check (ruolo in ('ufficio', 'responsabile', 'admin_citta', 'admin_generale', 'affiliato'));
 -- un affiliato non compila nessun ufficio (posso_scrivere_ufficio guarda ufficio_id)
+alter table utenti drop constraint if exists utenti_affiliato_check;
 alter table utenti add constraint utenti_affiliato_check
   check (ruolo <> 'affiliato' or (ufficio_id is null and area_id is null));
 
 -- Uffici che ogni affiliato può consultare
-create table uffici_affiliato (
+create table if not exists uffici_affiliato (
   nome_utente text   not null references utenti (nome_utente) on delete cascade,
   ufficio_id  bigint not null references uffici on delete cascade,
   primary key (nome_utente, ufficio_id)
 );
 
 -- Solo gli account con ruolo affiliato possono avere uffici in questa tabella
-create function uffici_affiliato_coerenza() returns trigger
+create or replace function uffici_affiliato_coerenza() returns trigger
 language plpgsql security definer set search_path = public
 as $$
 begin
@@ -34,6 +36,7 @@ begin
   return new;
 end $$;
 
+drop trigger if exists uffici_affiliato_coerenza on uffici_affiliato;
 create trigger uffici_affiliato_coerenza before insert or update on uffici_affiliato
 for each row execute function uffici_affiliato_coerenza();
 
@@ -56,6 +59,8 @@ $$;
 -- Regole di accesso: l'affiliato vede i propri uffici, l'amministratore generale li assegna
 alter table uffici_affiliato enable row level security;
 
+drop policy if exists uffici_affiliato_lettura on uffici_affiliato;
+drop policy if exists uffici_affiliato_gestione on uffici_affiliato;
 create policy uffici_affiliato_lettura on uffici_affiliato for select to authenticated
   using (sono_admin_generale()
          or nome_utente = (select nome_utente from utenti where email = email_corrente() and attivo));

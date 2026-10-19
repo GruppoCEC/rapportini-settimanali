@@ -427,3 +427,14 @@ describe('Affiliato (sola consultazione)', () => {
     expect((await db.query(`select * from uffici_affiliato where nome_utente = 'aff-tmp'`)).rows).toHaveLength(0)
   })
 })
+
+describe('Migrazioni rieseguite', () => {
+  it('006 e 007 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+    const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql']) {
+      await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
+    }
+    expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)
+    expect(await ufficiVisti('rapportini+aff@gmail.com')).toEqual([romaB, milanoA])
+  })
+})
