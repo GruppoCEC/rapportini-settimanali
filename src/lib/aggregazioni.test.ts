@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   classifica, classificaQuota, quotaDaTotali, raggiungimento, semaforo, serieQuota, serieSettimanale, variazioneZona,
-  sommaTotali, statoCompilazione, statoCompilazionePeriodo, totaliPerPeriodi, totaliPerUfficio,
+  sommaTotali, statoCompilazione, statoCompilazionePeriodo, totaliCittaDaRighe, totaliPerPeriodi, totaliPerUfficio,
 } from './aggregazioni'
 import type { Metrica, Rilevazione, Ufficio } from './tipi'
 
@@ -119,5 +119,25 @@ describe('compilazione di un mese', () => {
   })
   it('mancante se nel mese non c\'è nessun dato', () => {
     expect(statoCompilazionePeriodo([], metriche, settimane)).toBe('mancante')
+  })
+})
+
+describe('totali di tutta la città (dal database, solo somme)', () => {
+  const riga = (periodo: number, metrica: string, obiettivo: number | null, risultato: number | null, extra: object = {}) =>
+    ({ periodo, metrica, obiettivo, risultato, uffici_con_dato: 2, uffici_con_dati: 3, variazione: null, confrontati: null, uffici_citta: 38, ...extra })
+  it('rimette i totali periodo per periodo, con la variazione del portafoglio sull\'ultimo', () => {
+    const t = totaliCittaDaRighe([
+      riga(1, 'incarichi', 4, 3),
+      riga(2, 'incarichi', 5, 6),
+      riga(2, 'portafoglio', null, 105, { variazione: '10', confrontati: 2, uffici_con_dato: 3 } as object),
+    ] as never, 3)
+    expect(t.andamento).toHaveLength(3)
+    expect(t.andamento[0].get('incarichi')).toEqual({ obiettivo: 4, risultato: 3 })
+    expect(t.andamento[2].size).toBe(0)                    // periodo senza dati
+    expect(t.zona.size).toBe(0)                            // la variazione conta solo per l'ultimo periodo
+    expect(t.ufficiCitta).toBe(38)
+    const ultimo = totaliCittaDaRighe([riga(2, 'portafoglio', null, 105, { variazione: '10', confrontati: 2, uffici_con_dato: 3 })] as never, 2)
+    expect(ultimo.zona.get('portafoglio')).toEqual({ variazione: 10, confrontati: 2, conDato: 3 })
+    expect(ultimo.ufficiConDati).toBe(3)
   })
 })

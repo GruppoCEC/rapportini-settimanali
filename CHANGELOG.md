@@ -1,5 +1,21 @@
 # Storia delle versioni
 
+## 0.8.0 — 20 ottobre 2026
+
+**Ogni ufficio vede come va tutta la sua città** (richiesta di Davide):
+- nella **Presentazione** di un ufficio, subito dopo i totali dell'ufficio, c'è la nuova pagina **Totali · Tutta Roma** (o **Tutta Milano**);
+- è identica alla pagina 2 della Riunione degli amministratori:
+  - attività rispetto all'obiettivo della città;
+  - quota di mercato;
+  - confronto con il periodo prima;
+  - portafoglio;
+  - grafichetti delle ultime 8 settimane o degli ultimi 6 mesi;
+- vale sia per la **Settimana** sia per il **Mese**;
+- in fondo alla pagina è indicato quanti uffici della città hanno inserito dati (es. "31 su 38");
+- l'ufficio vede **solo le somme della città**, mai i numeri dei singoli altri uffici. Il database gli manda soltanto i totali (nuova funzione `totali_mia_citta`); le regole di accesso ai dati non cambiano;
+- affiliati e amministratori non hanno questa pagina: gli amministratori hanno già la Riunione;
+- **da fare una volta in Supabase**: eseguire `supabase/migrations/008_totali_citta.sql` (vedi `docs/GUIDA_SETUP.md`). Finché non è eseguito, la Presentazione funziona come prima, senza la pagina della città.
+
 ## 0.7.0 — 20 ottobre 2026
 
 **Presentazione per uffici e affiliati, settimanale o mensile** (richiesta di Davide):

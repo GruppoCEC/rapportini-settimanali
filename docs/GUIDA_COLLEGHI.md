@@ -44,6 +44,10 @@ simile a quella della riunione del lunedì (utile per una riunione interna):
 
 Il mese somma le settimane del mese e si confronta con il mese prima; la settimana con la settimana prima.
 
+Dopo i totali del tuo ufficio trovi la pagina **Totali · Tutta Roma** (o **Tutta Milano**): come va
+l'intera città, con gli stessi numeri della riunione del lunedì. Mostra solo i totali della città,
+non i numeri dei singoli uffici.
+
 ## Per gli affiliati (sola consultazione)
 
 Con un account da affiliato vedi solo gli uffici che ti sono stati assegnati, anche di città diverse.

@@ -7,6 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { aggiungiSettimane, lunediDi, oggiISO, settimanaPredefinita } from '../src/lib/settimane'
 import { aggiungiMesi, inServizio, mesePredefinito } from '../src/lib/mensile'
+import { totaliPerUfficio } from '../src/lib/aggregazioni'
 
 export const configurato = true
 
@@ -225,6 +226,35 @@ function visibile(tabella: string, riga: any): boolean {
   }
 }
 
+// Come totali_mia_citta (008_totali_citta.sql): solo per un ufficio, solo le somme della sua città
+function totaliMiaCitta(inizi: string[], fini: string[]): any[] {
+  const me = io()
+  const mio = me?.ruolo === 'ufficio' ? uffici.find((u) => u.id === me.ufficio_id) : undefined
+  if (!mio) return []
+  const ids = new Set(uffici.filter((u) => u.attivo && u.citta_id === mio.citta_id).map((u) => u.id))
+  const tipo = new Map(metriche.map((m) => [m.codice, m.tipo]))
+  const perPeriodo = inizi.map((da, i) => totaliPerUfficio(rilevazioni.filter((r) => ids.has(r.ufficio_id) && r.settimana >= da && r.settimana <= fini[i]), metriche as any))
+  const righe: any[] = []
+  perPeriodo.forEach((perUfficio, i) => {
+    const conDati = [...perUfficio.values()].filter((t) => [...t.values()].some((x) => x.risultato !== null)).length
+    for (const codice of new Set([...perUfficio.values()].flatMap((t) => [...t.keys()]))) {
+      const valori = [...perUfficio].map(([u, t]) => [u, t.get(codice)] as const).filter(([, x]) => x)
+      const somma = (k: 'obiettivo' | 'risultato') => valori.reduce<number | null>((s, [, x]) => (x![k] === null ? s : (s ?? 0) + x![k]!), null)
+      let variazione: number | null = null, confrontati: number | null = null
+      if (tipo.get(codice) === 'zona') {
+        confrontati = 0
+        for (const [u, x] of valori) {
+          const prima = perPeriodo[i - 1]?.get(u)?.get(codice)?.risultato
+          if (x!.risultato !== null && prima != null) { variazione = (variazione ?? 0) + x!.risultato - prima; confrontati++ }
+        }
+      }
+      righe.push({ periodo: i + 1, metrica: codice, obiettivo: somma('obiettivo'), risultato: somma('risultato'),
+        uffici_con_dato: valori.filter(([, x]) => x!.risultato !== null).length, uffici_con_dati: conDati, variazione, confrontati, uffici_citta: ids.size })
+    }
+  })
+  return righe
+}
+
 // ---------------------------------------------------------------- finto client
 const attesa = (ms = 120) => new Promise((r) => setTimeout(r, ms))
 let prossimoId = 100
@@ -346,6 +376,7 @@ export const supabase: any = {
     // Rapportino mensile: nella demo è aperto; per vedere la modalità "in prova" scrivere nella console
     // localStorage.setItem('rapportini.demo.mensileInProva', 'si') e ricaricare
     if (nome === 'mensile_aperto') { try { return { data: localStorage.getItem('rapportini.demo.mensileInProva') !== 'si', error: null } } catch { return { data: true, error: null } } }
+    if (nome === 'totali_mia_citta') return { data: totaliMiaCitta(args.p_inizi, args.p_fini), error: null }
     return { data: null, error: { message: `funzione ${nome} non disponibile nella demo` } }
   },
   functions: {

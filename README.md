@@ -9,6 +9,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
   - rapportino mensile: 3 giorni prima e il giorno prima della scadenza agli uffici che non hanno compilato, e il giorno dopo il riepilogo all'amministratore generale.
 - **Cruscotto, stato compilazione, grafici e modalità riunione** a tutto schermo per la riunione del lunedì.
   Uffici e affiliati hanno la loro **Presentazione** con i soli propri uffici; si presenta una settimana o un mese.
+  Nella Presentazione di un ufficio c'è anche la pagina con i totali di tutta la sua città (solo le somme).
 - **Esiti, totali del mese e quota di mercato** si calcolano da soli: niente più #DIV/0! o totali sbagliati.
 - **Roma e Milano** sono sezioni separate, ognuna con la propria riunione del lunedì.
 - **Chi vede cosa**:
@@ -29,6 +30,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 | 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.635 valori (gen–ott 2026) |
 | 6 | Avvio per tutti gli uffici | Da fare |
 | — | Account affiliati in sola consultazione (0.6.0) | Codice pronto: prima di usarli eseguire `006_affiliati.sql` in Supabase (vedi `docs/GUIDA_SETUP.md`, "Affiliati") |
+| — | Totali della città nella Presentazione degli uffici (0.8.0) | Codice pronto: eseguire `008_totali_citta.sql` in Supabase, poi pubblicare |
 | — | Rapportino mensile (0.5.0) | Online in prova ("Work in progress"): gli uffici non possono ancora inserire. Si apre con `mensile_aperto = 'si'` (vedi CHANGELOG) |
 
 **Vederlo subito con dati inventati**: `npm install`, poi `npm run demo`.

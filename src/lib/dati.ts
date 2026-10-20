@@ -1,6 +1,7 @@
 // Lettura dei dati dal database. Le regole di accesso filtrano già
 // automaticamente: ognuno riceve solo le righe che può vedere.
 import { supabase } from './supabase'
+import { totaliCittaDaRighe, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
 import type { Metrica, Persona, Rilevazione, Scadenza, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
@@ -37,6 +38,20 @@ export async function caricaNote(settimane: string[], ufficiIds: number[]): Prom
     .order('settimana')
   if (error) throw new Error(error.message)
   return (data as Nota[]).filter((n) => n.testo.trim() !== '')
+}
+
+/**
+ * Totali di tutta la città dell'ufficio collegato, periodo per periodo (ogni periodo = elenco di lunedì).
+ * Il database manda solo le somme, mai i numeri dei singoli altri uffici (008_totali_citta.sql).
+ * null se la funzione non c'è ancora nel database o se l'account non è di un ufficio.
+ */
+export async function caricaTotaliCitta(periodi: string[][]): Promise<TotaliCitta | null> {
+  const { data, error } = await supabase.rpc('totali_mia_citta', {
+    p_inizi: periodi.map((p) => p[0]),
+    p_fini: periodi.map((p) => p[p.length - 1]),
+  })
+  if (error || !data || (data as RigaTotaliCitta[]).length === 0) return null
+  return totaliCittaDaRighe(data as RigaTotaliCitta[], periodi.length)
 }
 
 /** Tutte le righe di una tabella, a pagine da 1000 (per il backup) */

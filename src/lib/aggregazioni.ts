@@ -65,6 +65,47 @@ export function totaliPerPeriodi(rilevazioni: Rilevazione[], metriche: Metrica[]
   })
 }
 
+/** Una riga di totali_mia_citta (supabase/migrations/008_totali_citta.sql): somme della città, senza i singoli uffici */
+export interface RigaTotaliCitta {
+  periodo: number            // da 1, nell'ordine dei periodi richiesti
+  metrica: string
+  obiettivo: number | null
+  risultato: number | null
+  uffici_con_dato: number    // uffici con questa voce
+  uffici_con_dati: number    // uffici con almeno una voce
+  variazione: number | null  // solo dati di zona
+  confrontati: number | null
+  uffici_citta: number
+}
+
+/** Totali di tutta la città dell'ufficio, nella stessa forma di totaliPerPeriodi e variazioneZona */
+export interface TotaliCitta {
+  andamento: Totali[]        // un elemento per periodo, dal più vecchio; l'ultimo è quello presentato
+  zona: Map<string, { variazione: number | null; confrontati: number; conDato: number }>   // ultimo periodo sul precedente
+  ufficiConDati: number      // uffici con almeno un dato nell'ultimo periodo
+  ufficiCitta: number
+}
+
+export function totaliCittaDaRighe(righe: RigaTotaliCitta[], nPeriodi: number): TotaliCitta {
+  const numero = (v: number | string | null) => (v === null ? null : Number(v))   // i bigint possono arrivare come testo
+  const andamento: Totali[] = Array.from({ length: nPeriodi }, () => new Map())
+  const zona: TotaliCitta['zona'] = new Map()
+  let ufficiConDati = 0, ufficiCitta = 0
+  for (const r of righe) {
+    const t = andamento[r.periodo - 1]
+    if (!t) continue
+    t.set(r.metrica, { obiettivo: numero(r.obiettivo), risultato: numero(r.risultato) })
+    ufficiCitta = r.uffici_citta
+    if (r.periodo === nPeriodi) {
+      ufficiConDati = r.uffici_con_dati
+      if (r.confrontati !== null) {
+        zona.set(r.metrica, { variazione: numero(r.variazione), confrontati: r.confrontati, conDato: r.uffici_con_dato })
+      }
+    }
+  }
+  return { andamento, zona, ufficiConDati, ufficiCitta }
+}
+
 /** Percentuale di raggiungimento dell'obiettivo (1 = 100%) */
 export function raggiungimento(t: Totale | undefined): number | null {
   if (!t || t.obiettivo === null || t.risultato === null || t.obiettivo === 0) return null

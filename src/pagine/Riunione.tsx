@@ -6,12 +6,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   classifica, classificaQuota, quotaDaTotali, raggiungimento, sommaTotali, statoCompilazionePeriodo,
-  totaliPerPeriodi, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali,
+  totaliPerPeriodi, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali, type TotaliCitta,
 } from '../lib/aggregazioni'
 import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../lib/calcoli'
 import { AREE_ATTIVE, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { nomeDaEmail } from '../lib/account'
-import { caricaNote, caricaRilevazioni, type Nota } from '../lib/dati'
+import { caricaNote, caricaRilevazioni, caricaTotaliCitta, type Nota } from '../lib/dati'
 import { isAffiliato, isAmministratore } from '../lib/permessi'
 import {
   aggiungiMesi, aggiungiSettimane, intervalloSettimana, meseDellaSettimana, nomeMeseBreve, settimaneDelMese,
@@ -52,7 +52,7 @@ interface Diapositiva {
   contenuto: (t: number) => ReactNode      // t = avanzamento dell'animazione (0–1)
 }
 
-interface DatiRiunione { dati: Rilevazione[]; note: Nota[] }
+interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null }
 
 export default function Riunione({ ctx }: { ctx: Contesto }) {
   const [periodo, setPeriodo] = useState<Periodo>(periodoPredefinito)
@@ -76,14 +76,15 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
   const periodi = periodiStorico(periodo)
   const correnti = periodi[periodi.length - 1]
   const carico = useDati<DatiRiunione>(async () => {
-    const [dati, note] = await Promise.all([
+    const [dati, note, citta] = await Promise.all([
       caricaRilevazioni(periodi[0][0], correnti[correnti.length - 1], ids),
       caricaNote(correnti, ids),
+      soloUfficio ? caricaTotaliCitta(periodi) : null,     // un ufficio vede anche come va tutta la sua città
     ])
-    return { dati, note }
-  }, [periodi[0][0], correnti.join(','), ids.join(',')])
+    return { dati, note, citta }
+  }, [periodi[0][0], correnti.join(','), ids.join(','), soloUfficio])
 
-  const diapositive = carico.dati ? costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, ...carico.dati }) : []
+  const diapositive = carico.dati ? costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, ...carico.dati }) : []
   const daControllare = settimaneDaControllare(correnti)
   const compilati = carico.dati
     ? uffici.filter((u) => statoCompilazionePeriodo(carico.dati!.dati.filter((r) => r.ufficio_id === u.id), ctx.metriche, daControllare) !== 'mancante').length
@@ -114,6 +115,7 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
         </p>
         <ul className="elenco-icone">
           <li><Icona nome="sigma" />{soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'}, con il confronto sul periodo prima;</li>
+          {carico.dati?.citta && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
           {uffici.length > 1 && <li><Icona nome="ranking" />classifiche per ogni attività;</li>}
           <li><Icona nome="chart-pie-slice" />quota di mercato;</li>
           {AREE_ATTIVE && areeCitta.length > 0 && <li><Icona nome="map-trifold" />confronto tra aree;</li>}
@@ -222,9 +224,12 @@ function meseInCorso(settimane: string[]): boolean {
   return settimane.length > 1 && settimane[settimane.length - 1] > ultimaSettimanaConclusa()
 }
 
-function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, dati, note }: {
-  ctx: Contesto; uffici: Ufficio[]; periodo: Periodo; periodi: string[][]; titolo: string; nomePresentazione: string
-  dati: Rilevazione[]; note: Nota[]
+/** Valori periodo per periodo di una voce (per i grafici di andamento) */
+const serieDi = (andamento: Totali[], codice: string) => andamento.map((t) => t.get(codice) ?? { obiettivo: null, risultato: null })
+
+function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, dati, note, citta }: {
+  ctx: Contesto; uffici: Ufficio[]; periodo: Periodo; periodi: string[][]; titolo: string; nomePresentazione: string; nomeCitta: string
+  dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null     // citta: totali di tutta la città, solo per un ufficio
 }): Diapositiva[] {
   const attivita: Metrica[] = ctx.metriche.filter((m) => m.tipo === 'attivita')
   const parole = paroleDelPeriodo(periodo)
@@ -237,14 +242,12 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
     const ids = new Set(lista.map((u) => u.id))
     return totaliPerPeriodi(dati.filter((r) => ids.has(r.ufficio_id)), ctx.metriche, periodi)
   }
-  const serie = (andamentoGruppo: Totali[], codice: string) => andamentoGruppo.map((t) => t.get(codice) ?? { obiettivo: null, risultato: null })
 
   const diQuesto = nelPeriodo(correnti)
   const totali = totaliPerUfficio(diQuesto, ctx.metriche)
   const totaliPrec = totaliPerUfficio(nelPeriodo(periodi[periodi.length - 2]), ctx.metriche)
   const somma = (t: Map<number, Totali>, lista: Ufficio[]) => sommaTotali(lista.map((u) => t.get(u.id)).filter((x): x is Totali => !!x))
   const totaleCitta = somma(totali, uffici)
-  const totaleCittaPrec = somma(totaliPrec, uffici)
   const quotaCitta = quotaDaTotali(totaleCitta)
   const daControllare = settimaneDaControllare(correnti)
   const stati = new Map(uffici.map((u) => [u.id, statoCompilazionePeriodo(diQuesto.filter((r) => r.ufficio_id === u.id), ctx.metriche, daControllare)]))
@@ -326,80 +329,21 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
   })
 
   // 2. Totali della città (o dei propri uffici) con confronto sul periodo precedente
-  const andamentoCitta = andamento(uffici)
-  const serieCitta = (codice: string) => serie(andamentoCitta, codice)
-  let raggiunte = 0, su = 0, giu = 0
-  const tabellone = attivita.map((m) => {
-    const x = totaleCitta.get(m.codice)
-    const r = raggiungimento(x)
-    const prima = totaleCittaPrec.get(m.codice)?.risultato
-    const diff = x?.risultato != null && prima != null ? x.risultato - prima : null
-    if (r !== null && r >= 1) raggiunte++
-    if (diff !== null && diff > 0) su++
-    if (diff !== null && diff < 0) giu++
-    return { m, x, r, diff, serie: serieCitta(m.codice) }
-  })
-  const quotaOk = quotaCitta !== null && quotaCitta >= OBIETTIVO_QUOTA
-  // Portafoglio: dato di zona, senza obiettivo; stessa variazione della copertina
   const nomePortafoglio = ctx.metriche.find((m) => m.codice === 'portafoglio')?.nome ?? 'Portafoglio'
-  const seriePortafoglio = serieCitta('portafoglio')
-  out.push({
-    titolo: `Totali · ${titolo}`,
-    contenuto: (t) => (
-      <div className="p-colonna">
-        <div className="sintesi-griglia">
-          <div className="sintesi" style={{ background: 'var(--ok-bg)', color: 'var(--ok-fg)' }}>
-            <span><Icona nome="target" /></span>
-            <div><span className="p-etichetta">Obiettivi raggiunti</span><strong>{conta(raggiunte, t)} su {attivita.length}</strong><span>attività sopra l'obiettivo {obiettivoDi}</span></div>
-          </div>
-          <div className="sintesi" style={{ background: quotaOk ? 'var(--ok-bg)' : 'var(--ko-bg)', color: quotaOk ? 'var(--ok-fg)' : 'var(--ko-fg)' }}>
-            <span><Icona nome="chart-pie-slice" /></span>
-            <div><span className="p-etichetta">Quota di mercato</span><strong>{formattaPercentuale(quotaCitta)}</strong><span>{quotaCitta === null ? 'dati di zona mancanti' : quotaOk ? '✓ sopra l\'obiettivo del 20%' : '✗ sotto l\'obiettivo del 20%'}</span></div>
-          </div>
-          <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
-            <span><Icona nome="trend-up" /></span>
-            <div><span className="p-etichetta">{parole.prima.charAt(0).toUpperCase() + parole.prima.slice(1)}</span><strong>{su} ▲ · {giu} ▼</strong><span>{su} attività in crescita, {giu} in calo</span></div>
-          </div>
-        </div>
-        <div className="p-card tabellone">
-          <div className="tabellone-riga testa"><span>Attività</span><span>Risultato</span><span>Rispetto all'obiettivo</span><span style={{ textAlign: 'right' }}>%</span><span>{parole.scorso}</span><span>{parole.storico}</span></div>
-          {tabellone.map(({ m, x, r, diff, serie }) => {
-            const s = coloreRapporto(r)
-            return (
-              <div key={m.codice} className="tabellone-riga">
-                <span className="nome">{m.nome}</span>
-                <span className="valori"><strong>{x?.risultato != null ? conta(x.risultato, t) : '—'}</strong><span>/ {x?.obiettivo ?? '—'}</span></span>
-                <div className="barra-obiettivo">
-                  <div className={`pieno-${s}`} style={{ width: `${Math.min(1.3, r ?? 0) / 1.3 * 100 * t}%` }} />
-                  <div className="tacca" style={{ left: `${100 / 1.3}%` }} />
-                </div>
-                <span className={`pct t-${s}`}>{r === null ? '—' : `${Math.round(r * 100)}%`}</span>
-                <span className={`delta ${diff === null || diff === 0 ? '' : diff > 0 ? 'su' : 'giu'}`}>
-                  {diff === null ? '—' : diff === 0 ? '= uguale' : `${diff > 0 ? '▲ +' : '▼ '}${diff} ${parole.vsScorso}`}
-                </span>
-                <GraficoAndamento spark t={t} etichette={etichetteBrevi} nomeSerie={m.nome} risultati={serie.map((z) => z.risultato)} obiettivi={serie.map((z) => z.obiettivo)} />
-              </div>
-            )
-          })}
-          <div className="tabellone-riga riga-zona">
-            <span className="nome">{nomePortafoglio}</span>
-            <span className="valori"><strong>{portafoglio !== null ? conta(portafoglio, t) : '—'}</strong></span>
-            <span className="nota-zona">dato di zona: totale degli uffici, senza obiettivo</span>
-            <span />
-            <span className={`delta ${variazionePortafoglio === null || variazionePortafoglio === 0 ? '' : variazionePortafoglio > 0 ? 'su' : 'giu'}`}>
-              {variazionePortafoglio === null ? '—' : variazionePortafoglio === 0 ? '= uguale' : `${variazionePortafoglio > 0 ? '▲ +' : '▼ '}${variazionePortafoglio} ${parole.vsScorso}`}
-            </span>
-            <GraficoAndamento spark t={t} etichette={etichetteBrevi} nomeSerie={nomePortafoglio} risultati={seriePortafoglio.map((z) => z.risultato)} />
-          </div>
-          <p className="piccolo" style={{ margin: '6px 0 10px' }}>
-            La tacca scura sulla barra è l'obiettivo {obiettivoDi} (100%). Barra verde: raggiunto · ambra: almeno 70% · rossa: sotto il 70%.
-            {periodo.tipo === 'mese' && ' Nel mese le attività sono la somma delle settimane; il portafoglio è quello dell\'ultima settimana inserita.'}
-            {confrontati < conDato && ` Portafoglio: variazione calcolata su ${confrontati} uffici su ${conDato}, quelli che l'hanno inserito in entrambi i periodi.`}
-          </p>
-        </div>
-      </div>
-    ),
-  })
+  const comuni = { attivita, parole, periodo, etichette: etichetteBrevi, nomePortafoglio }
+  out.push(paginaTotali({
+    ...comuni, titolo: `Totali · ${titolo}`, andamento: andamento(uffici), obiettivoDi,
+    portafoglioPrima: { variazione: variazionePortafoglio, confrontati, conDato },
+  }))
+
+  // 2 bis. Per un ufficio: come va tutta la sua città (solo le somme, dal database)
+  if (citta) {
+    out.push(paginaTotali({
+      ...comuni, titolo: `Totali · Tutta ${nomeCitta}`, andamento: citta.andamento, obiettivoDi: 'della città',
+      portafoglioPrima: citta.zona.get('portafoglio') ?? { variazione: null, confrontati: 0, conDato: 0 },
+      nota: `Somma di tutti gli uffici di ${nomeCitta}: ${citta.ufficiConDati} su ${citta.ufficiCitta} hanno inserito dati ${parole.delPeriodo}. I numeri dei singoli uffici non si vedono.`,
+    }))
+  }
 
   // 3. Classifiche, due attività per pagina (solo quelle con almeno un risultato; servono almeno due uffici)
   const compatta = uffici.length > 16
@@ -505,7 +449,7 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
     const qOk = quota !== null && quota >= OBIETTIVO_QUOTA
     const minis = [
       ...attivita.map((m) => {
-        const valori = serie(andamentoUfficio, m.codice)
+        const valori = serieDi(andamentoUfficio, m.codice)
         const ul = valori[valori.length - 1]
         return { nome: m.nome, valore: ul.risultato === null ? '—' : `${ul.risultato}${ul.obiettivo !== null ? ` / ${ul.obiettivo}` : ''}`, ris: valori.map((x) => x.risultato), ob: valori.map((x) => x.obiettivo), pct: false }
       }),
@@ -598,4 +542,94 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
   }
 
   return out
+}
+
+/**
+ * Pagina dei totali: attività rispetto all'obiettivo, quota di mercato, confronto con il periodo prima
+ * e portafoglio. Serve per la città (Riunione), per i propri uffici e, per un ufficio, per tutta la sua città.
+ */
+function paginaTotali({ titolo, andamento, portafoglioPrima, attivita, parole, periodo, etichette, nomePortafoglio, obiettivoDi, nota }: {
+  titolo: string
+  andamento: Totali[]                     // un elemento per periodo, l'ultimo è quello presentato
+  portafoglioPrima: { variazione: number | null; confrontati: number; conDato: number }
+  attivita: Metrica[]; parole: ReturnType<typeof paroleDelPeriodo>; periodo: Periodo; etichette: string[]
+  nomePortafoglio: string; obiettivoDi: string; nota?: string
+}): Diapositiva {
+  const totale = andamento[andamento.length - 1]
+  const totalePrec = andamento[andamento.length - 2] ?? new Map()
+  const quotaCitta = quotaDaTotali(totale)
+  const quotaOk = quotaCitta !== null && quotaCitta >= OBIETTIVO_QUOTA
+  let raggiunte = 0, su = 0, giu = 0
+  const tabellone = attivita.map((m) => {
+    const x = totale.get(m.codice)
+    const r = raggiungimento(x)
+    const prima = totalePrec.get(m.codice)?.risultato
+    const diff = x?.risultato != null && prima != null ? x.risultato - prima : null
+    if (r !== null && r >= 1) raggiunte++
+    if (diff !== null && diff > 0) su++
+    if (diff !== null && diff < 0) giu++
+    return { m, x, r, diff, serie: serieDi(andamento, m.codice) }
+  })
+  // Portafoglio: dato di zona, senza obiettivo; stessa variazione della copertina
+  const portafoglio = totale.get('portafoglio')?.risultato ?? null
+  const { variazione: variazionePortafoglio, confrontati, conDato } = portafoglioPrima
+  const seriePortafoglio = serieDi(andamento, 'portafoglio')
+  return {
+    titolo,
+    contenuto: (t) => (
+      <div className="p-colonna">
+        <div className="sintesi-griglia">
+          <div className="sintesi" style={{ background: 'var(--ok-bg)', color: 'var(--ok-fg)' }}>
+            <span><Icona nome="target" /></span>
+            <div><span className="p-etichetta">Obiettivi raggiunti</span><strong>{conta(raggiunte, t)} su {attivita.length}</strong><span>attività sopra l'obiettivo {obiettivoDi}</span></div>
+          </div>
+          <div className="sintesi" style={{ background: quotaOk ? 'var(--ok-bg)' : 'var(--ko-bg)', color: quotaOk ? 'var(--ok-fg)' : 'var(--ko-fg)' }}>
+            <span><Icona nome="chart-pie-slice" /></span>
+            <div><span className="p-etichetta">Quota di mercato</span><strong>{formattaPercentuale(quotaCitta)}</strong><span>{quotaCitta === null ? 'dati di zona mancanti' : quotaOk ? '✓ sopra l\'obiettivo del 20%' : '✗ sotto l\'obiettivo del 20%'}</span></div>
+          </div>
+          <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
+            <span><Icona nome="trend-up" /></span>
+            <div><span className="p-etichetta">{parole.prima.charAt(0).toUpperCase() + parole.prima.slice(1)}</span><strong>{su} ▲ · {giu} ▼</strong><span>{su} attività in crescita, {giu} in calo</span></div>
+          </div>
+        </div>
+        <div className="p-card tabellone">
+          <div className="tabellone-riga testa"><span>Attività</span><span>Risultato</span><span>Rispetto all'obiettivo</span><span style={{ textAlign: 'right' }}>%</span><span>{parole.scorso}</span><span>{parole.storico}</span></div>
+          {tabellone.map(({ m, x, r, diff, serie }) => {
+            const s = coloreRapporto(r)
+            return (
+              <div key={m.codice} className="tabellone-riga">
+                <span className="nome">{m.nome}</span>
+                <span className="valori"><strong>{x?.risultato != null ? conta(x.risultato, t) : '—'}</strong><span>/ {x?.obiettivo ?? '—'}</span></span>
+                <div className="barra-obiettivo">
+                  <div className={`pieno-${s}`} style={{ width: `${Math.min(1.3, r ?? 0) / 1.3 * 100 * t}%` }} />
+                  <div className="tacca" style={{ left: `${100 / 1.3}%` }} />
+                </div>
+                <span className={`pct t-${s}`}>{r === null ? '—' : `${Math.round(r * 100)}%`}</span>
+                <span className={`delta ${diff === null || diff === 0 ? '' : diff > 0 ? 'su' : 'giu'}`}>
+                  {diff === null ? '—' : diff === 0 ? '= uguale' : `${diff > 0 ? '▲ +' : '▼ '}${diff} ${parole.vsScorso}`}
+                </span>
+                <GraficoAndamento spark t={t} etichette={etichette} nomeSerie={m.nome} risultati={serie.map((z) => z.risultato)} obiettivi={serie.map((z) => z.obiettivo)} />
+              </div>
+            )
+          })}
+          <div className="tabellone-riga riga-zona">
+            <span className="nome">{nomePortafoglio}</span>
+            <span className="valori"><strong>{portafoglio !== null ? conta(portafoglio, t) : '—'}</strong></span>
+            <span className="nota-zona">dato di zona: totale degli uffici, senza obiettivo</span>
+            <span />
+            <span className={`delta ${variazionePortafoglio === null || variazionePortafoglio === 0 ? '' : variazionePortafoglio > 0 ? 'su' : 'giu'}`}>
+              {variazionePortafoglio === null ? '—' : variazionePortafoglio === 0 ? '= uguale' : `${variazionePortafoglio > 0 ? '▲ +' : '▼ '}${variazionePortafoglio} ${parole.vsScorso}`}
+            </span>
+            <GraficoAndamento spark t={t} etichette={etichette} nomeSerie={nomePortafoglio} risultati={seriePortafoglio.map((z) => z.risultato)} />
+          </div>
+          <p className="piccolo" style={{ margin: '6px 0 10px' }}>
+            La tacca scura sulla barra è l'obiettivo {obiettivoDi} (100%). Barra verde: raggiunto · ambra: almeno 70% · rossa: sotto il 70%.
+            {periodo.tipo === 'mese' && ' Nel mese le attività sono la somma delle settimane; il portafoglio è quello dell\'ultima settimana inserita.'}
+            {confrontati < conDato && ` Portafoglio: variazione calcolata su ${confrontati} uffici su ${conDato}, quelli che l'hanno inserito in entrambi i periodi.`}
+            {nota && ` ${nota}`}
+          </p>
+        </div>
+      </div>
+    ),
+  }
 }

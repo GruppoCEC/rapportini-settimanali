@@ -428,10 +428,59 @@ describe('Affiliato (sola consultazione)', () => {
   })
 })
 
+describe('Totali della propria città (Presentazione dell\'ufficio)', () => {
+  beforeAll(async () => {
+    // febbraio 2025 (settimana del 24/2) e marzo 2025 (3/3 e 10/3), lontani dagli altri test
+    await db.exec(`insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato) values
+      (${romaA}, '2025-02-24', 'incarichi', 1, 1), (${romaA}, '2025-02-24', 'portafoglio', null, 40),
+      (${romaA}, '2025-03-03', 'incarichi', 2, 1), (${romaA}, '2025-03-03', 'portafoglio', null, 50),
+      (${romaA}, '2025-03-10', 'incarichi', 2, 3), (${romaA}, '2025-03-10', 'portafoglio', null, 55),
+      (${romaB}, '2025-03-03', 'incarichi', 1, 0), (${romaB}, '2025-03-03', 'portafoglio', null, 30),
+      (${romaC}, '2025-02-24', 'portafoglio', null, 25), (${romaC}, '2025-03-10', 'portafoglio', null, 20),
+      (${milanoA}, '2025-03-03', 'incarichi', 5, 5), (${milanoA}, '2025-03-03', 'portafoglio', null, 999)`)
+  })
+  interface Riga { periodo: number; metrica: string; obiettivo: number | null; risultato: number | null; uffici_con_dato: number; uffici_con_dati: number; variazione: number | null; confrontati: number | null; uffici_citta: number }
+  const totali = async (email: string, inizi: string[], fini: string[]) =>
+    (await come<Riga>(email, `select * from totali_mia_citta($1::date[], $2::date[])`, [inizi, fini]))
+      .map((r) => ({ ...r, obiettivo: r.obiettivo === null ? null : Number(r.obiettivo), risultato: r.risultato === null ? null : Number(r.risultato), variazione: r.variazione === null ? null : Number(r.variazione) }))
+  const voce = (righe: Riga[], periodo: number, metrica: string) => righe.find((r) => r.periodo === periodo && r.metrica === metrica)
+
+  it('l\'ufficio riceve le somme della sua città, mese per mese, senza l\'altra città', async () => {
+    const righe = await totali('a@test.it', ['2025-02-24', '2025-03-03'], ['2025-02-24', '2025-03-24'])
+    // marzo: attività sommate su uffici e settimane; portafoglio all'ultima settimana di ogni ufficio
+    expect(voce(righe, 2, 'incarichi')).toMatchObject({ obiettivo: 5, risultato: 4, uffici_con_dato: 2, uffici_con_dati: 3, variazione: null, uffici_citta: 3 })
+    expect(voce(righe, 2, 'portafoglio')).toMatchObject({ obiettivo: null, risultato: 55 + 30 + 20, uffici_con_dato: 3 })
+    // variazione sul mese prima solo per chi ha il dato in entrambi: Roma A +15, Roma C −5 (Roma B non c'era a febbraio)
+    expect(voce(righe, 2, 'portafoglio')).toMatchObject({ variazione: 10, confrontati: 2 })
+    expect(voce(righe, 1, 'portafoglio')).toMatchObject({ risultato: 65, variazione: null, confrontati: 0, uffici_con_dati: 2 })
+  })
+
+  it('anche settimana per settimana', async () => {
+    const righe = await totali('b@test.it', ['2025-03-03', '2025-03-10'], ['2025-03-03', '2025-03-10'])
+    expect(voce(righe, 2, 'portafoglio')).toMatchObject({ risultato: 75, variazione: 5, confrontati: 1 })
+    expect(voce(righe, 1, 'incarichi')).toMatchObject({ obiettivo: 3, risultato: 1 })
+  })
+
+  it('l\'ufficio di Milano vede solo Milano', async () => {
+    const righe = await totali('m@test.it', ['2025-03-03'], ['2025-03-24'])
+    expect(voce(righe, 1, 'portafoglio')).toMatchObject({ risultato: 999, uffici_con_dati: 1 })
+  })
+
+  it('agli altri account non restituisce nulla, e senza accesso non si può chiamare', async () => {
+    for (const email of ['davide@test.it', 'resp@test.it', 'rapportini+aff@gmail.com', 'estraneo@test.it']) {
+      expect(await totali(email, ['2025-03-03'], ['2025-03-24'])).toHaveLength(0)
+    }
+    await db.exec(`set role anon`)
+    try {
+      await expect(db.query(`select * from totali_mia_citta(array['2025-03-03']::date[], array['2025-03-24']::date[])`)).rejects.toThrow()
+    } finally { await db.exec('reset role') }
+  })
+})
+
 describe('Migrazioni rieseguite', () => {
-  it('006 e 007 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006, 007 e 008 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

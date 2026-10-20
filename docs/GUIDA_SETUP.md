@@ -218,6 +218,17 @@ quelli in portafoglio. Il sito la calcola già così; va aggiornato **una volta 
 2. Copia **tutto** il file `supabase/migrations/007_quota_mercato.sql`, incollalo e premi **Run**.
    Deve comparire "Success. No rows returned".
 
+## Totali della città per gli uffici (dalla versione 0.8.0)
+
+Nella Presentazione di ogni ufficio c'è la pagina con i totali di tutta la sua città. Per farla
+funzionare va aggiunta **una volta sola** una funzione al database:
+1. Supabase → il progetto → **SQL Editor** → **New query**.
+2. Copia **tutto** il file `supabase/migrations/008_totali_citta.sql`, incollalo e premi **Run**.
+   Deve comparire "Success. No rows returned".
+
+La funzione manda all'ufficio solo le somme della sua città, mai i numeri dei singoli altri uffici.
+Finché non la esegui, la Presentazione degli uffici funziona come prima, senza la pagina della città.
+
 ---
 
 ## Provare il sito sul Mac
