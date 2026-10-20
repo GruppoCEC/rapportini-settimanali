@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   aggiungiMesi, formattaAnzianita, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
-  righeDelMese, sommaTotali, statoMensile, STAFF, titoloMese, totaleUfficio, ultimoGiornoDelMese, variazione,
+  righeDelMese, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione,
 } from './mensile'
-import type { Persona, Ufficio, ValoreMensile, VoceMensile } from './tipi'
+import type { Persona, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
 
 const voci: VoceMensile[] = [
   { codice: 'colloqui', gruppo: 'Colloqui', sotto: null, ordine: 1 },
@@ -134,6 +134,40 @@ describe('riepilogo dell\'anno', () => {
     expect(totale.get(STAFF)).toBe(2)                 // a marzo: persone 1 e 3
     expect(mesiCompilati).toBe(3)
     expect(perMese[1].get(STAFF)).toBe(1)             // a febbraio la persona 2 non conta già più
+  })
+})
+
+describe('storico dal file Excel annuale', () => {
+  const persone = [persona(1, 'collaboratore', '2020-01-01'), persona(2, 'responsabile', '2020-01-01')]
+  const st = (mese: string, voce: string, valore: number | null): StoricoMensile => ({ ufficio_id: 1, mese, voce, valore })
+  const storico = [st('2026-01-01', 'colloqui', 7), st('2026-01-01', STAFF, 5), st('2026-01-01', 'voce_sconosciuta', 9), st('2026-02-01', 'colloqui', 4)]
+
+  it('senza numeri persona per persona vale il totale dell\'Excel, staff compreso', () => {
+    const { totale, daStorico } = totaleConStorico(persone, [], '2026-01-01', voci, storico)
+    expect(daStorico).toBe(true)
+    expect(totale.get('colloqui')).toBe(7)
+    expect(totale.get('proposte_vendita')).toBeNull()      // cella vuota nell'Excel
+    expect(totale.get(STAFF)).toBe(5)                      // lo staff dell'Excel, non le persone di oggi
+    expect(totale.has('voce_sconosciuta')).toBe(false)
+  })
+
+  it('appena ci sono numeri persona per persona, valgono quelli', () => {
+    const { totale, daStorico } = totaleConStorico(persone, [val(1, 'colloqui', 2, '2026-01-01')], '2026-01-01', voci, storico)
+    expect(daStorico).toBe(false)
+    expect(totale.get('colloqui')).toBe(2)
+    expect(totale.get(STAFF)).toBe(2)
+  })
+
+  it('senza storico per il mese il totale è quello di sempre', () => {
+    expect(totaleConStorico(persone, [], '2026-03-01', voci, storico)).toEqual({ totale: totaleUfficio(persone, [], '2026-03-01', voci), daStorico: false })
+  })
+
+  it('il riepilogo dell\'anno somma storico e mesi della piattaforma', () => {
+    const valori = [val(1, 'colloqui', 3, '2026-03-01')]
+    const { totale, mesiCompilati } = totaleAnnoUfficio(persone, valori, mesiDellAnno('2026', '2026-03-01'), voci, storico)
+    expect(totale.get('colloqui')).toBe(7 + 4 + 3)
+    expect(mesiCompilati).toBe(3)
+    expect(totale.get(STAFF)).toBe(2)                      // a marzo, dalla piattaforma
   })
 })
 

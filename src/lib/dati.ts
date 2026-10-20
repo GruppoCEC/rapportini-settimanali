@@ -2,7 +2,7 @@
 // automaticamente: ognuno riceve solo le righe che può vedere.
 import { supabase } from './supabase'
 import { totaliCittaDaRighe, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
-import type { Metrica, Persona, Rilevazione, Scadenza, Utente, ValoreMensile, VoceMensile } from './tipi'
+import type { Metrica, Persona, Rilevazione, Scadenza, StoricoMensile, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
 
@@ -119,7 +119,23 @@ export async function caricaValoriMesi(mesi: string[], ufficiIds: number[]): Pro
   return perMese.flat()
 }
 
-/** Totali di gruppo dello stesso mese dell'anno prima, scritti a mano (voce → valore) */
+/**
+ * Totali degli uffici dal file Excel annuale (mesi compilati prima della piattaforma), per i mesi indicati.
+ * Vuoto se la tabella non c'è ancora nel database (009_storico_mensile.sql): il report funziona come prima.
+ */
+export async function caricaStorico(mesi: string[], ufficiIds: number[]): Promise<StoricoMensile[]> {
+  if (mesi.length === 0 || ufficiIds.length === 0) return []
+  try {
+    return await aPagine<StoricoMensile>((da, a) => supabase.from('totali_mensili_storico')
+      .select('ufficio_id, mese, voce, valore')
+      .in('mese', mesi).in('ufficio_id', ufficiIds)
+      .order('mese').order('ufficio_id').order('voce').range(da, a))
+  } catch {
+    return []
+  }
+}
+
+/** Totali di gruppo dello stesso mese dell'anno prima, scritti a mano o dal file Excel annuale (voce → valore) */
 export async function caricaConfronto(mese: string): Promise<Map<string, number | null>> {
   const { data, error } = await supabase.from('confronto_anno_prima').select('voce, valore').eq('mese', mese)
   if (error) throw new Error(error.message)

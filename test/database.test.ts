@@ -477,10 +477,33 @@ describe('Totali della propria città (Presentazione dell\'ufficio)', () => {
   })
 })
 
+describe('Storico mensile dal file Excel annuale', () => {
+  const inserisci = `insert into totali_mensili_storico (ufficio_id, mese, voce, valore) values ($1, '2026-01-01', 'colloqui', 3), ($1, '2026-01-01', 'staff', 4)`
+
+  it('lo carica solo l\'amministratore generale', async () => {
+    for (const u of [romaA, romaB, milanoA]) await come('davide@test.it', inserisci, [u])
+    await rifiutata('a@test.it', inserisci, [romaC])
+    await rifiutata('adminmi@test.it', inserisci, [romaC])
+    await rifiutata('rapportini+aff@gmail.com', inserisci, [romaC])
+    expect(await come('adminmi@test.it', `update totali_mensili_storico set valore = 0 returning *`)).toHaveLength(0)
+    await rifiutata('davide@test.it', `insert into totali_mensili_storico (ufficio_id, mese, voce, valore) values ($1, '2026-01-15', 'colloqui', 1)`, [romaC])
+  })
+
+  it('lo vede chi vede l\'ufficio', async () => {
+    const uffici = async (email: string) =>
+      (await come<{ ufficio_id: number }>(email, `select distinct ufficio_id from totali_mensili_storico order by 1`)).map((r) => Number(r.ufficio_id))
+    expect(await uffici('a@test.it')).toEqual([romaA])
+    expect(await uffici('adminmi@test.it')).toEqual([milanoA])
+    expect(await uffici('rapportini+aff@gmail.com')).toEqual([romaB, milanoA])
+    expect(await uffici('davide@test.it')).toEqual([romaA, romaB, milanoA])
+    expect(await uffici('estraneo@test.it')).toEqual([])
+  })
+})
+
 describe('Migrazioni rieseguite', () => {
-  it('006, 007 e 008 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–009 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

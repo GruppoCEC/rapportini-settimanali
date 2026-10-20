@@ -189,10 +189,23 @@ for (const mese of mesiDemo.slice(-3)) {
   confronto_anno_prima.push({ mese: aggiungiMesi(mese, -12), voce: 'staff', valore: persone.filter((p) => inServizio(p, mese)).length - tra(0, 6) })
 }
 
+// Storico dal file Excel annuale: per i mesi dell'anno prima di quelli della demo, solo il totale di ogni ufficio
+const totali_mensili_storico: any[] = []
+for (let mese = `${meseDaCompilare.slice(0, 4)}-01-01`; mese < mesiDemo[0]; mese = aggiungiMesi(mese, 1)) {
+  for (const u of uffici) {
+    const staff = tra(3, 7)
+    totali_mensili_storico.push({ ufficio_id: u.id, mese, voce: 'staff', valore: staff })
+    for (const [voce, [min, max]] of Object.entries(TIPICI)) {
+      if (caso() < 0.15) continue                      // qualche cella vuota, come nell'Excel
+      totali_mensili_storico.push({ ufficio_id: u.id, mese, voce, valore: Math.round(tra(min, max) * staff * 0.6) })
+    }
+  }
+}
+
 // Scadenza di esempio per il mese da compilare: il 5 del mese dopo alle 23:59, senza blocco
 const scadenze_mensili: any[] = [{ mese: meseDaCompilare, scadenza: new Date(`${aggiungiMesi(meseDaCompilare, 1).slice(0, 8)}05T23:59:00`).toISOString(), blocca: false }]
 
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili }
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico }
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
 const CHIAVE = 'rapportini.demo.utente'
@@ -219,7 +232,7 @@ function visibile(tabella: string, riga: any): boolean {
     case 'aree': return riga.citta_id === me.citta_id || gestisce(riga.citta_id)
     case 'utenti': return riga.email === me.email || gestisce(riga.citta_id)
     case 'uffici_affiliato': return me.ruolo === 'admin_generale' || riga.nome_utente === me.nome_utente
-    case 'rilevazioni': case 'note_settimana': case 'persone': case 'valori_mensili': return ufficiLeggibili().has(riga.ufficio_id)
+    case 'rilevazioni': case 'note_settimana': case 'persone': case 'valori_mensili': case 'totali_mensili_storico': return ufficiLeggibili().has(riga.ufficio_id)
     case 'confronto_anno_prima': return me.ruolo === 'admin_generale'
     case 'punti_mensili': return me.ruolo === 'admin_generale' || me.ruolo === 'admin_citta'
     default: return true

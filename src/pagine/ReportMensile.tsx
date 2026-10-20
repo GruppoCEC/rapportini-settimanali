@@ -4,12 +4,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PROMEMORIA_ATTIVI, type Contesto } from '../lib/contesto'
 import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
-import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaValoriMensili, caricaValoriMesi, caricaVociMensili, mensileAperto } from '../lib/dati'
+import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaStorico, caricaValoriMensili, caricaValoriMesi, caricaVociMensili, mensileAperto } from '../lib/dati'
 import { AvvisoProva } from './RapportinoMensile'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
   punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, dataOra, scadenzaPassata, scadenzaProposta, ultimoRitardo,
-  indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleUfficio, variazione,
+  indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleConStorico, variazione,
   vociDelRapportino, type TotaliMese,
 } from '../lib/mensile'
 import { supabase } from '../lib/supabase'
@@ -37,6 +37,7 @@ interface DatiUfficio {
   totale: TotaliMese
   stato: StatoCompilazione
   ritardo: string | null              // ultimo inserimento arrivato dopo la scadenza
+  daStorico: boolean                  // il totale viene dal file Excel annuale (mese compilato prima della piattaforma)
 }
 
 interface DatiMese {
@@ -60,11 +61,12 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
   const ids = uffici.map((u) => u.id)
 
   const dati = useDati<DatiMese>(async () => {
-    const [voci, persone, valori, confronto, punti, scadenza] = await Promise.all([
+    const [voci, persone, valori, confronto, punti, scadenza, storico] = await Promise.all([
       caricaVociMensili(), caricaPersone(ids), caricaValoriMensili(mese, ids),
       generale ? caricaConfronto(aggiungiMesi(mese, -12)) : Promise.resolve(new Map<string, number | null>()),
       affiliato ? Promise.resolve(new Map<string, number>()) : caricaPunti(),   // la gara a punti è riservata agli amministratori
       caricaScadenza(mese),
+      caricaStorico([mese], ids),
     ])
     return {
       voci,
@@ -74,10 +76,10 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
       uffici: uffici.map((ufficio) => {
         const suePersone = persone.filter((p) => p.ufficio_id === ufficio.id)
         const suoiValori = valori.filter((v) => v.ufficio_id === ufficio.id)
+        const { totale, daStorico } = totaleConStorico(suePersone, suoiValori, mese, voci, storico.filter((s) => s.ufficio_id === ufficio.id))
         return {
-          ufficio, persone: suePersone, valori: suoiValori,
-          totale: totaleUfficio(suePersone, suoiValori, mese, voci),
-          stato: statoMensile(suePersone.filter((p) => inServizio(p, mese)), suoiValori, voci),
+          ufficio, persone: suePersone, valori: suoiValori, totale, daStorico,
+          stato: daStorico ? 'completo' : statoMensile(suePersone.filter((p) => inServizio(p, mese)), suoiValori, voci),
           ritardo: ultimoRitardo(suoiValori, scadenza),
         }
       }),
@@ -167,6 +169,7 @@ function Panoramica({ dati, mese, titolo, generale, affiliato, ctx, onSalvato }:
       <th scope="row" className="ufficio-fisso">
         {u.ufficio.nome}{piuCitta && u.ufficio.citta_id !== ctx.citta[0]?.id && <span className="sigla-citta">{nomeCittaBreve(ctx, u.ufficio.citta_id)}</span>}
         {u.ritardo && !affiliato && <span className="tag tag-ritardo" title={`Ultimo inserimento il ${dataOra(u.ritardo)}`}>in ritardo</span>}
+        {u.daStorico && <span className="tag tag-storico" title="Totale dell'ufficio preso dal file Excel annuale">Excel</span>}
       </th>
       {colonne.map((c) => <td key={c} className={`destra ${u.totale.get(c) == null ? 'cella-vuota' : ''}`}>{formattaNumero(u.totale.get(c))}</td>)}
     </tr>
@@ -198,7 +201,7 @@ function Panoramica({ dati, mese, titolo, generale, affiliato, ctx, onSalvato }:
               {generale && (
                 <>
                   <tr className="riga-anno-prima">
-                    <th scope="row" className="ufficio-fisso">{titoloMese(meseAnnoPrima)}<span className="piccolo non-stampa">scritto a mano</span></th>
+                    <th scope="row" className="ufficio-fisso">{titoloMese(meseAnnoPrima)}<span className="piccolo non-stampa">modificabile</span></th>
                     {colonne.map((c) => (
                       <td key={c} className="destra">
                         <input inputMode="numeric" value={annoPrima[c] ?? ''} aria-label={`${titoloMese(meseAnnoPrima)} – ${c}`}
@@ -223,11 +226,12 @@ function Panoramica({ dati, mese, titolo, generale, affiliato, ctx, onSalvato }:
         </div>
         <p className="legenda-stampa">
           Staff = persone in servizio nel mese. Le righe con i trattini sono gli uffici che non hanno ancora compilato.
+          {dati.uffici.some((u) => u.daStorico) && ' «Excel» accanto all\'ufficio: numeri presi dal file Excel annuale (solo il totale dell\'ufficio).'}
         </p>
         {generale && (
           <div className="barra-confronto non-stampa">
             <p className="piccolo">
-              La riga <strong>{titoloMese(meseAnnoPrima)}</strong> si scrive a mano (totali di gruppo dello stesso mese dell'anno prima): serve a calcolare la variazione.
+              La riga <strong>{titoloMese(meseAnnoPrima)}</strong> contiene i totali di gruppo dello stesso mese dell'anno prima (caricati dal file Excel annuale, o scritti a mano): serve a calcolare la variazione.
             </p>
             {errore && <span className="errore">{errore}</span>}
             <button className="btn btn-primario" disabled={modificate.length === 0 || salvataggio} onClick={salvaConfronto}>
@@ -330,13 +334,15 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
   const ids = uffici.map((u) => u.id)
 
   const dati = useDati(async () => {
-    const [voci, persone, valori] = await Promise.all([caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids)])
+    const [voci, persone, valori, storico] = await Promise.all([caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids), caricaStorico(mesi, ids)])
     return {
       voci,
       righe: uffici.map((ufficio) => ({
         ufficio,
-        ...totaleAnnoUfficio(persone.filter((p) => p.ufficio_id === ufficio.id), valori.filter((v) => v.ufficio_id === ufficio.id), mesi, voci),
+        ...totaleAnnoUfficio(persone.filter((p) => p.ufficio_id === ufficio.id), valori.filter((v) => v.ufficio_id === ufficio.id), mesi, voci,
+          storico.filter((s) => s.ufficio_id === ufficio.id)),
       })),
+      conStorico: storico.length > 0,
     }
   }, [anno, ids.join(','), ultimo])
 
@@ -354,7 +360,7 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
       </div>
       {mesi.length === 0 ? <div className="scheda"><p className="piccolo">Nessun mese concluso nel {anno}.</p></div>
         : !dati.dati ? <Caricamento errore={dati.errore} /> : (() => {
-          const { voci: tutte, righe } = dati.dati
+          const { voci: tutte, righe, conStorico } = dati.dati
           const voci = vociDelRapportino(tutte)
           const colonne = [STAFF, ...voci.map((v) => v.codice)]
           const totale = sommaTotali(righe.map((r) => r.totale))
@@ -390,7 +396,10 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
                     </tbody>
                   </table>
                 </div>
-                <p className="legenda-stampa">"n mesi su {mesi.length}" accanto all'ufficio: nell'anno ha compilato solo quei mesi, quindi i suoi totali sono parziali.</p>
+                <p className="legenda-stampa">
+                  "n mesi su {mesi.length}" accanto all'ufficio: nell'anno ha compilato solo quei mesi, quindi i suoi totali sono parziali.
+                  {conStorico && ' I mesi compilati prima della piattaforma vengono dal file Excel annuale (totale di ogni ufficio).'}
+                </p>
               </section>
 
               <section className="scheda scheda-stampa">
@@ -443,7 +452,8 @@ function SingoliRapportini({ dati, mese, affiliato }: { dati: DatiMese; mese: st
         {recente?.aggiornato_il && <span className="piccolo">Ultimo salvataggio: {new Date(recente.aggiornato_il).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}</span>}
       </div>
       {u.stato === 'mancante' && <p className="avviso avviso-arancio non-stampa"><Icona nome="warning-circle" /><span>{u.ufficio.nome} non ha ancora inserito i numeri di {titoloMese(mese).toLowerCase()}.</span></p>}
-      <TabellaRapportino voci={dati.voci} mese={mese} righe={righeDelMese(u.persone, mese)} totale={u.totale} testo={testo}
+      {u.daStorico && <p className="avviso"><Icona nome="file-xls" /><span>Per {titoloMese(mese).toLowerCase()} c'è solo il <strong>totale dell'ufficio</strong>, preso dal file Excel annuale: il dettaglio persona per persona non c'è.</span></p>}
+      <TabellaRapportino voci={dati.voci} mese={mese} righe={u.daStorico ? [] : righeDelMese(u.persone, mese)} totale={u.totale} testo={testo}
         titoloStampa={<TitoloStampa titolo={`Rapportino mensile · ${u.ufficio.nome}`} sottotitolo={titoloMese(mese)} info={`Staff: ${formattaNumero(u.totale.get(STAFF))} persone`} />} />
       {!affiliato && <p className="piccolo non-stampa">Per correggere i numeri di un ufficio apri <strong>Rapportino mensile</strong> e scegli l'ufficio in alto.</p>}
     </section>

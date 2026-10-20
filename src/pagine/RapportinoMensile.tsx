@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { nomeDaEmail } from '../lib/account'
 import { leggiNumero } from '../lib/calcoli'
-import { caricaPersone, caricaScadenza, caricaValoriMensili, caricaVociMensili, mensileAperto } from '../lib/dati'
+import { caricaPersone, caricaScadenza, caricaStorico, caricaValoriMensili, caricaVociMensili, mensileAperto } from '../lib/dati'
 import {
   dataItaliana, dataOra, inServizio, meseChiuso, mesePredefinito, scadenzaPassata, ordinaPersone, righeDelMese, titoloMese, totaleUfficio, ORDINE_RUOLI,
 } from '../lib/mensile'
@@ -55,6 +55,7 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
   const [mese, setMese] = useState(mesePredefinito())
   const [persone, setPersone] = useState<Persona[]>([])
   const [scadenza, setScadenza] = useState<Scadenza | null>(null)
+  const [conStorico, setConStorico] = useState(false)       // per questo mese c'è il totale dal file Excel annuale
   const [caselle, setCaselle] = useState<Caselle>({})
   const [originali, setOriginali] = useState<Caselle>({})
   const [ultimoSalvataggio, setUltimoSalvataggio] = useState<{ quando: string; chi: string | null } | null>(null)
@@ -82,10 +83,11 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
   useEffect(() => {
     let annullato = false
     setStato('caricamento')
-    Promise.all([caricaPersone([ufficioId]), caricaValoriMensili(mese, [ufficioId]), caricaScadenza(mese)])
-      .then(([p, valori, sc]) => {
+    Promise.all([caricaPersone([ufficioId]), caricaValoriMensili(mese, [ufficioId]), caricaScadenza(mese), caricaStorico([mese], [ufficioId])])
+      .then(([p, valori, sc, storico]) => {
         if (annullato) return
         setScadenza(sc)
+        setConStorico(storico.length > 0)
         const salvate: Caselle = {}
         for (const v of valori) if (v.valore !== null) salvate[chiave(v.persona_id, v.voce)] = String(v.valore)
         const recente = valori.filter((v) => v.aggiornato_il).sort((a, b) => b.aggiornato_il!.localeCompare(a.aggiornato_il!))[0]
@@ -183,6 +185,11 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
           </p>
         )}
         {!inProva && <AvvisoScadenza scadenza={scadenza} amministratore={amministratore} />}
+        {conStorico && stato !== 'caricamento' && (
+          <p className="avviso compare"><Icona nome="file-xls" />
+            <span>Per {titoloMese(mese).toLowerCase()} il report usa il <strong>totale dell'ufficio dal file Excel annuale</strong>. Se inserisci qui i numeri persona per persona, il report userà quelli al posto del totale dell'Excel.</span>
+          </p>
+        )}
         <AvvisoUscite persone={persone} mese={mese} />
         <TabellaRapportino voci={voci} mese={mese} righe={righe} totale={totale} modificabile disattivo={disattivo} errate={errate}
           testo={(pid, voce) => caselle[chiave(pid, voce)] ?? ''}

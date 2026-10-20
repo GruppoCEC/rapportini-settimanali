@@ -1,5 +1,21 @@
 # Storia delle versioni
 
+## 0.9.0 — 20 ottobre 2026
+
+**Storico 2026 e confronto 2025 dal file Excel annuale** (richiesta di Davide, file "BIGOLI C.E.C. ANNO 2026"):
+- **storico gennaio–settembre 2026**: il file Excel ha, per ogni mese, il totale di ogni ufficio (non le singole persone). Questi totali sono conservati in una nuova tabella del database (`totali_mensili_storico`);
+- il **Report mensile** li usa per un ufficio solo nei mesi in cui l'ufficio non ha numeri inseriti persona per persona:
+  - in **Panoramica** accanto all'ufficio compare «Excel»;
+  - in **Singoli rapportini** c'è solo la riga del totale, con un avviso;
+  - il **Riepilogo anno** somma i mesi dell'Excel e quelli inseriti sulla piattaforma;
+- se un ufficio inserisce i numeri di un mese persona per persona (Inserisci mese), valgono quelli al posto del totale dell'Excel. La pagina lo dice con un avviso;
+- **confronto con il 2025**: la riga "<Mese> 2025" di ogni foglio va nella riga dell'anno prima del Report mensile (gennaio–dicembre 2025), che finora si scriveva a mano. Resta modificabile;
+- controlli fatti sul file:
+  - in gennaio, aprile e giugno–settembre la somma degli uffici è identica alla riga TOTALE dell'Excel;
+  - in febbraio, marzo e maggio la differenza è esattamente "St. Appio Latino", che non è sulla piattaforma e quindi non è stato importato;
+- nuovo script `scripts/importa-mensile-excel.mjs`: legge il file Excel, controlla intestazioni e nomi degli uffici riga per riga, e prepara `import/sql/STORICO_MENSILE_2026.sql` (si può rieseguire: ricarica da capo i mesi del file);
+- **da fare una volta in Supabase**: eseguire `009_storico_mensile.sql`, poi `import/sql/STORICO_MENSILE_2026.sql` (vedi `docs/GUIDA_SETUP.md`).
+
 ## 0.8.0 — 20 ottobre 2026
 
 **Ogni ufficio vede come va tutta la sua città** (richiesta di Davide):

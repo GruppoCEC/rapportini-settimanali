@@ -5,7 +5,7 @@
 // - Variazione = (mese − stesso mese dell'anno prima) ÷ anno prima; vuota se non calcolabile (mai #DIV/0!).
 import type { StatoCompilazione } from './aggregazioni'
 import { aggiungiGiorni, nomeMese, oggiISO } from './settimane'
-import type { Persona, RuoloPersona, Scadenza, Ufficio, ValoreMensile, VoceMensile } from './tipi'
+import type { Persona, RuoloPersona, Scadenza, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
 
 /** Chiave dello staff nei totali (non è una colonna da compilare) */
 export const STAFF = 'staff'
@@ -211,6 +211,24 @@ export function totaleUfficio(persone: Persona[], valori: ValoreMensile[], mese:
   return totali
 }
 
+/**
+ * Totale dell'ufficio nel mese, tenendo conto dello storico dal file Excel annuale: se l'ufficio non ha
+ * numeri persona per persona in quel mese ma c'è il suo totale nello storico, vale quello (staff compreso).
+ * Appena l'ufficio inserisce i numeri persona per persona, lo storico di quel mese non conta più.
+ * `persone`, `valori` e `storico` sono quelli di un solo ufficio.
+ */
+export function totaleConStorico(persone: Persona[], valori: ValoreMensile[], mese: string, voci: VoceMensile[], storico: StoricoMensile[]):
+  { totale: TotaliMese; daStorico: boolean } {
+  const calcolato = totaleUfficio(persone, valori, mese, voci)
+  const delMese = storico.filter((s) => s.mese === mese)
+  const haNumeri = [...calcolato].some(([k, v]) => k !== STAFF && v !== null)
+  if (haNumeri || delMese.length === 0) return { totale: calcolato, daStorico: false }
+  const totale: TotaliMese = new Map(vociDelRapportino(voci).map((v) => [v.codice, null]))
+  totale.set(STAFF, null)
+  for (const s of delMese) if (totale.has(s.voce)) totale.set(s.voce, s.valore)
+  return { totale, daStorico: true }
+}
+
 /** I mesi di un anno da riepilogare: gennaio … dicembre, ma non oltre `ultimo` (anno in corso) */
 export function mesiDellAnno(anno: string, ultimo: string = mesePredefinito()): string[] {
   return Array.from({ length: 12 }, (_, i) => `${anno}-${String(i + 1).padStart(2, '0')}-01`).filter((m) => m <= ultimo)
@@ -218,10 +236,11 @@ export function mesiDellAnno(anno: string, ultimo: string = mesePredefinito()): 
 
 /**
  * Riepilogo dell'anno di un ufficio: ogni voce è la somma dei totali dei mesi (stesse regole del mese:
- * chi esce non conta nel mese in cui esce). Lo staff è quello dell'ultimo mese, non una somma.
+ * chi esce non conta nel mese in cui esce; i mesi senza numeri persona per persona usano lo storico).
+ * Lo staff è quello dell'ultimo mese, non una somma.
  */
-export function totaleAnnoUfficio(persone: Persona[], valori: ValoreMensile[], mesi: string[], voci: VoceMensile[]) {
-  const perMese = mesi.map((m) => totaleUfficio(persone, valori, m, voci))
+export function totaleAnnoUfficio(persone: Persona[], valori: ValoreMensile[], mesi: string[], voci: VoceMensile[], storico: StoricoMensile[] = []) {
+  const perMese = mesi.map((m) => totaleConStorico(persone, valori, m, voci, storico).totale)
   const totale = sommaTotali(perMese.map((t) => new Map([...t].filter(([k]) => k !== STAFF))))
   totale.set(STAFF, perMese.length ? perMese[perMese.length - 1].get(STAFF) ?? null : null)
   const mesiCompilati = perMese.filter((t) => [...t].some(([k, v]) => k !== STAFF && v !== null)).length

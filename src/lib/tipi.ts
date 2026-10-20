@@ -102,6 +102,17 @@ export const NOMI_RUOLO_PERSONA: Record<RuoloPersona, string> = {
   marketer: 'Marketer',
 }
 
+/**
+ * Totale di un ufficio in un mese compilato prima della piattaforma, dal file Excel annuale di gruppo
+ * (solo il totale dell'ufficio, non le singole persone). voce = colonna del rapportino o 'staff'.
+ */
+export interface StoricoMensile {
+  ufficio_id: number
+  mese: string                // 'AAAA-MM-01'
+  voce: string
+  valore: number | null
+}
+
 /** Scadenza per inserire i numeri di un mese (decisa dall'amministratore generale) */
 export interface Scadenza {
   mese: string                // 'AAAA-MM-01'

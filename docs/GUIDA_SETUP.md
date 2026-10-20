@@ -229,6 +229,21 @@ funzionare va aggiunta **una volta sola** una funzione al database:
 La funzione manda all'ufficio solo le somme della sua città, mai i numeri dei singoli altri uffici.
 Finché non la esegui, la Presentazione degli uffici funziona come prima, senza la pagina della città.
 
+## Storico mensile dal file Excel annuale (dalla versione 0.9.0)
+
+I totali di ogni ufficio da gennaio a settembre 2026 e il confronto con il 2025 vengono dal file
+"BIGOLI C.E.C. ANNO 2026". Si caricano **una volta sola**, in due passi:
+1. Supabase → il progetto → **SQL Editor** → **New query**. Copia **tutto** il file
+   `supabase/migrations/009_storico_mensile.sql`, incollalo e premi **Run**
+   ("Success. No rows returned").
+2. **New query** di nuovo. Copia **tutto** il file `import/sql/STORICO_MENSILE_2026.sql`, incollalo e premi **Run**.
+   In basso compare una tabella con un mese per riga (da gennaio a settembre) e il numero di uffici.
+   Se invece compare "Uffici non trovati sulla piattaforma", non è stato cambiato nulla: scrivi il nome indicato a Claude.
+
+Il passo 2 si può rifare quando il file Excel cambia: prima si rigenera il file SQL dal Terminale con
+`node scripts/importa-mensile-excel.mjs "Rapportini mensili/BIGOLI C.E.C. ANNO 2026.xlsx"`.
+Attenzione: il passo 2 sostituisce anche la riga "anno prima" del Report mensile scritta a mano, per i mesi del 2025.
+
 ---
 
 ## Provare il sito sul Mac

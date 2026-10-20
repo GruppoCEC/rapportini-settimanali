@@ -675,6 +675,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tag-wip { flex: none; padding: 4px 10px; border-radius: 6px; background: #2D2B2B; color: #FFE266; font: 800 12px var(--font-testo); letter-spacing: .1em; text-transform: uppercase; }
 .avviso-scadenza-chiusa i { color: var(--ko-fg); }
 .tag-ritardo { margin-left: 6px; background: var(--secondario-200); color: var(--secondario-900); font-size: 10px; padding: 1px 7px; }
+.tag-storico { margin-left: 6px; background: var(--primario-100); color: var(--primario-700); font-size: 10px; padding: 1px 7px; }
 .scheda-scadenza { gap: 12px; }
 .casella-spunta { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; font-weight: 600; color: var(--testo-2); cursor: pointer; }
 .casella-spunta input { width: 18px; height: 18px; accent-color: var(--primario); }
@@ -819,6 +820,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 
   /* Etichette */
   .tag-ritardo { background: none !important; color: var(--secondario-800) !important; border: .6pt solid var(--secondario-500); font-size: 7pt; padding: 0 4px; }
+  .tag-storico { background: none !important; color: var(--primario-700) !important; border: .6pt solid var(--primario-300); font-size: 7pt; padding: 0 4px; }
   .sigla-citta { color: var(--secondario-700); }
 
   /* Usciti nell'anno */
