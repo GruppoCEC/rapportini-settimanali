@@ -1,5 +1,23 @@
 # Storia delle versioni
 
+## 0.7.0 — 20 ottobre 2026
+
+**Presentazione per uffici e affiliati, settimanale o mensile** (richiesta di Davide):
+- nuova voce di menu **Presentazione** per gli **uffici** e per gli **affiliati**: è la stessa presentazione a tutto schermo della Riunione degli amministratori, ma con i soli dati
+  - del proprio ufficio, per un ufficio;
+  - degli uffici assegnati, per un affiliato (anche di Roma e Milano insieme);
+- prima di avviarla si sceglie **Settimana** o **Mese** (stessi pulsanti e frecce ‹ › del Cruscotto). Vale anche per la **Riunione** degli amministratori;
+- nel **mese**:
+  - le attività sono la somma delle settimane che hanno il giovedì nel mese; il portafoglio è quello dell'ultima settimana inserita (stesse regole del Cruscotto);
+  - il confronto è con il **mese prima** e i grafici mostrano gli **ultimi 6 mesi** (nella settimana: settimana prima e ultime 8 settimane);
+  - un ufficio è "completo" se ha completato tutte le settimane già concluse del mese; se il mese non è finito la copertina lo dice ("mese in corso");
+  - nella pagina dell'ufficio compaiono le note di tutte le settimane del mese, ognuna con la sua data;
+- con un solo ufficio (account di un ufficio) spariscono classifiche, quota di mercato a confronto e mosaico della compilazione: restano copertina, totali e pagina dell'ufficio;
+- gli affiliati non vedono nulla della gara a punti (la presentazione non ne ha mai mostrato);
+- i dati di ogni ufficio o affiliato sono limitati dal **database**, come nelle altre pagine: nessuna modifica alle regole di accesso;
+- corretta la formula scritta nella pagina "Quota di mercato" della presentazione: ora dice Portafoglio ÷ Incarichi in zona (il calcolo era già giusto dalla 0.6.2);
+- nessuna modifica al database: basta pubblicare il sito.
+
 ## 0.6.2 — 19 ottobre 2026
 
 **Quota di mercato: nuova formula** (richiesta di Davide):

@@ -1,23 +1,51 @@
 // Modalità riunione: presentazione a tutto schermo per la riunione del lunedì.
+// Gli amministratori la usano per la città; uffici e affiliati la vedono come "Presentazione",
+// solo con i propri uffici (il database manda loro solo quelli). Prima di avviarla si sceglie
+// se presentare una settimana o un mese (il mese somma le settimane, come nel Cruscotto).
 // Si avanza con le frecce della tastiera (o i pulsanti), Esc per uscire.
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
-  classifica, classificaQuota, quotaDaTotali, raggiungimento, serieQuota, serieSettimanale, sommaTotali,
-  statoCompilazione, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali,
+  classifica, classificaQuota, quotaDaTotali, raggiungimento, sommaTotali, statoCompilazionePeriodo,
+  totaliPerPeriodi, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali,
 } from '../lib/aggregazioni'
 import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../lib/calcoli'
 import { AREE_ATTIVE, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { nomeDaEmail } from '../lib/account'
 import { caricaNote, caricaRilevazioni, type Nota } from '../lib/dati'
-import { aggiungiSettimane, etichettaSettimana, intervalloSettimana, ultimaSettimanaConclusa } from '../lib/settimane'
+import { isAffiliato, isAmministratore } from '../lib/permessi'
+import {
+  aggiungiMesi, aggiungiSettimane, intervalloSettimana, meseDellaSettimana, nomeMeseBreve, settimaneDelMese,
+  ultimaSettimanaConclusa,
+} from '../lib/settimane'
 import type { Metrica, Rilevazione, Ufficio } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../componenti/Celle'
 import { GraficoAndamento } from '../componenti/Grafici'
 import { conta, Icona, Logo, useProgresso } from '../componenti/Interfaccia'
-import SceltaSettimana from '../componenti/SceltaSettimana'
+import SceltaPeriodo, { descriviPeriodo, periodoPredefinito, type Periodo } from '../componenti/SceltaPeriodo'
 
-const SETTIMANE_STORICO = 8
+/** Quanti periodi mostrano i grafici di andamento: 8 settimane oppure 6 mesi */
+const STORICO = { settimana: 8, mese: 6 }
+
+/** I periodi dei grafici, dal più vecchio; l'ultimo è quello presentato. Ogni periodo è un elenco di lunedì. */
+function periodiStorico(p: Periodo): string[][] {
+  const n = STORICO[p.tipo]
+  if (p.tipo === 'settimana') return Array.from({ length: n }, (_, i) => [aggiungiSettimane(p.settimana, i - n + 1)])
+  const mese = meseDellaSettimana(p.settimana)
+  return Array.from({ length: n }, (_, i) => settimaneDelMese(aggiungiMesi(mese, i - n + 1)))
+}
+
+/** Le parole che cambiano tra presentazione settimanale e mensile */
+function paroleDelPeriodo(p: Periodo) {
+  const n = STORICO[p.tipo]
+  return p.tipo === 'settimana'
+    ? { aggettivo: 'settimanale', prima: 'rispetto alla settimana prima', nessunConfronto: 'nessun confronto con la settimana prima', scorso: 'Settimana scorsa', vsScorso: 'vs scorsa',
+        delPeriodo: 'della settimana', storico: `Ultime ${n} settimane`, nessunaNota: 'Nessuna nota per questa settimana.' }
+    : { aggettivo: 'mensile', prima: 'rispetto al mese prima', nessunConfronto: 'nessun confronto con il mese prima', scorso: 'Mese scorso', vsScorso: 'vs mese scorso',
+        delPeriodo: 'del mese', storico: `Ultimi ${n} mesi`, nessunaNota: 'Nessuna nota in questo mese.' }
+}
+
+const etichettaBreve = (lunedi: string) => { const [, m, g] = lunedi.split('-').map(Number); return `${g}/${m}` }
 
 interface Diapositiva {
   titolo: string
@@ -27,29 +55,40 @@ interface Diapositiva {
 interface DatiRiunione { dati: Rilevazione[]; note: Nota[] }
 
 export default function Riunione({ ctx }: { ctx: Contesto }) {
-  const [settimana, setSettimana] = useState(ultimaSettimanaConclusa())
+  const [periodo, setPeriodo] = useState<Periodo>(periodoPredefinito)
   const [areaFiltro, setAreaFiltro] = useState<number | 'tutte'>('tutte')
   const [attiva, setAttiva] = useState(false)
 
-  const tutti = ufficiVisibili(ctx)
+  // Chi vede cosa: l'ufficio solo sé stesso, l'affiliato i suoi uffici (anche di città diverse),
+  // gli amministratori la città scelta
+  const amministrazione = isAmministratore(ctx.utente)
+  const soloUfficio = ctx.utente.ruolo === 'ufficio'
+  const visibili = ufficiVisibili(ctx)
+  const tutti = soloUfficio ? visibili.filter((u) => u.id === ctx.utente.ufficio_id) : visibili
   const uffici = areaFiltro === 'tutte' ? tutti : tutti.filter((u) => u.area_id === areaFiltro)
   const ids = uffici.map((u) => u.id)
-  const areeCitta = ctx.aree.filter((a) => a.citta_id === ctx.cittaId)
+  const areeCitta = soloUfficio || isAffiliato(ctx.utente) ? [] : ctx.aree.filter((a) => a.citta_id === ctx.cittaId)
   const nomeCitta = ctx.citta.find((c) => c.id === ctx.cittaId)?.nome ?? ''
-  const titolo = areaFiltro === 'tutte' ? nomeCitta : `${nomeCitta} · ${nomeArea(ctx, areaFiltro)}`
+  const nomeGruppo = soloUfficio ? (tutti[0]?.nome ?? 'Il mio ufficio') : isAffiliato(ctx.utente) ? 'I miei uffici' : nomeCitta
+  const titolo = areaFiltro === 'tutte' ? nomeGruppo : `${nomeGruppo} · ${nomeArea(ctx, areaFiltro)}`
+  const nomePresentazione = amministrazione ? 'Riunione' : 'Presentazione'
 
+  const periodi = periodiStorico(periodo)
+  const correnti = periodi[periodi.length - 1]
   const carico = useDati<DatiRiunione>(async () => {
     const [dati, note] = await Promise.all([
-      caricaRilevazioni(aggiungiSettimane(settimana, -(SETTIMANE_STORICO - 1)), settimana, ids),
-      caricaNote(settimana, ids),
+      caricaRilevazioni(periodi[0][0], correnti[correnti.length - 1], ids),
+      caricaNote(correnti, ids),
     ])
     return { dati, note }
-  }, [settimana, ids.join(',')])
+  }, [periodi[0][0], correnti.join(','), ids.join(',')])
 
-  const diapositive = carico.dati ? costruisciDiapositive({ ctx, uffici, settimana, titolo, ...carico.dati }) : []
+  const diapositive = carico.dati ? costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, ...carico.dati }) : []
+  const daControllare = settimaneDaControllare(correnti)
   const compilati = carico.dati
-    ? uffici.filter((u) => statoCompilazione(carico.dati!.dati.filter((r) => r.settimana === settimana && r.ufficio_id === u.id), ctx.metriche) !== 'mancante').length
+    ? uffici.filter((u) => statoCompilazionePeriodo(carico.dati!.dati.filter((r) => r.ufficio_id === u.id), ctx.metriche, daControllare) !== 'mancante').length
     : null
+  const marchio = `${titolo} · ${periodo.tipo === 'settimana' ? intervalloSettimana(periodo.settimana) : descriviPeriodo(periodo)}`
 
   function avvia() {
     setAttiva(true)
@@ -61,29 +100,36 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
   }, [])
 
   if (attiva && diapositive.length > 0) {
-    return <Presentazione diapositive={diapositive} marchio={`${titolo} · ${intervalloSettimana(settimana)}`} onEsci={esci} />
+    return <Presentazione diapositive={diapositive} marchio={marchio} onEsci={esci} />
   }
 
   return (
     <div className="due-colonne entra">
       <section className="scheda" style={{ gap: 18 }}>
-        <span className="kicker">Modalità riunione</span>
-        <h1 className="titolo-pagina">{nomeCitta}, lunedì mattina</h1>
-        <p style={{ fontSize: 18 }}>Una presentazione a tutto schermo da proiettare in riunione:</p>
+        <span className="kicker">{amministrazione ? 'Modalità riunione' : 'Presentazione'}</span>
+        <h1 className="titolo-pagina">{amministrazione ? `${nomeCitta}, lunedì mattina` : nomeGruppo}</h1>
+        <p style={{ fontSize: 18 }}>
+          {amministrazione ? 'Una presentazione a tutto schermo da proiettare in riunione:'
+            : `Una presentazione a tutto schermo con i dati ${soloUfficio ? 'del tuo ufficio' : 'dei tuoi uffici'}, settimanali o mensili:`}
+        </p>
         <ul className="elenco-icone">
-          <li><Icona nome="sigma" />totali della città;</li>
-          <li><Icona nome="ranking" />classifiche per ogni attività;</li>
+          <li><Icona nome="sigma" />{soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'}, con il confronto sul periodo prima;</li>
+          {uffici.length > 1 && <li><Icona nome="ranking" />classifiche per ogni attività;</li>}
           <li><Icona nome="chart-pie-slice" />quota di mercato;</li>
-          {AREE_ATTIVE && <li><Icona nome="map-trifold" />confronto tra aree;</li>}
-          <li><Icona nome="storefront" />una pagina per ogni ufficio, con le sue note.</li>
+          {AREE_ATTIVE && areeCitta.length > 0 && <li><Icona nome="map-trifold" />confronto tra aree;</li>}
+          <li><Icona nome="storefront" />{uffici.length > 1 ? 'una pagina per ogni ufficio, con le sue note.' : 'la pagina dell\'ufficio, con le sue note e l\'andamento.'}</li>
         </ul>
         <p className="piccolo" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
           Durante la presentazione: <kbd>→</kbd> o <kbd>spazio</kbd> avanti, <kbd>←</kbd> indietro, <kbd>Esc</kbd> per uscire.
         </p>
       </section>
       <section className="scheda entra entra-1" style={{ gap: 22 }}>
-        <h2>Settimana da presentare</h2>
-        <div style={{ alignSelf: 'flex-start' }}><SceltaSettimana settimana={settimana} onCambia={setSettimana} /></div>
+        <h2>Cosa presentare</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignSelf: 'flex-start' }}>
+          <SceltaPeriodo periodo={periodo} onCambia={setPeriodo} />
+          <strong style={{ fontSize: 18 }}>{descriviPeriodo(periodo)}</strong>
+          {periodo.tipo === 'mese' && <span className="piccolo">Il mese somma le settimane che hanno il giovedì nel mese ({correnti.length} settimane).{meseInCorso(correnti) ? ' Il mese non è ancora finito.' : ''}</span>}
+        </div>
         {areeCitta.length > 0 && (
           <div className="campo">
             <label htmlFor="area-riunione">Uffici da includere</label>
@@ -95,7 +141,7 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
         )}
         <div className="contatori">
           <div><strong>{carico.dati ? diapositive.length : '…'}</strong><span className="piccolo">pagine</span></div>
-          <div><strong>{compilati === null ? '…' : `${compilati} / ${uffici.length}`}</strong><span className="piccolo">uffici con i dati inseriti</span></div>
+          <div><strong>{compilati === null ? '…' : `${compilati} / ${uffici.length}`}</strong><span className="piccolo">{uffici.length === 1 ? 'ufficio' : 'uffici'} con i dati inseriti</span></div>
         </div>
         <div>
           <button className="btn btn-primario btn-grande" onClick={avvia} disabled={!carico.dati || uffici.length === 0}>
@@ -166,22 +212,42 @@ const CLASSE_MOSAICO: Record<Stato, string> = { completo: 'm-completo', parziale
 const SIMBOLO_MOSAICO: Record<Stato, string> = { completo: '✓', parziale: '◐', mancante: '✗' }
 const VERDE_CHIARO = '#8FE0B4', ROSA = '#FFB3A8'
 
-function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
-  ctx: Contesto; uffici: Ufficio[]; settimana: string; titolo: string; dati: Rilevazione[]; note: Nota[]
+/** Settimane su cui giudicare la compilazione: in un mese non ancora finito, solo quelle già concluse */
+function settimaneDaControllare(settimane: string[]): string[] {
+  const concluse = settimane.filter((s) => s <= ultimaSettimanaConclusa())
+  return concluse.length > 0 ? concluse : settimane
+}
+
+function meseInCorso(settimane: string[]): boolean {
+  return settimane.length > 1 && settimane[settimane.length - 1] > ultimaSettimanaConclusa()
+}
+
+function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, dati, note }: {
+  ctx: Contesto; uffici: Ufficio[]; periodo: Periodo; periodi: string[][]; titolo: string; nomePresentazione: string
+  dati: Rilevazione[]; note: Nota[]
 }): Diapositiva[] {
   const attivita: Metrica[] = ctx.metriche.filter((m) => m.tipo === 'attivita')
-  const settimane = Array.from({ length: SETTIMANE_STORICO }, (_, i) => aggiungiSettimane(settimana, i - SETTIMANE_STORICO + 1))
-  const precedente = aggiungiSettimane(settimana, -1)
-  const etichetteBrevi = settimane.map((s) => { const [, m, g] = s.split('-').map(Number); return `${g}/${m}` })
+  const parole = paroleDelPeriodo(periodo)
+  const correnti = periodi[periodi.length - 1]
+  const obiettivoDi = uffici.length === 1 ? 'dell\'ufficio' : nomePresentazione === 'Riunione' ? 'della città' : 'complessivo dei tuoi uffici'
+  const etichetteBrevi = periodi.map((p) => periodo.tipo === 'settimana' ? etichettaBreve(p[0]) : nomeMeseBreve(meseDellaSettimana(p[0])))
+  const nelPeriodo = (settimane: string[]) => { const s = new Set(settimane); return dati.filter((r) => s.has(r.settimana)) }
+  // Andamento periodo per periodo di un gruppo di uffici (attività sommate, zona all'ultima settimana)
+  const andamento = (lista: Ufficio[]) => {
+    const ids = new Set(lista.map((u) => u.id))
+    return totaliPerPeriodi(dati.filter((r) => ids.has(r.ufficio_id)), ctx.metriche, periodi)
+  }
+  const serie = (andamentoGruppo: Totali[], codice: string) => andamentoGruppo.map((t) => t.get(codice) ?? { obiettivo: null, risultato: null })
 
-  const diQuesta = dati.filter((r) => r.settimana === settimana)
-  const totali = totaliPerUfficio(diQuesta, ctx.metriche)
-  const totaliPrec = totaliPerUfficio(dati.filter((r) => r.settimana === precedente), ctx.metriche)
+  const diQuesto = nelPeriodo(correnti)
+  const totali = totaliPerUfficio(diQuesto, ctx.metriche)
+  const totaliPrec = totaliPerUfficio(nelPeriodo(periodi[periodi.length - 2]), ctx.metriche)
   const somma = (t: Map<number, Totali>, lista: Ufficio[]) => sommaTotali(lista.map((u) => t.get(u.id)).filter((x): x is Totali => !!x))
   const totaleCitta = somma(totali, uffici)
   const totaleCittaPrec = somma(totaliPrec, uffici)
   const quotaCitta = quotaDaTotali(totaleCitta)
-  const stati = new Map(uffici.map((u) => [u.id, statoCompilazione(diQuesta.filter((r) => r.ufficio_id === u.id), ctx.metriche)]))
+  const daControllare = settimaneDaControllare(correnti)
+  const stati = new Map(uffici.map((u) => [u.id, statoCompilazionePeriodo(diQuesto.filter((r) => r.ufficio_id === u.id), ctx.metriche, daControllare)]))
   const mancanti = uffici.filter((u) => stati.get(u.id) === 'mancante').map((u) => u.nome)
   const compilati = uffici.length - mancanti.length
 
@@ -197,22 +263,22 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
   }
   const statistiche = [statCopertina('Incarichi', 'incarichi'), statCopertina('Vendite', 'vendite')]
 
-  // Portafoglio: totale degli uffici e variazione sulla settimana prima (solo uffici con il dato in entrambe)
+  // Portafoglio: totale degli uffici e variazione sul periodo prima (solo uffici con il dato in entrambi)
   const portafoglio = totaleCitta.get('portafoglio')?.risultato ?? null
   const { variazione: variazionePortafoglio, confrontati, conDato } = variazioneZona(uffici, totali, totaliPrec, 'portafoglio')
-  const testoVariazione = variazionePortafoglio === null ? 'nessun confronto con la settimana prima'
-    : `${variazionePortafoglio === 0 ? 'invariato' : formattaEsito(variazionePortafoglio)} rispetto alla settimana prima`
+  const testoVariazione = variazionePortafoglio === null ? parole.nessunConfronto
+    : `${variazionePortafoglio === 0 ? 'invariato' : formattaEsito(variazionePortafoglio)} ${parole.prima}`
       + (confrontati < conDato ? ` (su ${confrontati} uffici)` : '')
   const colorePortafoglio = variazionePortafoglio === null || variazionePortafoglio === 0 ? '#AFC0D4' : variazionePortafoglio > 0 ? VERDE_CHIARO : ROSA
   out.push({
-    titolo: 'Riunione settimanale',
+    titolo: `${nomePresentazione} ${parole.aggettivo}`,
     contenuto: (t) => (
       <div className="copertina" style={{ flex: 1 }}>
         <div className="cerchio cerchio-a" /><div className="cerchio cerchio-b" />
         <div>
-          <div className="cop-marchio"><Logo dimensione={44} />Riunione settimanale · Gruppo CEC</div>
+          <div className="cop-marchio"><Logo dimensione={44} />{nomePresentazione} {parole.aggettivo} · Gruppo CEC</div>
           <h1 className="cop-citta">{titolo}</h1>
-          <span className="cop-settimana">{etichettaSettimana(settimana)}</span>
+          <span className="cop-settimana">{descriviPeriodo(periodo)}{meseInCorso(correnti) ? ' · mese in corso' : ''}</span>
           <div className="cop-stats">
             {statistiche.map((s) => (
               <div key={s.nome} className="cop-stat">
@@ -232,27 +298,36 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
         <div style={{ gap: 22 }}>
           <div className="anello-riga">
             <div className="anello" style={{ background: `conic-gradient(var(--secondario) ${uffici.length ? compilati / uffici.length * 360 * t : 0}deg, rgba(255,255,255,.12) 0)` }}>
-              <div><strong>{conta(compilati, t)}</strong><span>su {uffici.length} uffici</span></div>
+              <div><strong>{conta(compilati, t)}</strong><span>su {uffici.length} {uffici.length === 1 ? 'ufficio' : 'uffici'}</span></div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 200, flex: 1 }}>
-              <span style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>hanno inserito i dati della settimana</span>
+              <span style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{uffici.length === 1 ? 'ha' : 'hanno'} inserito i dati {parole.delPeriodo}</span>
               {mancanti.length > 0 && <span style={{ fontSize: 17, color: ROSA }}>Mancano: {mancanti.join(', ')}</span>}
             </div>
           </div>
-          <div className="mosaico">
-            {uffici.map((u) => {
-              const s = stati.get(u.id)!
-              return <div key={u.id} className={CLASSE_MOSAICO[s]} title={u.nome}><span>{u.nome}</span><span>{SIMBOLO_MOSAICO[s]}</span></div>
-            })}
-          </div>
-          <div style={{ display: 'flex', gap: 18, fontSize: 13, fontWeight: 600, color: '#AFC0D4' }}><span>✓ completo</span><span>◐ parziale</span><span>✗ mancante</span></div>
+          {uffici.length > 1 && (
+            <div className="mosaico">
+              {uffici.map((u) => {
+                const s = stati.get(u.id)!
+                return <div key={u.id} className={CLASSE_MOSAICO[s]} title={u.nome}><span>{u.nome}</span><span>{SIMBOLO_MOSAICO[s]}</span></div>
+              })}
+            </div>
+          )}
+          {uffici.length > 1 && (
+            <div style={{ display: 'flex', gap: 18, fontSize: 13, fontWeight: 600, color: '#AFC0D4' }}>
+              {periodo.tipo === 'settimana'
+                ? <><span>✓ completo</span><span>◐ parziale</span><span>✗ mancante</span></>
+                : <><span>✓ tutte le settimane complete</span><span>◐ in parte</span><span>✗ nessun dato nel mese</span></>}
+            </div>
+          )}
         </div>
       </div>
     ),
   })
 
-  // 2. Totali della città con confronto sulla settimana precedente
-  const serieCitta = (codice: string) => serieSettimanale(dati.filter((r) => uffici.some((u) => u.id === r.ufficio_id)), codice, settimane)
+  // 2. Totali della città (o dei propri uffici) con confronto sul periodo precedente
+  const andamentoCitta = andamento(uffici)
+  const serieCitta = (codice: string) => serie(andamentoCitta, codice)
   let raggiunte = 0, su = 0, giu = 0
   const tabellone = attivita.map((m) => {
     const x = totaleCitta.get(m.codice)
@@ -269,13 +344,13 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
   const nomePortafoglio = ctx.metriche.find((m) => m.codice === 'portafoglio')?.nome ?? 'Portafoglio'
   const seriePortafoglio = serieCitta('portafoglio')
   out.push({
-    titolo: `Totali ${titolo}`,
+    titolo: `Totali · ${titolo}`,
     contenuto: (t) => (
       <div className="p-colonna">
         <div className="sintesi-griglia">
           <div className="sintesi" style={{ background: 'var(--ok-bg)', color: 'var(--ok-fg)' }}>
             <span><Icona nome="target" /></span>
-            <div><span className="p-etichetta">Obiettivi raggiunti</span><strong>{conta(raggiunte, t)} su {attivita.length}</strong><span>attività sopra l'obiettivo della città</span></div>
+            <div><span className="p-etichetta">Obiettivi raggiunti</span><strong>{conta(raggiunte, t)} su {attivita.length}</strong><span>attività sopra l'obiettivo {obiettivoDi}</span></div>
           </div>
           <div className="sintesi" style={{ background: quotaOk ? 'var(--ok-bg)' : 'var(--ko-bg)', color: quotaOk ? 'var(--ok-fg)' : 'var(--ko-fg)' }}>
             <span><Icona nome="chart-pie-slice" /></span>
@@ -283,11 +358,11 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
           </div>
           <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
             <span><Icona nome="trend-up" /></span>
-            <div><span className="p-etichetta">Rispetto alla settimana scorsa</span><strong>{su} ▲ · {giu} ▼</strong><span>{su} attività in crescita, {giu} in calo</span></div>
+            <div><span className="p-etichetta">{parole.prima.charAt(0).toUpperCase() + parole.prima.slice(1)}</span><strong>{su} ▲ · {giu} ▼</strong><span>{su} attività in crescita, {giu} in calo</span></div>
           </div>
         </div>
         <div className="p-card tabellone">
-          <div className="tabellone-riga testa"><span>Attività</span><span>Risultato</span><span>Rispetto all'obiettivo</span><span style={{ textAlign: 'right' }}>%</span><span>Settimana scorsa</span><span>Ultime {SETTIMANE_STORICO} settimane</span></div>
+          <div className="tabellone-riga testa"><span>Attività</span><span>Risultato</span><span>Rispetto all'obiettivo</span><span style={{ textAlign: 'right' }}>%</span><span>{parole.scorso}</span><span>{parole.storico}</span></div>
           {tabellone.map(({ m, x, r, diff, serie }) => {
             const s = coloreRapporto(r)
             return (
@@ -300,7 +375,7 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
                 </div>
                 <span className={`pct t-${s}`}>{r === null ? '—' : `${Math.round(r * 100)}%`}</span>
                 <span className={`delta ${diff === null || diff === 0 ? '' : diff > 0 ? 'su' : 'giu'}`}>
-                  {diff === null ? '—' : diff === 0 ? '= uguale' : `${diff > 0 ? '▲ +' : '▼ '}${diff} vs scorsa`}
+                  {diff === null ? '—' : diff === 0 ? '= uguale' : `${diff > 0 ? '▲ +' : '▼ '}${diff} ${parole.vsScorso}`}
                 </span>
                 <GraficoAndamento spark t={t} etichette={etichetteBrevi} nomeSerie={m.nome} risultati={serie.map((z) => z.risultato)} obiettivi={serie.map((z) => z.obiettivo)} />
               </div>
@@ -312,22 +387,23 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
             <span className="nota-zona">dato di zona: totale degli uffici, senza obiettivo</span>
             <span />
             <span className={`delta ${variazionePortafoglio === null || variazionePortafoglio === 0 ? '' : variazionePortafoglio > 0 ? 'su' : 'giu'}`}>
-              {variazionePortafoglio === null ? '—' : variazionePortafoglio === 0 ? '= uguale' : `${variazionePortafoglio > 0 ? '▲ +' : '▼ '}${variazionePortafoglio} vs scorsa`}
+              {variazionePortafoglio === null ? '—' : variazionePortafoglio === 0 ? '= uguale' : `${variazionePortafoglio > 0 ? '▲ +' : '▼ '}${variazionePortafoglio} ${parole.vsScorso}`}
             </span>
             <GraficoAndamento spark t={t} etichette={etichetteBrevi} nomeSerie={nomePortafoglio} risultati={seriePortafoglio.map((z) => z.risultato)} />
           </div>
           <p className="piccolo" style={{ margin: '6px 0 10px' }}>
-            La tacca scura sulla barra è l'obiettivo della città (100%). Barra verde: raggiunto · ambra: almeno 70% · rossa: sotto il 70%.
-            {confrontati < conDato && ` Portafoglio: variazione calcolata su ${confrontati} uffici su ${conDato}, quelli che l'hanno inserito in entrambe le settimane.`}
+            La tacca scura sulla barra è l'obiettivo {obiettivoDi} (100%). Barra verde: raggiunto · ambra: almeno 70% · rossa: sotto il 70%.
+            {periodo.tipo === 'mese' && ' Nel mese le attività sono la somma delle settimane; il portafoglio è quello dell\'ultima settimana inserita.'}
+            {confrontati < conDato && ` Portafoglio: variazione calcolata su ${confrontati} uffici su ${conDato}, quelli che l'hanno inserito in entrambi i periodi.`}
           </p>
         </div>
       </div>
     ),
   })
 
-  // 3. Classifiche, due attività per pagina (solo quelle con almeno un risultato)
+  // 3. Classifiche, due attività per pagina (solo quelle con almeno un risultato; servono almeno due uffici)
   const compatta = uffici.length > 16
-  const conDati = attivita.filter((m) => classifica(uffici, totali, m.codice).length > 0)
+  const conDati = uffici.length > 1 ? attivita.filter((m) => classifica(uffici, totali, m.codice).length > 0) : []
   for (let i = 0; i < conDati.length; i += 2) {
     const coppia = conDati.slice(i, i + 2)
     out.push({
@@ -351,7 +427,7 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
                     </div>
                   )
                 })}
-                <p className="piccolo" style={{ marginTop: 12 }}>Valore della settimana · "/ n" = obiettivo dell'ufficio · ✓ raggiunto ✗ non raggiunto</p>
+                <p className="piccolo" style={{ marginTop: 12 }}>Valore {parole.delPeriodo} · "/ n" = obiettivo dell'ufficio · ✓ raggiunto ✗ non raggiunto</p>
               </div>
             )
           })}
@@ -360,16 +436,16 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
     })
   }
 
-  // 4. Quota di mercato
+  // 4. Quota di mercato (classifica: servono almeno due uffici)
   const quote = classificaQuota(uffici, totali)
-  if (quote.length > 0) {
+  if (quote.length > 1) {
     const max = Math.max(0.3, ...quote.map((q) => q.quota))
     out.push({
       titolo: 'Quota di mercato',
       contenuto: (t) => (
         <div className={`p-card ${compatta ? 'compatta' : ''}`} style={{ maxWidth: 1200, gap: compatta ? 2 : 8 }}>
           <p style={{ fontSize: 17, fontWeight: 600, color: '#3A4250', marginBottom: 14 }}>
-            Portafoglio ÷ (Portafoglio + Incarichi in zona) · linea = obiettivo {formattaPercentuale(OBIETTIVO_QUOTA)} · {quote.filter((q) => q.quota >= OBIETTIVO_QUOTA).length} uffici sopra l'obiettivo
+            Portafoglio ÷ Incarichi in zona · linea = obiettivo {formattaPercentuale(OBIETTIVO_QUOTA)} · {quote.filter((q) => q.quota >= OBIETTIVO_QUOTA).length} uffici sopra l'obiettivo
           </p>
           {quote.map((q) => {
             const ok = q.quota >= OBIETTIVO_QUOTA
@@ -420,20 +496,20 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
   // 6. Una pagina per ufficio
   for (const u of ordinati) {
     const tu = totali.get(u.id)
-    const nota = note.find((n) => n.ufficio_id === u.id)
-    const suoi = dati.filter((r) => r.ufficio_id === u.id)
+    const noteUfficio = note.filter((n) => n.ufficio_id === u.id)
+    const andamentoUfficio = andamento([u])
     const s = stati.get(u.id)!
-    const ultimo = suoi.filter((r) => r.settimana === settimana && r.aggiornato_il).sort((a, b) => b.aggiornato_il!.localeCompare(a.aggiornato_il!))[0]
+    const ultimo = diQuesto.filter((r) => r.ufficio_id === u.id && r.aggiornato_il).sort((a, b) => b.aggiornato_il!.localeCompare(a.aggiornato_il!))[0]
     const raggiunti = attivita.filter((m) => { const x = tu?.get(m.codice); return x?.obiettivo != null && x.risultato != null && x.risultato >= x.obiettivo }).length
     const quota = quotaDaTotali(tu)
     const qOk = quota !== null && quota >= OBIETTIVO_QUOTA
     const minis = [
       ...attivita.map((m) => {
-        const serie = serieSettimanale(suoi, m.codice, settimane)
-        const ul = serie.at(-1)!
-        return { nome: m.nome, valore: ul.risultato === null ? '—' : `${ul.risultato}${ul.obiettivo !== null ? ` / ${ul.obiettivo}` : ''}`, ris: serie.map((x) => x.risultato), ob: serie.map((x) => x.obiettivo), pct: false }
+        const valori = serie(andamentoUfficio, m.codice)
+        const ul = valori[valori.length - 1]
+        return { nome: m.nome, valore: ul.risultato === null ? '—' : `${ul.risultato}${ul.obiettivo !== null ? ` / ${ul.obiettivo}` : ''}`, ris: valori.map((x) => x.risultato), ob: valori.map((x) => x.obiettivo), pct: false }
       }),
-      { nome: 'Quota di mercato', valore: formattaPercentuale(quota), ris: serieQuota(suoi, settimane), ob: undefined, pct: true },
+      { nome: 'Quota di mercato', valore: formattaPercentuale(quota), ris: andamentoUfficio.map(quotaDaTotali), ob: undefined, pct: true },
     ]
     out.push({
       titolo: u.nome,
@@ -490,13 +566,19 @@ function costruisciDiapositive({ ctx, uffici, settimana, titolo, dati, note }: {
                 <Icona nome="quotes" />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <span className="p-etichetta" style={{ color: 'var(--secondario-800)' }}>Note dell'ufficio</span>
-                  <p style={{ color: nota?.testo ? 'var(--testo)' : 'var(--testo-tenue)' }}>{nota?.testo ? `“${nota.testo}”` : 'Nessuna nota per questa settimana.'}</p>
+                  {noteUfficio.length === 0 && <p style={{ color: 'var(--testo-tenue)' }}>{parole.nessunaNota}</p>}
+                  {noteUfficio.map((n) => (
+                    <p key={n.settimana} style={{ color: 'var(--testo)' }}>
+                      {periodo.tipo === 'mese' && <strong style={{ color: 'var(--secondario-800)' }}>Settimana del {etichettaBreve(n.settimana)}: </strong>}
+                      “{n.testo}”
+                    </p>
+                  ))}
                 </div>
               </div>
             </div>
             <div className="p-card" style={{ gap: 14 }}>
               <div className="scheda-titolo">
-                <h3 style={{ fontSize: 22, margin: 0, marginRight: 'auto' }}>Andamento ultime {SETTIMANE_STORICO} settimane</h3>
+                <h3 style={{ fontSize: 22, margin: 0, marginRight: 'auto' }}>Andamento · {parole.storico.toLowerCase()}</h3>
                 <span className="piccolo" style={{ fontWeight: 600 }}><span style={{ color: 'var(--primario)' }}>━</span> risultato · <span style={{ color: 'var(--secondario-500)' }}>┅</span> obiettivo</span>
               </div>
               <div className="griglia-mini">

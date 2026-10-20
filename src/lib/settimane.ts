@@ -78,6 +78,17 @@ export function nomeMese(mese: string): string {
   return `${MESI[m - 1]} ${a}`
 }
 
+/** Nome breve del mese 'AAAA-MM' per gli assi dei grafici, es. "ott" */
+export function nomeMeseBreve(mese: string): string {
+  return MESI[Number(mese.slice(5, 7)) - 1].slice(0, 3)
+}
+
+/** Mese 'AAAA-MM' spostato di n mesi (anche negativi) */
+export function aggiungiMesi(mese: string, n: number): string {
+  const [a, m] = mese.split('-').map(Number)
+  return new Date(Date.UTC(a, m - 1 + n, 1)).toISOString().slice(0, 7)
+}
+
 /** Es. "5 – 11 ottobre 2026" oppure "28 settembre – 4 ottobre 2026" */
 export function intervalloSettimana(lunedi: string): string {
   const inizio = daISO(lunedi)

@@ -141,11 +141,11 @@ export default function App() {
     { id: 'andamento', etichetta: vedeInsieme ? 'Andamento uffici' : 'Il mio ufficio', icona: 'chart-line-up' },
     ...(vedeInsieme ? [
       { id: 'cruscotto' as Pagina, etichetta: 'Cruscotto', icona: 'gauge' },
-      ...(affiliato ? [] : [
-        { id: 'compilazione' as Pagina, etichetta: 'Stato compilazione', icona: 'list-checks' },
-        { id: 'riunione' as Pagina, etichetta: 'Riunione', icona: 'presentation-chart' },
-      ]),
+      ...(affiliato ? [] : [{ id: 'compilazione' as Pagina, etichetta: 'Stato compilazione', icona: 'list-checks' }]),
     ] : []),
+    // Presentazione a tutto schermo: "Riunione" per gli amministratori (la città), "Presentazione"
+    // per uffici e affiliati (solo i propri uffici)
+    { id: 'riunione', etichetta: isAmministratore(utente) || utente.ruolo === 'responsabile' ? 'Riunione' : 'Presentazione', icona: 'presentation-chart' },
     ...((isAmministratore(utente) || affiliato) && MENSILE_ATTIVO ? [{ id: 'report-mensile' as Pagina, etichetta: 'Report mensile', icona: 'printer' }] : []),
     ...(isAmministratore(utente) ? [{ id: 'amministrazione' as Pagina, etichetta: 'Amministrazione', icona: 'gear-six' }] : []),
   ]

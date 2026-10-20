@@ -34,10 +34,21 @@ In **Il mio ufficio** trovi:
 - il grafico delle ultime 12 settimane per ogni attività;
 - il riepilogo mese per mese.
 
+## Presentazione del proprio ufficio
+
+In **Presentazione** trovi una presentazione a tutto schermo con i soli dati del tuo ufficio,
+simile a quella della riunione del lunedì (utile per una riunione interna):
+1. scegli **Settimana** o **Mese** e, con le frecce ‹ ›, il periodo da presentare;
+2. premi **Avvia la presentazione**;
+3. sfoglia con le frecce della tastiera (→ avanti, ← indietro); **Esc** per uscire.
+
+Il mese somma le settimane del mese e si confronta con il mese prima; la settimana con la settimana prima.
+
 ## Per gli affiliati (sola consultazione)
 
 Con un account da affiliato vedi solo gli uffici che ti sono stati assegnati, anche di città diverse.
 Non puoi modificare nulla. Nel menu trovi:
 - **Andamento uffici**: scegli un ufficio in alto per vedere il grafico delle ultime 12 settimane e il riepilogo mese per mese;
 - **Cruscotto**: la tabella dei tuoi uffici per la settimana o per il mese (pulsanti *Settimana* / *Mese* e frecce ‹ ›), con il totale e i colori dell'obiettivo;
+- **Presentazione**: la presentazione a tutto schermo con i soli tuoi uffici (totali, classifiche, quota di mercato e una pagina per ufficio). Prima di avviarla scegli *Settimana* o *Mese*;
 - **Report mensile**: il riepilogo di fine mese, il rapportino di ogni ufficio persona per persona, le liste di collaboratori, coordinatrici e marketer e il riepilogo dell'anno. Ogni pagina si può stampare con **Stampa**.

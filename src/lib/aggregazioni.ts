@@ -53,6 +53,18 @@ export function variazioneZona(uffici: Ufficio[], ora: Map<number, Totali>, prim
   return { variazione, confrontati: confrontati.length, conDato: conDato.length }
 }
 
+/**
+ * Totali della somma degli uffici, periodo per periodo (ogni periodo = elenco di lunedì: una
+ * settimana o le settimane di un mese). Stesse regole del mese: attività sommate, dati di zona
+ * all'ultima settimana compilata da ciascun ufficio. Le rilevazioni vanno già filtrate sugli uffici.
+ */
+export function totaliPerPeriodi(rilevazioni: Rilevazione[], metriche: Metrica[], periodi: string[][]): Totali[] {
+  return periodi.map((settimane) => {
+    const dentro = new Set(settimane)
+    return sommaTotali([...totaliPerUfficio(rilevazioni.filter((r) => dentro.has(r.settimana)), metriche).values()])
+  })
+}
+
 /** Percentuale di raggiungimento dell'obiettivo (1 = 100%) */
 export function raggiungimento(t: Totale | undefined): number | null {
   if (!t || t.obiettivo === null || t.risultato === null || t.obiettivo === 0) return null
@@ -81,6 +93,16 @@ export function statoCompilazione(righe: Rilevazione[], metriche: Metrica[]): St
   if (conRisultato.size === 0) return 'mancante'
   const attivita = metriche.filter((m) => m.tipo === 'attivita')
   return attivita.every((m) => conRisultato.has(m.codice)) ? 'completo' : 'parziale'
+}
+
+/**
+ * Stato di compilazione su più settimane (es. un mese): completo se tutte le settimane sono
+ * complete, mancante se in nessuna c'è un dato, altrimenti parziale.
+ */
+export function statoCompilazionePeriodo(righe: Rilevazione[], metriche: Metrica[], settimane: string[]): StatoCompilazione {
+  const stati = settimane.map((s) => statoCompilazione(righe.filter((r) => r.settimana === s), metriche))
+  if (stati.every((s) => s === 'mancante')) return 'mancante'
+  return stati.every((s) => s === 'completo') ? 'completo' : 'parziale'
 }
 
 export interface VoceClassifica {

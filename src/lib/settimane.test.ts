@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiSettimane, etichettaSettimana, intervalloSettimana, lunediDi, meseDellaSettimana, notaMeseSettimana,
-  oggiISO, settimanaNelMese, settimanaPredefinita, settimaneDelMese, ultimaSettimanaConclusa,
+  aggiungiMesi, aggiungiSettimane, etichettaSettimana, intervalloSettimana, lunediDi, meseDellaSettimana, notaMeseSettimana,
+  nomeMeseBreve, oggiISO, settimanaNelMese, settimanaPredefinita, settimaneDelMese, ultimaSettimanaConclusa,
 } from './settimane'
 
 describe('lunedì della settimana', () => {
@@ -63,5 +63,18 @@ describe('etichette', () => {
     expect(notaMeseSettimana('2026-10-05')).toBeNull()
     expect(notaMeseSettimana('2026-09-28')).toBe('a cavallo di due mesi: conta nei totali di ottobre 2026')
     expect(notaMeseSettimana('2026-01-26')).toBe('a cavallo di due mesi: conta nei totali di gennaio 2026')
+  })
+})
+
+describe('mesi', () => {
+  it('si sposta di mese anche a cavallo dell\'anno', () => {
+    expect(aggiungiMesi('2026-10', -1)).toBe('2026-09')
+    expect(aggiungiMesi('2026-01', -1)).toBe('2025-12')
+    expect(aggiungiMesi('2026-10', -5)).toBe('2026-05')
+    expect(aggiungiMesi('2026-12', 1)).toBe('2027-01')
+  })
+  it('nome breve per i grafici', () => {
+    expect(nomeMeseBreve('2026-10')).toBe('ott')
+    expect(nomeMeseBreve('2026-01')).toBe('gen')
   })
 })

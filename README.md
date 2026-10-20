@@ -8,6 +8,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
   - rapportino settimanale: il sabato alle 10 e il lunedì della riunione alle 9:30 agli uffici che non hanno compilato;
   - rapportino mensile: 3 giorni prima e il giorno prima della scadenza agli uffici che non hanno compilato, e il giorno dopo il riepilogo all'amministratore generale.
 - **Cruscotto, stato compilazione, grafici e modalità riunione** a tutto schermo per la riunione del lunedì.
+  Uffici e affiliati hanno la loro **Presentazione** con i soli propri uffici; si presenta una settimana o un mese.
 - **Esiti, totali del mese e quota di mercato** si calcolano da soli: niente più #DIV/0! o totali sbagliati.
 - **Roma e Milano** sono sezioni separate, ognuna con la propria riunione del lunedì.
 - **Chi vede cosa**:

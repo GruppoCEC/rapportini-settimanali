@@ -29,10 +29,12 @@ export interface Nota {
   testo: string
 }
 
-export async function caricaNote(settimana: string, ufficiIds: number[]): Promise<Nota[]> {
-  if (ufficiIds.length === 0) return []
+/** Note degli uffici per le settimane indicate (una sola, o tutte quelle di un mese) */
+export async function caricaNote(settimane: string[], ufficiIds: number[]): Promise<Nota[]> {
+  if (ufficiIds.length === 0 || settimane.length === 0) return []
   const { data, error } = await supabase.from('note_settimana')
-    .select('ufficio_id, settimana, testo').eq('settimana', settimana).in('ufficio_id', ufficiIds)
+    .select('ufficio_id, settimana, testo').in('settimana', settimane).in('ufficio_id', ufficiIds)
+    .order('settimana')
   if (error) throw new Error(error.message)
   return (data as Nota[]).filter((n) => n.testo.trim() !== '')
 }

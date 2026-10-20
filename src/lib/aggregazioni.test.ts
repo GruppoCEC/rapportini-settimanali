@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   classifica, classificaQuota, quotaDaTotali, raggiungimento, semaforo, serieQuota, serieSettimanale, variazioneZona,
-  sommaTotali, statoCompilazione, totaliPerUfficio,
+  sommaTotali, statoCompilazione, statoCompilazionePeriodo, totaliPerPeriodi, totaliPerUfficio,
 } from './aggregazioni'
 import type { Metrica, Rilevazione, Ufficio } from './tipi'
 
@@ -93,5 +93,31 @@ describe('variazione del portafoglio rispetto alla settimana prima', () => {
   })
   it('senza dati della settimana prima non c\'è confronto', () => {
     expect(variazioneZona(uffici, ora, new Map(), 'portafoglio').variazione).toBeNull()
+  })
+})
+
+describe('totali periodo per periodo (presentazione settimanale o mensile)', () => {
+  it('a settimane dà gli stessi numeri della serie settimanale', () => {
+    const settimane = ['2026-10-05', '2026-10-12', '2026-10-19']
+    const t = totaliPerPeriodi(dati, metriche, settimane.map((s) => [s]))
+    expect(t.map((x) => x.get('incarichi') ?? { obiettivo: null, risultato: null })).toEqual(serieSettimanale(dati, 'incarichi', settimane))
+    expect(t.map(quotaDaTotali)).toEqual(serieQuota(dati, settimane))
+  })
+  it('a mesi somma le attività e prende il portafoglio all\'ultima settimana di ogni ufficio', () => {
+    const [mese] = totaliPerPeriodi(dati, metriche, [['2026-10-05', '2026-10-12']])
+    expect(mese.get('incarichi')).toEqual({ obiettivo: 5, risultato: 4 })      // 2+2+1 · 3+1+0
+    expect(mese.get('portafoglio')?.risultato).toBe(15)                         // Somalia 5 (non 4+5) + Trieste 10
+  })
+})
+
+describe('compilazione di un mese', () => {
+  const complete = (u: number, s: string) => [r(u, s, 'incarichi', 1, 1), r(u, s, 'vendite', 1, 0)]
+  const settimane = ['2026-10-05', '2026-10-12']
+  it('completo solo se tutte le settimane sono complete', () => {
+    expect(statoCompilazionePeriodo([...complete(1, settimane[0]), ...complete(1, settimane[1])], metriche, settimane)).toBe('completo')
+    expect(statoCompilazionePeriodo(complete(1, settimane[0]), metriche, settimane)).toBe('parziale')
+  })
+  it('mancante se nel mese non c\'è nessun dato', () => {
+    expect(statoCompilazionePeriodo([], metriche, settimane)).toBe('mancante')
   })
 })
