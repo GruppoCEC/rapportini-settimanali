@@ -1,5 +1,18 @@
 # Storia delle versioni
 
+## 0.15.0 — 21 ottobre 2026
+
+**Posizione dell'ufficio nella sua città** (richiesta di Davide, punto 2.4.12 dell'analisi): ogni ufficio vede dove si trova tra gli uffici di Roma o di Milano, voce per voce, **senza vedere i nomi né i numeri degli altri**.
+- per ogni voce: la **posizione** ("8° su 31"), la **fascia** (primo, secondo, terzo o ultimo quarto della città, a colori) e la **freccia** rispetto al periodo prima ("▲ 3 posizioni");
+- conta solo chi ha il dato; a pari numero, pari posizione (10, 8, 8, 5 → 1°, 2°, 2°, 4°). Il primo è sempre nel primo quarto, l'ultimo nell'ultimo;
+- nella **Presentazione dell'ufficio**, dopo "Totali · Tutta Roma/Milano", la pagina **La tua posizione a Roma** (o Milano):
+  - settimana: le attività del rapportino settimanale e la quota di mercato;
+  - mese: le 6 voci delle classifiche mensili (acquisizioni, appuntamenti, incarichi, proposte, accettazioni, vendite effettuate);
+- in **Il mio ufficio**, sotto l'imbuto, il riquadro **La tua posizione a Roma** per l'ultima settimana conclusa;
+- solo per gli account **ufficio**: amministratori e affiliati hanno già le classifiche complete nella Riunione e nella Presentazione;
+- il database manda a ogni ufficio **solo la propria riga** (nuove funzioni `posizione_mia_citta` e `posizione_mensile_mia_citta`, stessa protezione dei totali della città);
+- **da fare una volta in Supabase**: eseguire `supabase/migrations/014_posizione_citta.sql`, poi pubblicare (Push). Senza la 014 la pagina e il riquadro semplicemente non compaiono.
+
 ## 0.14.0 — 21 ottobre 2026
 
 **Imbuto della vendita** (richiesta di Davide, punto 2.1.1 dell'analisi): le fasi dalla valutazione alla vendita e i **passaggi** tra una fase e l'altra, sempre nella forma **"1 incarico ogni 3,9 valutazioni"** (scelta di Davide, al posto delle percentuali).

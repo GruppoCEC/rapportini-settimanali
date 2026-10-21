@@ -183,3 +183,46 @@ export function serieQuota(rilevazioni: Rilevazione[], settimane: string[]): (nu
   const inc = serieSettimanale(rilevazioni, 'incarichi_zona', settimane)
   return settimane.map((_, i) => quotaMercato(port[i].risultato, inc[i].risultato))
 }
+
+// ---------------------------------------------------------------- Posizione dell'ufficio nella sua città (014_posizione_citta.sql)
+
+/** In quale quarto della città è l'ufficio: primo = tra i migliori */
+export type Fascia = 'primo' | 'secondo' | 'terzo' | 'ultimo'
+export const NOMI_FASCIA: Record<Fascia, string> = { primo: 'primo quarto', secondo: 'secondo quarto', terzo: 'terzo quarto', ultimo: 'ultimo quarto' }
+
+/**
+ * Fascia di una posizione su n uffici: il primo è sempre nel primo quarto, l'ultimo nell'ultimo
+ * (1° su 38 → primo, 10° → primo, 11° → secondo, 38° → ultimo; da solo, 1° su 1 → primo).
+ */
+export function fascia(posizione: number, n: number): Fascia {
+  const f = n <= 1 ? 0 : (posizione - 1) / (n - 1)
+  return f < 0.25 ? 'primo' : f < 0.5 ? 'secondo' : f < 0.75 ? 'terzo' : 'ultimo'
+}
+
+/** Una riga di posizione_mia_citta / posizione_mensile_mia_citta: solo il proprio ufficio */
+export interface RigaPosizione {
+  periodo: number            // da 1, nell'ordine dei periodi richiesti
+  voce: string               // codice della voce ('__quota' = quota di mercato, 'staff')
+  posizione: number
+  uffici_con_dato: number
+  uffici_citta: number
+}
+
+export interface Posizione {
+  posizione: number          // nell'ultimo periodo
+  su: number                 // uffici della città con il dato
+  prima: number | null       // posizione nel periodo prima (se c'era il dato)
+}
+
+/** Posizioni dell'ultimo periodo voce per voce, con la posizione del periodo prima */
+export function posizioniDaRighe(righe: RigaPosizione[], nPeriodi: number): { voci: Map<string, Posizione>; ufficiCitta: number } {
+  const voci = new Map<string, Posizione>()
+  let ufficiCitta = 0
+  for (const r of righe) {
+    ufficiCitta = r.uffici_citta
+    if (r.periodo !== nPeriodi) continue
+    const prima = righe.find((x) => x.periodo === nPeriodi - 1 && x.voce === r.voce)
+    voci.set(r.voce, { posizione: r.posizione, su: r.uffici_con_dato, prima: prima?.posizione ?? null })
+  }
+  return { voci, ufficiCitta }
+}

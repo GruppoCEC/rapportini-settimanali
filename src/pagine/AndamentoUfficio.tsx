@@ -4,17 +4,18 @@ import { quotaDaTotali, serieQuota, serieSettimanale } from '../lib/aggregazioni
 import { OBIETTIVO_QUOTA, totaliPeriodo } from '../lib/calcoli'
 import { MENSILE_ATTIVO, type Contesto, ufficiVisibili } from '../lib/contesto'
 import {
-  caricaPersone, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili,
+  caricaPersone, caricaPosizioneCitta, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili,
 } from '../lib/dati'
 import { calcolaImbuto, codiciImbuto, IMBUTO_MENSILE, IMBUTO_SETTIMANALE, MESI_IMBUTO, SETTIMANE_IMBUTO, sommaPeriodi, type Imbuto } from '../lib/imbuto'
 import { aggiungiMesi, mesePredefinito, titoloMese, totaleConStorico } from '../lib/mensile'
 import {
-  aggiungiSettimane, giornoEMese, intervalloSettimane, lunediDi, meseDellaSettimana, nomeMese, oggiISO, settimaneDelMese, ultimaSettimanaConclusa,
+  aggiungiSettimane, giornoEMese, intervalloSettimana, intervalloSettimane, lunediDi, meseDellaSettimana, nomeMese, oggiISO, settimaneDelMese, ultimaSettimanaConclusa,
 } from '../lib/settimane'
 import type { Ufficio } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { GraficoAndamento, LegendaGrafico } from '../componenti/Grafici'
 import { GraficoImbuto, NotaImbuto } from '../componenti/Imbuto'
+import { NotaPosizione, PosizioniCitta } from '../componenti/Posizione'
 import { Icona, useProgresso } from '../componenti/Interfaccia'
 import { Caricamento, CellaQuota, CellaRisultato, Legenda } from '../componenti/Celle'
 
@@ -82,6 +83,10 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
       </div>
 
       {ufficio && <RiquadroImbuto key={ufficio.id} ufficio={ufficio} conCitta={ctx.utente.ruolo === 'ufficio'} nomeCitta={ctx.citta.find((c) => c.id === ufficio.citta_id)?.nome ?? ''} />}
+      {ufficio && ctx.utente.ruolo === 'ufficio' && (
+        <RiquadroPosizione nomeCitta={ctx.citta.find((c) => c.id === ufficio.citta_id)?.nome ?? ''}
+          voci={[...attivita.map((m) => ({ codice: m.codice, nome: m.nome })), { codice: '__quota', nome: 'Quota di mercato' }]} />
+      )}
 
       {caricamento || errore || !dati ? <Caricamento errore={errore} /> : (
         <>
@@ -201,6 +206,24 @@ function RiquadroImbuto({ ufficio, conCitta, nomeCitta }: { ufficio: Ufficio; co
           <NotaImbuto periodo={dati.periodo + (dati.citta ? `. In verde i passaggi almeno come tutta ${nomeCitta}, in arancio quelli sotto (la città mostra solo le somme, mai i singoli uffici)` : '')} />
         </>
       )}
+    </section>
+  )
+}
+
+/**
+ * Posizione dell'ufficio nella sua città nell'ultima settimana conclusa (solo per gli account ufficio).
+ * Se il database non ha ancora la 014 il riquadro non compare.
+ */
+function RiquadroPosizione({ nomeCitta, voci }: { nomeCitta: string; voci: { codice: string; nome: string }[] }) {
+  const ultima = ultimaSettimanaConclusa()
+  const { dati } = useDati(() => caricaPosizioneCitta([[aggiungiSettimane(ultima, -1)], [ultima]]), [ultima])
+  if (!dati) return null
+  return (
+    <section className="scheda entra">
+      <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="ranking" /></span>
+        La tua posizione a {nomeCitta} <span className="piccolo">· settimana {intervalloSettimana(ultima)}</span></h2>
+      <PosizioniCitta compatto posizioni={dati.voci} voci={voci} prima="della settimana prima" />
+      <NotaPosizione nomeCitta={nomeCitta} prima="della settimana prima" extra="Per il mese, apri la Presentazione e scegli Mese." />
     </section>
   )
 }

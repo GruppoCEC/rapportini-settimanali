@@ -1,7 +1,7 @@
 // Lettura dei dati dal database. Le regole di accesso filtrano già
 // automaticamente: ognuno riceve solo le righe che può vedere.
 import { supabase } from './supabase'
-import { totaliCittaDaRighe, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
+import { posizioniDaRighe, totaliCittaDaRighe, type Posizione, type RigaPosizione, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
 import { riepilogoDaRighe, type RiepilogoMensile, type RigaTotaliMensiliCitta } from './mensile'
 import type { Metrica, Persona, Rilevazione, Scadenza, StoricoMensile, Utente, ValoreMensile, VoceMensile } from './tipi'
 
@@ -106,6 +106,31 @@ export async function caricaTotaliMensiliCitta(mesi: string[], colonne: string[]
   const { data, error } = await supabase.rpc('totali_mensili_mia_citta', { p_mesi: mesi })
   if (error || !data || (data as RigaTotaliMensiliCitta[]).length === 0) return null
   return riepilogoDaRighe(data as RigaTotaliMensiliCitta[], mesi.length, colonne)
+}
+
+/** Posizione del proprio ufficio nella sua città, voce per voce, nell'ultimo periodo (con quella del periodo prima) */
+export interface PosizioniCitta { voci: Map<string, Posizione>; ufficiCitta: number }
+
+/**
+ * Posizione del proprio ufficio nella città, settimana per settimana o mese per mese (ogni periodo = elenco di lunedì).
+ * Il database manda solo la riga dell'ufficio collegato, mai i numeri o i nomi degli altri (014_posizione_citta.sql).
+ * null se la funzione non c'è ancora nel database o se l'account non è di un ufficio.
+ */
+export async function caricaPosizioneCitta(periodi: string[][]): Promise<PosizioniCitta | null> {
+  const { data, error } = await supabase.rpc('posizione_mia_citta', {
+    p_inizi: periodi.map((p) => p[0]),
+    p_fini: periodi.map((p) => p[p.length - 1]),
+  })
+  if (error || !data || (data as unknown[]).length === 0) return null
+  const righe = (data as (Omit<RigaPosizione, 'voce'> & { metrica: string })[]).map(({ metrica, ...r }) => ({ ...r, voce: metrica }))
+  return posizioniDaRighe(righe, periodi.length)
+}
+
+/** Come caricaPosizioneCitta, con i rapportini mensili ('AAAA-MM-01', dal più vecchio) */
+export async function caricaPosizioneMensileCitta(mesi: string[]): Promise<PosizioniCitta | null> {
+  const { data, error } = await supabase.rpc('posizione_mensile_mia_citta', { p_mesi: mesi })
+  if (error || !data || (data as unknown[]).length === 0) return null
+  return posizioniDaRighe(data as RigaPosizione[], mesi.length)
 }
 
 /** Tutte le righe di una tabella, a pagine da 1000 (per il backup) */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  classifica, classificaQuota, quotaDaTotali, raggiungimento, semaforo, serieQuota, serieSettimanale, variazioneZona,
+  fascia, posizioniDaRighe, classifica, classificaQuota, quotaDaTotali, raggiungimento, semaforo, serieQuota, serieSettimanale, variazioneZona,
   sommaTotali, statoCompilazione, statoCompilazionePeriodo, totaliCittaDaRighe, totaliPerPeriodi, totaliPerUfficio,
 } from './aggregazioni'
 import type { Metrica, Rilevazione, Ufficio } from './tipi'
@@ -139,5 +139,29 @@ describe('totali di tutta la città (dal database, solo somme)', () => {
     const ultimo = totaliCittaDaRighe([riga(2, 'portafoglio', null, 105, { variazione: '10', confrontati: 2, uffici_con_dato: 3 })] as never, 2)
     expect(ultimo.zona.get('portafoglio')).toEqual({ variazione: 10, confrontati: 2, conDato: 3 })
     expect(ultimo.ufficiConDati).toBe(3)
+  })
+})
+
+describe('posizione nella città', () => {
+  it('la fascia dice in quale quarto della città è l\'ufficio', () => {
+    expect(fascia(1, 38)).toBe('primo')
+    expect(fascia(8, 38)).toBe('primo')
+    expect(fascia(10, 38)).toBe('primo')
+    expect(fascia(11, 38)).toBe('secondo')
+    expect(fascia(28, 38)).toBe('terzo')
+    expect(fascia(38, 38)).toBe('ultimo')
+    expect(fascia(1, 1)).toBe('primo')          // da solo
+    expect(fascia(2, 2)).toBe('ultimo')
+  })
+
+  it('legge le righe del database: ultima posizione e quella del periodo prima', () => {
+    const r = posizioniDaRighe([
+      { periodo: 1, voce: 'incarichi', posizione: 5, uffici_con_dato: 30, uffici_citta: 31 },
+      { periodo: 2, voce: 'incarichi', posizione: 2, uffici_con_dato: 29, uffici_citta: 31 },
+      { periodo: 2, voce: '__quota', posizione: 9, uffici_con_dato: 28, uffici_citta: 31 },
+    ], 2)
+    expect(r.ufficiCitta).toBe(31)
+    expect(r.voci.get('incarichi')).toEqual({ posizione: 2, su: 29, prima: 5 })
+    expect(r.voci.get('__quota')).toEqual({ posizione: 9, su: 28, prima: null })
   })
 })

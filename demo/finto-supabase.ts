@@ -7,7 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { aggiungiSettimane, lunediDi, oggiISO, settimanaPredefinita } from '../src/lib/settimane'
 import { aggiungiMesi, inServizio, mesePredefinito, riepilogoMensile, STAFF, totaleConStorico, vociDelRapportino } from '../src/lib/mensile'
-import { totaliPerUfficio } from '../src/lib/aggregazioni'
+import { quotaDaTotali, totaliPerUfficio } from '../src/lib/aggregazioni'
 
 export const configurato = true
 
@@ -297,6 +297,45 @@ function totaliMensiliMiaCitta(mesi: string[]): any[] {
   })
 }
 
+// Posizione con pari merito: 1 + quanti uffici hanno un numero più alto (come rank() nel database)
+function righePosizione(perUfficio: Map<number, number | null>[], mio: number, nomeVoce: string, uffici_citta: number, periodo: number) {
+  const valori = perUfficio[periodo - 1]
+  const mioValore = valori.get(mio)
+  if (mioValore == null) return []
+  const conDato = [...valori.values()].filter((v): v is number => v != null)
+  return [{ periodo, voce: nomeVoce, metrica: nomeVoce, posizione: 1 + conDato.filter((v) => v > mioValore).length, uffici_con_dato: conDato.length, uffici_citta }]
+}
+
+// Come posizione_mia_citta (014_posizione_citta.sql): solo per un ufficio, solo la sua riga
+function posizioneMiaCitta(inizi: string[], fini: string[]): any[] {
+  const me = io()
+  const mio = me?.ruolo === 'ufficio' ? uffici.find((u) => u.id === me.ufficio_id) : undefined
+  if (!mio) return []
+  const ids = new Set(uffici.filter((u) => u.attivo && u.citta_id === mio.citta_id).map((u) => u.id))
+  const perPeriodo = inizi.map((da, i) => totaliPerUfficio(rilevazioni.filter((r) => ids.has(r.ufficio_id) && r.settimana >= da && r.settimana <= fini[i]), metriche as any))
+  const voci: string[] = [...metriche.map((m) => String(m.codice)), '__quota']
+  return voci.flatMap((voce) => {
+    const perUfficio = perPeriodo.map((t) => new Map<number, number | null>([...t].map(([u, x]) => [u, voce === '__quota' ? quotaDaTotali(x) : x.get(voce)?.risultato ?? null])))
+    return inizi.flatMap((_, i) => righePosizione(perUfficio, mio.id, voce, ids.size, i + 1))
+  })
+}
+
+// Come posizione_mensile_mia_citta (014_posizione_citta.sql): solo per un ufficio, solo la sua riga
+function posizioneMensileMiaCitta(mesi: string[]): any[] {
+  const me = io()
+  const mio = me?.ruolo === 'ufficio' ? uffici.find((u) => u.id === me.ufficio_id) : undefined
+  if (!mio) return []
+  const ids = uffici.filter((u) => u.attivo && u.citta_id === mio.citta_id).map((u) => u.id)
+  const colonne = [STAFF, ...vociDelRapportino(voci_mensili as any).map((v) => v.codice)]
+  const totali = mesi.map((m) => new Map(ids.map((id) => [id, totaleConStorico(persone.filter((p) => p.ufficio_id === id), valori_mensili.filter((v) => v.ufficio_id === id),
+    m, voci_mensili as any, totali_mensili_storico.filter((s) => s.ufficio_id === id)).totale])))
+  const haNumeri = (t: Map<string, number | null> | undefined) => !!t && [...t].some(([k, v]) => k !== STAFF && v !== null)
+  return colonne.flatMap((voce) => {
+    const perUfficio = totali.map((t) => new Map<number, number | null>([...t].map(([u, x]) => [u, voce === STAFF && !haNumeri(x) ? null : x.get(voce) ?? null])))
+    return mesi.flatMap((_, i) => righePosizione(perUfficio, mio.id, voce, ids.length, i + 1))
+  })
+}
+
 // ---------------------------------------------------------------- finto client
 const attesa = (ms = 120) => new Promise((r) => setTimeout(r, ms))
 let prossimoId = 100
@@ -421,6 +460,8 @@ export const supabase: any = {
     if (nome === 'mensile_aperto') { try { return { data: localStorage.getItem('rapportini.demo.mensileInProva') !== 'si', error: null } } catch { return { data: true, error: null } } }
     if (nome === 'totali_mia_citta') return { data: totaliMiaCitta(args.p_inizi, args.p_fini), error: null }
     if (nome === 'totali_mensili_mia_citta') return { data: totaliMensiliMiaCitta(args.p_mesi), error: null }
+    if (nome === 'posizione_mia_citta') return { data: posizioneMiaCitta(args.p_inizi, args.p_fini), error: null }
+    if (nome === 'posizione_mensile_mia_citta') return { data: posizioneMensileMiaCitta(args.p_mesi), error: null }
     return { data: null, error: { message: `funzione ${nome} non disponibile nella demo` } }
   },
   functions: {

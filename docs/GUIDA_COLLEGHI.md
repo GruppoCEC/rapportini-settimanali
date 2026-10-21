@@ -37,6 +37,8 @@ In **Il mio ufficio** trovi:
 - in cima, l'**imbuto della vendita**: dalle valutazioni alle vendite, con i passaggi tra una fase e l'altra (per esempio "1 proposta ogni 6 appuntamenti"),
   sulle ultime 4 settimane o sugli ultimi 3 mesi. Accanto c'è quello di tutta la tua città, per confrontarti: in verde i passaggi
   almeno come la città, in arancio quelli sotto;
+- **la tua posizione a Roma** (o Milano) nell'ultima settimana: per ogni attività in che posizione sei tra gli uffici della città
+  ("8° su 31"), in quale quarto della città sei e se sei salito o sceso rispetto alla settimana prima. Non vedi i nomi né i numeri degli altri uffici;
 - il grafico delle ultime 12 settimane per ogni attività;
 - il riepilogo mese per mese.
 
@@ -54,6 +56,7 @@ La settimana usa i rapportini settimanali e si confronta con la settimana prima.
 Dopo i totali del tuo ufficio trovi la pagina **Totali · Tutta Roma** (o **Tutta Milano**): come va
 l'intera città, con gli stessi numeri della riunione del lunedì. Mostra solo i totali della città,
 non i numeri dei singoli uffici.
+Poi trovi **La tua posizione a Roma** (o Milano): la tua posizione nella città voce per voce, nella settimana o nel mese.
 
 ## Per gli affiliati
 

@@ -9,7 +9,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
   - rapportino mensile: 3 giorni prima e il giorno prima della scadenza agli uffici che non hanno compilato, e il giorno dopo il riepilogo all'amministratore generale.
 - **Cruscotto, stato compilazione, grafici e modalità riunione** a tutto schermo per la riunione del lunedì.
   Uffici e affiliati hanno la loro **Presentazione** con i soli propri uffici; si presenta una settimana o un mese.
-  Nella Presentazione di un ufficio c'è anche la pagina con i totali di tutta la sua città (solo le somme).
+  Nella Presentazione di un ufficio c'è anche la pagina con i totali di tutta la sua città (solo le somme) e la sua posizione nella città, senza i nomi né i numeri degli altri.
 - **Esiti, totali del mese e quota di mercato** si calcolano da soli: niente più #DIV/0! o totali sbagliati.
 - **Roma e Milano** sono sezioni separate, ognuna con la propria riunione del lunedì.
 - **Chi vede cosa**:
@@ -29,6 +29,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 | 4 | Grafici di andamento e modalità riunione | Codice pronto: da provare sul proiettore |
 | 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.635 valori (gen–ott 2026) |
 | 6 | Avvio per tutti gli uffici | Da fare |
+| — | Posizione dell'ufficio nella sua città (0.15.0) | Codice pronto: eseguire `014_posizione_citta.sql` in Supabase, poi pubblicare |
 | — | Imbuto della vendita (0.14.0) | Codice pronto: basta pubblicare (nessuna modifica al database) |
 | — | Nota della settimana a tre caselle, richieste di aiuto (0.13.0) | Codice pronto: eseguire `013_nota_tre_caselle.sql` in Supabase, poi pubblicare |
 | — | Affiliati che inseriscono i dati dei loro uffici (0.12.0) | Codice pronto: eseguire `012_affiliati_compilano.sql` in Supabase, poi pubblicare |

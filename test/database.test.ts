@@ -639,6 +639,68 @@ describe('Settimane completate dal rapportino mensile', () => {
   })
 })
 
+describe('Posizione dell\'ufficio nella sua città', () => {
+  beforeAll(async () => {
+    // giugno 2023, lontano dagli altri test. Settimana del 5/6: incarichi B 5, A 3, C 3 (pari merito);
+    // quota C 50%, A 25%, B 10%. Settimana del 12/6: A 6, B 2; Milano 100 (altra città).
+    await db.exec(`insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato) values
+      (${romaA}, '2023-06-05', 'incarichi', 1, 3), (${romaB}, '2023-06-05', 'incarichi', 1, 5), (${romaC}, '2023-06-05', 'incarichi', 1, 3),
+      (${romaA}, '2023-06-05', 'portafoglio', null, 10), (${romaA}, '2023-06-05', 'incarichi_zona', null, 40),
+      (${romaB}, '2023-06-05', 'portafoglio', null, 5), (${romaB}, '2023-06-05', 'incarichi_zona', null, 50),
+      (${romaC}, '2023-06-05', 'portafoglio', null, 10), (${romaC}, '2023-06-05', 'incarichi_zona', null, 20),
+      (${romaA}, '2023-06-12', 'incarichi', 1, 6), (${romaB}, '2023-06-12', 'incarichi', 1, 2), (${milanoA}, '2023-06-12', 'incarichi', 1, 100)`)
+  })
+  interface Riga { periodo: number; metrica: string; posizione: number; uffici_con_dato: number; uffici_citta: number }
+  const posizioni = (email: string) => come<Riga>(email, `select * from posizione_mia_citta($1::date[], $2::date[])`, [['2023-06-05', '2023-06-12'], ['2023-06-05', '2023-06-12']])
+  const voce = (righe: Riga[], periodo: number, metrica: string) => righe.find((r) => r.periodo === periodo && r.metrica === metrica)
+
+  it('l\'ufficio riceve solo la propria posizione, con i pari merito e la quota di mercato', async () => {
+    const righe = await posizioni('a@test.it')
+    expect(voce(righe, 1, 'incarichi')).toMatchObject({ posizione: 2, uffici_con_dato: 3, uffici_citta: 3 })   // 5, 3, 3 → B 1°, A e C 2°
+    expect(voce(righe, 1, '__quota')).toMatchObject({ posizione: 2, uffici_con_dato: 3 })                    // 50%, 25%, 10%
+    expect(voce(righe, 2, 'incarichi')).toMatchObject({ posizione: 1, uffici_con_dato: 2 })                  // Milano non conta
+    // una sola riga per periodo e voce: mai quelle degli altri uffici
+    expect(new Set(righe.map((r) => `${r.periodo}-${r.metrica}`)).size).toBe(righe.length)
+    expect(voce(await posizioni('b@test.it'), 1, 'incarichi')).toMatchObject({ posizione: 1 })
+  })
+
+  it('agli altri account non restituisce nulla, e senza accesso non si può chiamare', async () => {
+    for (const email of ['davide@test.it', 'adminmi@test.it', 'resp@test.it', 'rapportini+aff@gmail.com', 'estraneo@test.it']) {
+      expect(await posizioni(email)).toHaveLength(0)
+      expect(await come(email, `select * from posizione_mensile_mia_citta(array['2026-07-01']::date[])`)).toHaveLength(0)
+    }
+    await db.exec(`set role anon`)
+    try {
+      await expect(db.query(`select * from posizione_mia_citta(array['2023-06-05']::date[], array['2023-06-05']::date[])`)).rejects.toThrow()
+    } finally { await db.exec('reset role') }
+  })
+
+  it('nel mese le posizioni seguono le regole del Report mensile (persone in servizio, storico, staff)', async () => {
+    const MESI = ['2026-07-01', '2026-08-01']
+    const voci = (await db.query<VoceMensile>(`select * from voci_mensili where attiva`)).rows
+    const colonne = [STAFF, ...vociDelRapportino(voci).map((v) => v.codice)]
+    const persone = (await db.query<Persona>(`select id::int, ufficio_id::int, nome, ruolo, to_char(data_inizio, 'YYYY-MM-DD') data_inizio, to_char(data_fine, 'YYYY-MM-DD') data_fine from persone`)).rows
+    const valori = (await db.query<ValoreMensile>(`select persona_id::int, ufficio_id::int, to_char(mese, 'YYYY-MM-DD') mese, voce, valore from valori_mensili`)).rows
+    const storico = (await db.query<StoricoMensile>(`select ufficio_id::int, to_char(mese, 'YYYY-MM-DD') mese, voce, valore from totali_mensili_storico`)).rows
+    const roma = [romaA, romaB, romaC]
+    const totali = MESI.map((m) => roma.map((u) => totaleConStorico(
+      persone.filter((p) => p.ufficio_id === u), valori.filter((v) => v.ufficio_id === u), m, voci, storico.filter((s) => s.ufficio_id === u)).totale))
+    const haNumeri = (t: Map<string, number | null>) => [...t].some(([k, v]) => k !== STAFF && v !== null)
+    const attese: string[] = []
+    MESI.forEach((_, i) => {
+      for (const c of colonne) {
+        const di = (t: Map<string, number | null>) => (c === STAFF && !haNumeri(t) ? null : t.get(c) ?? null)
+        const tutti = totali[i].map(di).filter((v): v is number => v !== null)
+        const mio = di(totali[i][0])
+        if (mio !== null) attese.push(`${i + 1} ${c} ${1 + tutti.filter((v) => v > mio).length}/${tutti.length}`)
+      }
+    })
+    const righe = await come<{ periodo: number; voce: string; posizione: number; uffici_con_dato: number }>('a@test.it',
+      `select * from posizione_mensile_mia_citta($1::date[])`, [MESI])
+    expect(righe.map((r) => `${r.periodo} ${r.voce} ${r.posizione}/${r.uffici_con_dato}`).sort()).toEqual(attese.sort())
+  })
+})
+
 describe('Nota della settimana a tre caselle', () => {
   const salva = `insert into note_settimana (ufficio_id, settimana, bene, difficolta, aiuto) values ($1, '2026-10-19', $2, $3, $4)
                  on conflict (ufficio_id, settimana) do update set bene = excluded.bene, difficolta = excluded.difficolta, aiuto = excluded.aiuto`
@@ -669,10 +731,10 @@ describe('Nota della settimana a tre caselle', () => {
 })
 
 describe('Migrazioni rieseguite', () => {
-  it('006–013 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–014 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
     const note = (await db.query(`select * from note_settimana order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

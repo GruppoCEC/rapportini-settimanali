@@ -13,7 +13,7 @@ import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../l
 import { AREE_ATTIVE, MENSILE_ATTIVO, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { nomeDaEmail } from '../lib/account'
 import {
-  CASELLE_NOTA, caricaNote, caricaPersone, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
+  CASELLE_NOTA, caricaNote, caricaPersone, caricaPosizioneCitta, caricaPosizioneMensileCitta, type PosizioniCitta, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
 } from '../lib/dati'
 import {
   formattaNumero, inServizio, meseInCorso as meseAttuale, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
@@ -29,6 +29,7 @@ import { useDati } from '../lib/useDati'
 import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../componenti/Celle'
 import { GraficoAndamento } from '../componenti/Grafici'
 import { GraficoImbuto, ImbutoInRiga, NotaImbuto, TabellaImbuto } from '../componenti/Imbuto'
+import { NotaPosizione, PosizioniCitta as RiquadriPosizione } from '../componenti/Posizione'
 import {
   calcolaImbuto, codiciImbuto, IMBUTO_MENSILE, IMBUTO_SETTIMANALE, MESI_IMBUTO, SETTIMANE_IMBUTO, sommaPeriodi, type DefinizioneImbuto, type Imbuto,
 } from '../lib/imbuto'
@@ -63,7 +64,7 @@ interface Diapositiva {
   contenuto: (t: number) => ReactNode      // t = avanzamento dell'animazione (0–1)
 }
 
-interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null }
+interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null; posizione: PosizioniCitta | null }
 
 /** Presentazione mensile: i rapportini mensili degli uffici negli ultimi 6 mesi */
 interface DatiMensili {
@@ -71,6 +72,7 @@ interface DatiMensili {
   mesi: string[]                       // 'AAAA-MM-01', dal più vecchio; l'ultimo è quello presentato
   uffici: { ufficio: Ufficio; totali: TotaliMese[]; stato: Stato; daStorico: boolean }[]
   citta: RiepilogoMensile | null       // per un ufficio: tutta la sua città (solo le somme)
+  posizione: PosizioniCitta | null     // per un ufficio: la sua posizione nella città (solo la sua riga)
 }
 
 /** Staff e colonne del rapportino mensile (l'indicatore delle coordinatrici resta fuori) */
@@ -79,10 +81,12 @@ const colonneMensili = (voci: VoceMensile[]) => [STAFF, ...vociDelRapportino(voc
 async function caricaDatiMensili(mesi: string[], uffici: Ufficio[], soloUfficio: boolean): Promise<DatiMensili> {
   const ids = uffici.map((u) => u.id)
   const [voci, persone, valori, storico] = await Promise.all([caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids), caricaStorico(mesi, ids)])
-  const citta = soloUfficio ? await caricaTotaliMensiliCitta(mesi, colonneMensili(voci)) : null
+  const [citta, posizione] = soloUfficio
+    ? await Promise.all([caricaTotaliMensiliCitta(mesi, colonneMensili(voci)), caricaPosizioneMensileCitta(mesi.slice(-2))])
+    : [null, null]
   const ultimo = mesi[mesi.length - 1]
   return {
-    voci, mesi, citta,
+    voci, mesi, citta, posizione,
     uffici: uffici.map((ufficio) => {
       const suePersone = persone.filter((p) => p.ufficio_id === ufficio.id)
       const suoiValori = valori.filter((v) => v.ufficio_id === ufficio.id)
@@ -129,12 +133,13 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
   const correnti = periodi[periodi.length - 1]
   const caricoSettimane = useDati<DatiRiunione | null>(async () => {
     if (mensile) return null
-    const [dati, note, citta] = await Promise.all([
+    const [dati, note, citta, posizione] = await Promise.all([
       caricaRilevazioni(periodi[0][0], correnti[correnti.length - 1], ids),
       caricaNote(correnti, ids),
       soloUfficio ? caricaTotaliCitta(periodi) : null,     // un ufficio vede anche come va tutta la sua città
+      soloUfficio ? caricaPosizioneCitta(periodi.slice(-2)) : null,   // e la sua posizione (periodo presentato e quello prima)
     ])
-    return { dati, note, citta }
+    return { dati, note, citta, posizione }
   }, [mensile, periodi[0][0], correnti.join(','), ids.join(','), soloUfficio])
 
   const carico = mensile ? caricoMese : caricoSettimane
@@ -297,9 +302,10 @@ function meseInCorso(settimane: string[]): boolean {
 /** Valori periodo per periodo di una voce (per i grafici di andamento) */
 const serieDi = (andamento: Totali[], codice: string) => andamento.map((t) => t.get(codice) ?? { obiettivo: null, risultato: null })
 
-function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, dati, note, citta }: {
+function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, dati, note, citta, posizione }: {
   ctx: Contesto; uffici: Ufficio[]; periodo: Periodo; periodi: string[][]; titolo: string; nomePresentazione: string; nomeCitta: string
   dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null     // citta: totali di tutta la città, solo per un ufficio
+  posizione: PosizioniCitta | null                                 // posizione nella città, solo per un ufficio
 }): Diapositiva[] {
   const attivita: Metrica[] = ctx.metriche.filter((m) => m.tipo === 'attivita')
   const parole = paroleDelPeriodo(periodo)
@@ -412,6 +418,15 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
       ...comuni, titolo: `Totali · Tutta ${nomeCitta}`, andamento: citta.andamento, obiettivoDi: 'della città',
       portafoglioPrima: citta.zona.get('portafoglio') ?? { variazione: null, confrontati: 0, conDato: 0 },
       nota: `Somma di tutti gli uffici di ${nomeCitta}: ${citta.ufficiConDati} su ${citta.ufficiCitta} hanno inserito dati ${parole.delPeriodo}. I numeri dei singoli uffici non si vedono.`,
+    }))
+  }
+
+  // 2 quater. Per un ufficio: la sua posizione nella città, voce per voce (solo la sua riga, dal database)
+  if (posizione) {
+    out.push(paginaPosizione({
+      nomeCitta, posizioni: posizione.voci, prima: periodo.tipo === 'settimana' ? 'della settimana prima' : 'del mese prima',
+      voci: [...attivita.map((m) => ({ codice: m.codice, nome: m.nome })), { codice: '__quota', nome: 'Quota di mercato' }],
+      extra: `Numeri ${parole.delPeriodo}.`,
     }))
   }
 
@@ -733,6 +748,21 @@ function paginaTotali({ titolo, andamento, portafoglioPrima, attivita, parole, p
   }
 }
 
+/** Pagina "La tua posizione a Roma": solo per un ufficio, con la sua posizione voce per voce */
+function paginaPosizione({ nomeCitta, posizioni, voci, prima, extra }: {
+  nomeCitta: string; posizioni: PosizioniCitta['voci']; voci: { codice: string; nome: string }[]; prima: string; extra: string
+}): Diapositiva {
+  return {
+    titolo: `La tua posizione a ${nomeCitta}`,
+    contenuto: () => (
+      <div className="p-colonna">
+        <RiquadriPosizione posizioni={posizioni} voci={voci} prima={prima} />
+        <NotaPosizione nomeCitta={nomeCitta} prima={prima} extra={extra} />
+      </div>
+    ),
+  }
+}
+
 /**
  * Pagine dell'imbuto della vendita. Con un ufficio solo: il suo imbuto accanto a quello di tutta la città.
  * Con più uffici: l'imbuto del gruppo, poi una pagina con i passaggi ufficio per ufficio (colorati rispetto al gruppo).
@@ -807,7 +837,7 @@ function deltaMensile(variazione: number | null, voce?: VoceMensile) {
   return { classe, testo }
 }
 
-function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, voci, mesi, uffici, citta }: DatiMensili & {
+function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, voci, mesi, uffici, citta, posizione }: DatiMensili & {
   periodo: Periodo; titolo: string; nomePresentazione: string; nomeCitta: string
 }): Diapositiva[] {
   const colonne = colonneMensili(voci)
@@ -881,6 +911,15 @@ function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nome
     out.push(paginaTotaliMensili({
       titolo: `Totali · Tutta ${nomeCitta}`, riepilogo: citta, voci, colonne, etichette,
       nota: `Somma di tutti gli uffici di ${nomeCitta}: ${citta.ufficiConDati} su ${citta.ufficiTotali} hanno inserito il rapportino del mese. I numeri dei singoli uffici non si vedono.`,
+    }))
+  }
+
+  // 2 ter. Per un ufficio: la sua posizione nella città sulle voci delle classifiche mensili
+  if (posizione) {
+    out.push(paginaPosizione({
+      nomeCitta, posizioni: posizione.voci, prima: 'del mese prima',
+      voci: CLASSIFICHE_MENSILI.map((c) => ({ codice: c, nome: nomeVoceMensile(voci, c) })),
+      extra: 'Numeri dei rapportini mensili.',
     }))
   }
 
