@@ -1,5 +1,11 @@
 # Storia delle versioni
 
+## 0.11.1 — 21 ottobre 2026
+
+**Inserisci settimana: niente avviso "Modifiche non salvate" per i soli suggerimenti** (segnalato da Davide):
+- aprendo una settimana senza obiettivi o dati di zona (per esempio quelle completate dal rapportino mensile), la pagina propone quelli della settimana prima. Prima questi suggerimenti contavano come modifiche: cambiando settimana compariva "Hai modifiche non salvate. Vuoi abbandonarle?" anche senza aver scritto nulla;
+- ora l'avviso compare solo se si scrive qualcosa. **Salva** resta attivo, per salvare i suggerimenti così come sono.
+
 ## 0.11.0 — 21 ottobre 2026
 
 **Settimane vuote completate dal rapportino mensile** (richiesta di Davide):

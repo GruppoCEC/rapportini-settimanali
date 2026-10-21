@@ -30,7 +30,8 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
   const [ufficioId, setUfficioId] = useState(uffici.find((u) => u.id === ufficioPredefinito)?.id ?? uffici[0].id)
   const [settimana, setSettimana] = useState(settimanaPredefinita())
   const [caselle, setCaselle] = useState<Caselle>(() => caselleVuote(metriche))
-  const [originali, setOriginali] = useState<Caselle>(() => caselleVuote(metriche))
+  const [originali, setOriginali] = useState<Caselle>(() => caselleVuote(metriche))   // come sono nel database
+  const [iniziali, setIniziali] = useState<Caselle>(() => caselleVuote(metriche))     // come si mostrano all'apertura (con i suggerimenti)
   const [nota, setNota] = useState('')
   const [notaOriginale, setNotaOriginale] = useState('')
   const [proposteDa, setProposteDa] = useState<string | null>(null)   // settimana da cui sono copiati i dati di zona
@@ -45,12 +46,15 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
   const attivita = metriche.filter((m) => m.tipo === 'attivita')
   const zona = metriche.filter((m) => m.tipo === 'zona')
 
-  const modificato = useMemo(
-    () => nota !== notaOriginale || metriche.some((m) =>
-      caselle[m.codice].obiettivo !== originali[m.codice].obiettivo ||
-      caselle[m.codice].risultato !== originali[m.codice].risultato),
-    [caselle, originali, nota, notaOriginale, metriche],
-  )
+  const diverse = (a: Caselle, b: Caselle) => metriche.some((m) =>
+    a[m.codice].obiettivo !== b[m.codice].obiettivo || a[m.codice].risultato !== b[m.codice].risultato)
+  // C'è qualcosa da salvare (anche solo i suggerimenti accettati così come sono)
+  const daSalvare = useMemo(() => nota !== notaOriginale || diverse(caselle, originali),
+    [caselle, originali, nota, notaOriginale, metriche])  // eslint-disable-line react-hooks/exhaustive-deps
+  // L'utente ha scritto qualcosa: solo allora si avvisa prima di cambiare settimana.
+  // I suggerimenti (obiettivi e dati di zona della settimana prima) da soli non sono modifiche.
+  const modificato = useMemo(() => nota !== notaOriginale || diverse(caselle, iniziali),
+    [caselle, iniziali, nota, notaOriginale, metriche])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Avvisa se si chiude la pagina con modifiche non salvate
   useEffect(() => {
@@ -120,6 +124,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
       }
 
       setOriginali(salvate)
+      setIniziali(proposte)
       setCaselle(proposte)
       setNota(notaDb.data?.testo ?? '')
       setNotaOriginale(notaDb.data?.testo ?? '')
@@ -303,7 +308,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
           </span>
         )}
         {!messaggio && modificato && stato === 'pronto' && <span className="non-salvato"><span className="pallino" />Modifiche non salvate</span>}
-        <button className="btn btn-primario" onClick={salva} disabled={stato !== 'pronto' || !modificato}>
+        <button className="btn btn-primario" onClick={salva} disabled={stato !== 'pronto' || !daSalvare}>
           <Icona nome={stato === 'salvataggio' ? 'circle-notch' : 'floppy-disk'} className={stato === 'salvataggio' ? 'gira' : ''} />
           {stato === 'salvataggio' ? 'Salvataggio…' : stato === 'caricamento' ? 'Caricamento…' : 'Salva'}
         </button>
