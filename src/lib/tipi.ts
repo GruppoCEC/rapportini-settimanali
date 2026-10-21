@@ -50,6 +50,7 @@ export interface Rilevazione {
   risultato: number | null
   aggiornato_da?: string | null
   aggiornato_il?: string
+  da_mensile?: boolean        // settimana completata dal rapportino mensile (011): solo per i segnali, non si mostra
 }
 
 export const NOMI_RUOLO: Record<Ruolo, string> = {
@@ -93,6 +94,7 @@ export interface ValoreMensile {
   valore: number | null
   aggiornato_da?: string | null
   aggiornato_il?: string
+  da_mensile?: boolean        // settimana completata dal rapportino mensile (011): solo per i segnali, non si mostra
 }
 
 export const NOMI_RUOLO_PERSONA: Record<RuoloPersona, string> = {

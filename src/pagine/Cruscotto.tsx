@@ -1,16 +1,19 @@
 // Cruscotto della città: riquadri con i totali, tabella uffici × attività, totali di area e città,
 // confronto tra aree, andamento della città e (solo admin generale) Roma vs Milano.
 import { Fragment, useState } from 'react'
-import { quotaDaTotali, raggiungimento, serieQuota, serieSettimanale, sommaTotali, statoCompilazione, totaliPerUfficio, type Totali } from '../lib/aggregazioni'
+import { inClassifica, quotaDaTotali, raggiungimento, serieQuota, serieSettimanale, sommaTotali, statoCompilazione, totaliPerUfficio, type Totali } from '../lib/aggregazioni'
 import { formattaPercentuale, OBIETTIVO_QUOTA } from '../lib/calcoli'
 import { type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { caricaRilevazioni } from '../lib/dati'
+import { isAmministratore } from '../lib/permessi'
+import { calcolaSegnali, inizioSegnali } from '../lib/segnali'
 import { aggiungiSettimane, lunediDi, notaMeseSettimana, oggiISO } from '../lib/settimane'
 import type { Rilevazione, Ufficio } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { Caricamento, CellaQuota, CellaRisultato, coloreRapporto, Legenda, SIMBOLO } from '../componenti/Celle'
 import { GraficoAndamento, LegendaGrafico } from '../componenti/Grafici'
-import { conta, useProgresso } from '../componenti/Interfaccia'
+import { conta, Icona, useProgresso } from '../componenti/Interfaccia'
+import { ElencoSegnali, NotaSegnali } from '../componenti/Segnali'
 import SceltaPeriodo, { descriviPeriodo, estremiPeriodo, periodoPredefinito, type Periodo } from '../componenti/SceltaPeriodo'
 
 const SETTIMANE_ANDAMENTO = 12
@@ -128,6 +131,8 @@ export default function Cruscotto({ ctx }: { ctx: Contesto }) {
             <div className="kpi-griglia">
               {kpi.map((k, i) => <RiquadroKpi key={k.nome} k={k} ritardo={i * 45} />)}
             </div>
+
+            {isAmministratore(ctx.utente) && periodo.tipo === 'settimana' && <RiquadroSegnali ctx={ctx} uffici={uffici} settimana={periodo.settimana} />}
 
             <section className="scheda">
               <h2>Uffici · {descriviPeriodo(periodo)}</h2>
@@ -258,3 +263,18 @@ export default function Cruscotto({ ctx }: { ctx: Contesto }) {
     </div>
   )
 }
+
+/** Segnali della settimana (solo amministrazione): i primi uffici da seguire e le buone notizie; l'elenco completo è nella Riunione */
+function RiquadroSegnali({ ctx, uffici, settimana }: { ctx: Contesto; uffici: Ufficio[]; settimana: string }) {
+  const ids = uffici.map((u) => u.id)
+  const { dati, errore } = useDati(async () => calcolaSegnali(await caricaRilevazioni(inizioSegnali(settimana), settimana, ids), uffici,
+    ctx.metriche.filter((m) => m.tipo === 'attivita' && inClassifica(m.codice)), settimana), [settimana, ids.join(',')])
+  return (
+    <section className="scheda entra">
+      <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="flag" /></span>Segnali della settimana</h2>
+      {!dati ? <Caricamento errore={errore} /> : <ElencoSegnali segnali={dati} massimo={6} />}
+      <NotaSegnali />
+    </section>
+  )
+}
+

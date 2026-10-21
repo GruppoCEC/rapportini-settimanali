@@ -30,6 +30,8 @@ import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../compo
 import { GraficoAndamento } from '../componenti/Grafici'
 import { GraficoImbuto, ImbutoInRiga, NotaImbuto, TabellaImbuto } from '../componenti/Imbuto'
 import { NotaPosizione, PosizioniCitta as RiquadriPosizione } from '../componenti/Posizione'
+import { ElencoSegnali, NotaSegnali } from '../componenti/Segnali'
+import { calcolaSegnali, inizioSegnali, type Segnale } from '../lib/segnali'
 import {
   calcolaImbuto, codiciImbuto, IMBUTO_MENSILE, IMBUTO_SETTIMANALE, MESI_IMBUTO, SETTIMANE_IMBUTO, sommaPeriodi, type DefinizioneImbuto, type Imbuto,
 } from '../lib/imbuto'
@@ -64,7 +66,7 @@ interface Diapositiva {
   contenuto: (t: number) => ReactNode      // t = avanzamento dell'animazione (0–1)
 }
 
-interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null; posizione: PosizioniCitta | null }
+interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null; posizione: PosizioniCitta | null; segnali: Segnale[] | null }
 
 /** Presentazione mensile: i rapportini mensili degli uffici negli ultimi 6 mesi */
 interface DatiMensili {
@@ -133,14 +135,20 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
   const correnti = periodi[periodi.length - 1]
   const caricoSettimane = useDati<DatiRiunione | null>(async () => {
     if (mensile) return null
-    const [dati, note, citta, posizione] = await Promise.all([
+    // segnali della settimana: solo l'amministrazione, solo nella settimana (servono le 16 settimane fino a quella presentata)
+    const conSegnali = amministrazione && periodo.tipo === 'settimana'
+    const [dati, note, citta, posizione, perSegnali] = await Promise.all([
       caricaRilevazioni(periodi[0][0], correnti[correnti.length - 1], ids),
       caricaNote(correnti, ids),
       soloUfficio ? caricaTotaliCitta(periodi) : null,     // un ufficio vede anche come va tutta la sua città
       soloUfficio ? caricaPosizioneCitta(periodi.slice(-2)) : null,   // e la sua posizione (periodo presentato e quello prima)
+      conSegnali ? caricaRilevazioni(inizioSegnali(periodo.settimana), periodo.settimana, ids) : null,
     ])
-    return { dati, note, citta, posizione }
-  }, [mensile, periodi[0][0], correnti.join(','), ids.join(','), soloUfficio])
+    const segnali = perSegnali
+      ? calcolaSegnali(perSegnali, uffici, ctx.metriche.filter((m) => m.tipo === 'attivita' && inClassifica(m.codice)), periodo.settimana)
+      : null
+    return { dati, note, citta, posizione, segnali }
+  }, [mensile, periodi[0][0], correnti.join(','), ids.join(','), soloUfficio, amministrazione, periodo.tipo, periodo.settimana])
 
   const carico = mensile ? caricoMese : caricoSettimane
   const datiMese = mensile ? caricoMese.dati : null
@@ -189,6 +197,7 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
             <li><Icona nome="sigma" />{soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'}, con il confronto sul periodo prima;</li>
             {cittaPerUfficio && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
             <li><Icona nome="funnel" />imbuto della vendita delle ultime {SETTIMANE_IMBUTO} settimane: dalle valutazioni alle vendite;</li>
+            {amministrazione && periodo.tipo === 'settimana' && <li><Icona nome="flag" />segnali della settimana: gli uffici da seguire e le buone notizie;</li>}
             {uffici.length > 1 && <li><Icona nome="ranking" />classifiche per ogni attività;</li>}
             <li><Icona nome="chart-pie-slice" />quota di mercato;</li>
             {AREE_ATTIVE && areeCitta.length > 0 && <li><Icona nome="map-trifold" />confronto tra aree;</li>}
@@ -302,10 +311,11 @@ function meseInCorso(settimane: string[]): boolean {
 /** Valori periodo per periodo di una voce (per i grafici di andamento) */
 const serieDi = (andamento: Totali[], codice: string) => andamento.map((t) => t.get(codice) ?? { obiettivo: null, risultato: null })
 
-function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, dati, note, citta, posizione }: {
+function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, dati, note, citta, posizione, segnali }: {
   ctx: Contesto; uffici: Ufficio[]; periodo: Periodo; periodi: string[][]; titolo: string; nomePresentazione: string; nomeCitta: string
   dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null     // citta: totali di tutta la città, solo per un ufficio
   posizione: PosizioniCitta | null                                 // posizione nella città, solo per un ufficio
+  segnali: Segnale[] | null                                        // segnali della settimana, solo per l'amministrazione
 }): Diapositiva[] {
   const attivita: Metrica[] = ctx.metriche.filter((m) => m.tipo === 'attivita')
   const parole = paroleDelPeriodo(periodo)
@@ -449,6 +459,19 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
   // Nelle pagine dei singoli uffici l'imbuto si confronta con tutta la città (per un ufficio) o con il totale del gruppo
   const riferimentoImbuto = calcolaImbuto(IMBUTO_SETTIMANALE, valoriCittaImbuto ?? valoriGruppoImbuto)
   const nomeRiferimentoImbuto = valoriCittaImbuto ? nomeCitta : titolo
+
+  // 2 quinquies. Segnali della settimana: gli uffici da seguire e le buone notizie (solo amministrazione)
+  if (segnali) {
+    out.push({
+      titolo: 'Segnali della settimana',
+      contenuto: () => (
+        <div className="p-colonna">
+          <div className="p-card"><ElencoSegnali segnali={segnali} massimo={8} /></div>
+          <NotaSegnali />
+        </div>
+      ),
+    })
+  }
 
   // 3. Classifiche, due attività per pagina (solo quelle con almeno un risultato; servono almeno due uffici)
   const compatta = uffici.length > 16

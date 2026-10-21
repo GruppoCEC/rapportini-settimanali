@@ -1,5 +1,19 @@
 # Storia delle versioni
 
+## 0.17.0 — 21 ottobre 2026
+
+**Segnali della settimana** (punto 3.3.11 dell'analisi, scelte di Davide): invece di guardare tutti gli uffici, la piattaforma indica quelli in cui qualcosa cambia davvero. **Solo per l'amministrazione.**
+- tre tipi di segnale, scelti da Davide:
+  - **calo prolungato**: un'attività sotto la media dell'ufficio in tutte le ultime 4 settimane, in media almeno del 20%;
+  - **fuori dal solito**: la settimana è molto più bassa del normale oscillare di *quell'*ufficio (oltre 2 volte la sua oscillazione abituale);
+  - **buone notizie**: lo stesso al contrario (crescita da 4 settimane, settimana molto sopra il solito);
+- ogni ufficio è confrontato **con se stesso**, sulle sue 12 settimane prima, non con gli altri uffici;
+- per non dare falsi allarmi: servono almeno 8 settimane inserite dall'ufficio; le voci molto piccole (media sotto 2 a settimana) non danno segnali; **le settimane completate dal rapportino mensile non contano**, perché divise in parti uguali (il sito continua a non evidenziarle); IM3 e +90 non sono considerati;
+- dove si vedono:
+  - **Riunione** (settimana): nuova pagina **Segnali della settimana** dopo l'imbuto, con "Da seguire" a sinistra e "Buone notizie" a destra (i primi 8 uffici per esteso, gli altri per nome);
+  - **Cruscotto** (settimana): riquadro **Segnali della settimana** sotto i numeri principali (i primi 6 uffici per esteso);
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.16.1 — 21 ottobre 2026
 
 **IM3 e +90 fuori da classifiche e posizioni** (decisione di Davide: per ora non si considerano):

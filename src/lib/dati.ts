@@ -13,7 +13,7 @@ export async function caricaRilevazioni(da: string, a: string, ufficiIds?: numbe
   const tutte: Rilevazione[] = []
   for (let inizio = 0; ; inizio += PAGINA) {
     let q = supabase.from('rilevazioni')
-      .select('ufficio_id, settimana, metrica, obiettivo, risultato, aggiornato_da, aggiornato_il')
+      .select('ufficio_id, settimana, metrica, obiettivo, risultato, aggiornato_da, aggiornato_il, da_mensile')
       .gte('settimana', da).lte('settimana', a)
     if (ufficiIds) q = q.in('ufficio_id', ufficiIds)
     const { data, error } = await q
