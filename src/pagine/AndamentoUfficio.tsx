@@ -2,12 +2,20 @@
 import { useState } from 'react'
 import { quotaDaTotali, serieQuota, serieSettimanale } from '../lib/aggregazioni'
 import { OBIETTIVO_QUOTA, totaliPeriodo } from '../lib/calcoli'
-import { type Contesto, ufficiVisibili } from '../lib/contesto'
-import { caricaRilevazioni } from '../lib/dati'
-import { aggiungiSettimane, intervalloSettimana, lunediDi, meseDellaSettimana, nomeMese, oggiISO, settimaneDelMese } from '../lib/settimane'
+import { MENSILE_ATTIVO, type Contesto, ufficiVisibili } from '../lib/contesto'
+import {
+  caricaPersone, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili,
+} from '../lib/dati'
+import { calcolaImbuto, codiciImbuto, IMBUTO_MENSILE, IMBUTO_SETTIMANALE, MESI_IMBUTO, SETTIMANE_IMBUTO, sommaPeriodi, type Imbuto } from '../lib/imbuto'
+import { aggiungiMesi, mesePredefinito, titoloMese, totaleConStorico } from '../lib/mensile'
+import {
+  aggiungiSettimane, giornoEMese, intervalloSettimane, lunediDi, meseDellaSettimana, nomeMese, oggiISO, settimaneDelMese, ultimaSettimanaConclusa,
+} from '../lib/settimane'
+import type { Ufficio } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { GraficoAndamento, LegendaGrafico } from '../componenti/Grafici'
-import { useProgresso } from '../componenti/Interfaccia'
+import { GraficoImbuto, NotaImbuto } from '../componenti/Imbuto'
+import { Icona, useProgresso } from '../componenti/Interfaccia'
 import { Caricamento, CellaQuota, CellaRisultato, Legenda } from '../componenti/Celle'
 
 const SETTIMANE_GRAFICO = 12
@@ -94,7 +102,7 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
               <GraficoAndamento t={t} etichette={settimaneGrafico.map(etichettaBreve)} nomeSerie={nomeVoce}
                 risultati={serie!.map((x) => x.risultato)} obiettivi={isZona ? undefined : serie!.map((x) => x.obiettivo)} />
             )}
-            <p className="piccolo">Settimane dal {intervalloSettimana(settimaneGrafico[0]).split(' – ')[0]} a oggi. Passa sopra il grafico per vedere i valori.</p>
+            <p className="piccolo">Settimane dal {giornoEMese(settimaneGrafico[0])} a oggi. Passa sopra il grafico per vedere i valori.</p>
           </section>
 
           <section className="scheda entra entra-1">
@@ -118,8 +126,80 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
             </div>
             <Legenda />
           </section>
+
+          {ufficio && <RiquadroImbuto key={ufficio.id} ufficio={ufficio} conCitta={ctx.utente.ruolo === 'ufficio'} nomeCitta={ctx.citta.find((c) => c.id === ufficio.citta_id)?.nome ?? ''} />}
         </>
       )}
     </div>
+  )
+}
+
+/** Le ultime settimane già concluse, dalla più vecchia */
+const settimaneImbuto = () => Array.from({ length: SETTIMANE_IMBUTO }, (_, i) => aggiungiSettimane(ultimaSettimanaConclusa(), i - SETTIMANE_IMBUTO + 1))
+/** Gli ultimi mesi già conclusi ('AAAA-MM-01'), dal più vecchio */
+const mesiImbuto = () => Array.from({ length: MESI_IMBUTO }, (_, i) => aggiungiMesi(mesePredefinito(), i - MESI_IMBUTO + 1))
+
+/**
+ * Imbuto della vendita dell'ufficio sulle ultime 4 settimane (rapportini settimanali) o sugli ultimi 3 mesi
+ * (rapportini mensili). Per un account ufficio, accanto c'è quello di tutta la sua città (solo le somme).
+ */
+function RiquadroImbuto({ ufficio, conCitta, nomeCitta }: { ufficio: Ufficio; conCitta: boolean; nomeCitta: string }) {
+  const [tipo, setTipo] = useState<'settimane' | 'mesi'>('settimane')
+  const { dati, errore } = useDati<{ ufficio: Imbuto; citta: Imbuto | null; periodo: string }>(async () => {
+    if (tipo === 'settimane') {
+      const settimane = settimaneImbuto()
+      const codici = codiciImbuto(IMBUTO_SETTIMANALE)
+      const [righe, citta] = await Promise.all([
+        caricaRilevazioni(settimane[0], settimane[settimane.length - 1], [ufficio.id]),
+        conCitta ? caricaTotaliCitta(settimane.map((s) => [s])) : null,
+      ])
+      const somma = new Map(codici.map((c) => {
+        const valori = righe.filter((r) => r.metrica === c && r.risultato !== null).map((r) => r.risultato!)
+        return [c, valori.length ? valori.reduce((a, b) => a + b, 0) : null]
+      }))
+      const risultatiDi = (t: Map<string, { risultato: number | null }>) => new Map(codici.map((c) => [c, t.get(c)?.risultato ?? null]))
+      return {
+        ufficio: calcolaImbuto(IMBUTO_SETTIMANALE, somma),
+        citta: citta ? calcolaImbuto(IMBUTO_SETTIMANALE, sommaPeriodi(citta.andamento.map(risultatiDi), codici)) : null,
+        periodo: `Ultime ${settimane.length} settimane concluse (${intervalloSettimane(settimane[0], settimane[settimane.length - 1])}), rapportini settimanali`,
+      }
+    }
+    const mesi = mesiImbuto()
+    const codici = codiciImbuto(IMBUTO_MENSILE)
+    const [voci, persone, valori, storico, citta] = await Promise.all([
+      caricaVociMensili(), caricaPersone([ufficio.id]), caricaValoriMesi(mesi, [ufficio.id]), caricaStorico(mesi, [ufficio.id]),
+      conCitta ? caricaTotaliMensiliCitta(mesi, codici) : null,
+    ])
+    const perMese = mesi.map((m) => totaleConStorico(persone, valori, m, voci, storico).totale)
+    return {
+      ufficio: calcolaImbuto(IMBUTO_MENSILE, sommaPeriodi(perMese, codici)),
+      citta: citta ? calcolaImbuto(IMBUTO_MENSILE, sommaPeriodi(citta.andamento, codici)) : null,
+      periodo: `Ultimi ${mesi.length} mesi conclusi (${titoloMese(mesi[0]).toLowerCase()} – ${titoloMese(mesi[mesi.length - 1]).toLowerCase()}), rapportini mensili`,
+    }
+  }, [tipo, ufficio.id, conCitta])
+  const t = useProgresso(`${tipo}-${ufficio.id}-${!!dati}`)
+
+  return (
+    <section className="scheda entra entra-2">
+      <div className="scheda-titolo">
+        <h2 className="titolo-icona"><span className="icona-quadrata icona-blu"><Icona nome="funnel" /></span>Imbuto della vendita</h2>
+        {MENSILE_ATTIVO && (
+          <div className="segmentato" role="tablist">
+            {([['settimane', `Ultime ${SETTIMANE_IMBUTO} settimane`], ['mesi', `Ultimi ${MESI_IMBUTO} mesi`]] as const).map(([k, nome]) => (
+              <button key={k} role="tab" aria-selected={tipo === k} className={tipo === k ? 'attivo' : ''} onClick={() => setTipo(k)}>{nome}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      {!dati ? <Caricamento errore={errore} /> : (
+        <>
+          <div className="imbuto-griglia">
+            <GraficoImbuto t={t} titolo={ufficio.nome} imbuto={dati.ufficio} riferimento={dati.citta} nomeRiferimento={nomeCitta} />
+            {dati.citta && <GraficoImbuto t={t} titolo={`Tutta ${nomeCitta}`} imbuto={dati.citta} />}
+          </div>
+          <NotaImbuto periodo={dati.periodo + (dati.citta ? `. In verde i passaggi almeno come tutta ${nomeCitta}, in arancio quelli sotto (la città mostra solo le somme, mai i singoli uffici)` : '')} />
+        </>
+      )}
+    </section>
   )
 }

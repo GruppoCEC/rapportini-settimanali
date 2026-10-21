@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, aggiungiSettimane, etichettaSettimana, intervalloSettimana, lunediDi, meseDellaSettimana, notaMeseSettimana,
+  aggiungiMesi, aggiungiSettimane, etichettaSettimana, giornoEMese, intervalloSettimana, intervalloSettimane, lunediDi, meseDellaSettimana, notaMeseSettimana,
   nomeMeseBreve, oggiISO, settimanaNelMese, settimanaPredefinita, settimaneDelMese, ultimaSettimanaConclusa,
 } from './settimane'
 
@@ -58,6 +58,9 @@ describe('etichette', () => {
   it('descrive la settimana in italiano', () => {
     expect(intervalloSettimana('2026-10-05')).toBe('5 – 11 ottobre 2026')
     expect(intervalloSettimana('2026-09-28')).toBe('28 settembre – 4 ottobre 2026')
+    expect(intervalloSettimane('2026-09-21', '2026-10-12')).toBe('21 settembre – 18 ottobre 2026')   // più settimane di fila
+    expect(intervalloSettimane('2026-10-05', '2026-10-12')).toBe('5 – 18 ottobre 2026')
+    expect(giornoEMese('2026-09-21')).toBe('21 settembre')
     expect(intervalloSettimana('2025-12-29')).toBe('29 dicembre 2025 – 4 gennaio 2026')
     expect(etichettaSettimana('2026-10-05')).toBe('Settimana 5 – 11 ottobre 2026')
     expect(notaMeseSettimana('2026-10-05')).toBeNull()

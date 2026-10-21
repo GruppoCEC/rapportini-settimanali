@@ -35,7 +35,10 @@ Puoi correggere anche le settimane passate con le frecce ‹ ›.
 
 In **Il mio ufficio** trovi:
 - il grafico delle ultime 12 settimane per ogni attività;
-- il riepilogo mese per mese.
+- il riepilogo mese per mese;
+- l'**imbuto della vendita**: dalle valutazioni alle vendite, con i passaggi tra una fase e l'altra (per esempio "6 appuntamenti per ogni proposta"),
+  sulle ultime 4 settimane o sugli ultimi 3 mesi. Accanto c'è quello di tutta la tua città, per confrontarti: in verde i passaggi
+  almeno come la città, in arancio quelli sotto.
 
 ## Presentazione del proprio ufficio
 

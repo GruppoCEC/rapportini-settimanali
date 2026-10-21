@@ -29,6 +29,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 | 4 | Grafici di andamento e modalità riunione | Codice pronto: da provare sul proiettore |
 | 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.635 valori (gen–ott 2026) |
 | 6 | Avvio per tutti gli uffici | Da fare |
+| — | Imbuto della vendita (0.14.0) | Codice pronto: basta pubblicare (nessuna modifica al database) |
 | — | Nota della settimana a tre caselle, richieste di aiuto (0.13.0) | Codice pronto: eseguire `013_nota_tre_caselle.sql` in Supabase, poi pubblicare |
 | — | Affiliati che inseriscono i dati dei loro uffici (0.12.0) | Codice pronto: eseguire `012_affiliati_compilano.sql` in Supabase, poi pubblicare |
 | — | Account affiliati (0.6.0, in consultazione; dalla 0.12.0 compilano anche) | Codice pronto: prima di usarli eseguire `006_affiliati.sql` in Supabase (vedi `docs/GUIDA_SETUP.md`, "Affiliati") |

@@ -91,8 +91,24 @@ export function aggiungiMesi(mese: string, n: number): string {
 
 /** Es. "5 – 11 ottobre 2026" oppure "28 settembre – 4 ottobre 2026" */
 export function intervalloSettimana(lunedi: string): string {
-  const inizio = daISO(lunedi)
-  const fine = daISO(aggiungiGiorni(lunedi, 6))
+  return intervalloDate(lunedi, aggiungiGiorni(lunedi, 6))
+}
+
+/** Più settimane di fila, dal lunedì della prima alla domenica dell'ultima: "21 settembre – 18 ottobre 2026" */
+export function intervalloSettimane(primoLunedi: string, ultimoLunedi: string): string {
+  return intervalloDate(primoLunedi, aggiungiGiorni(ultimoLunedi, 6))
+}
+
+/** Es. "21 settembre" */
+export function giornoEMese(iso: string): string {
+  const d = daISO(iso)
+  return `${d.getUTCDate()} ${MESI[d.getUTCMonth()]}`
+}
+
+/** "5 – 11 ottobre 2026", "28 settembre – 4 ottobre 2026", "29 dicembre 2025 – 4 gennaio 2026" */
+function intervalloDate(da: string, a: string): string {
+  const inizio = daISO(da)
+  const fine = daISO(a)
   const gi = inizio.getUTCDate(), gf = fine.getUTCDate()
   const mi = MESI[inizio.getUTCMonth()], mf = MESI[fine.getUTCMonth()]
   const ai = inizio.getUTCFullYear(), af = fine.getUTCFullYear()

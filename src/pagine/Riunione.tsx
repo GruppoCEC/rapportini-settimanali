@@ -16,18 +16,22 @@ import {
   CASELLE_NOTA, caricaNote, caricaPersone, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
 } from '../lib/dati'
 import {
-  formattaNumero, inServizio, meseInCorso as meseAttuale, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
+  formattaNumero, inServizio, meseInCorso as meseAttuale, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
   type RiepilogoMensile, type TotaliMese,
 } from '../lib/mensile'
 import { isAffiliato, isAmministratore } from '../lib/permessi'
 import {
-  aggiungiMesi, aggiungiSettimane, intervalloSettimana, meseDellaSettimana, nomeMeseBreve, settimaneDelMese,
+  aggiungiMesi, aggiungiSettimane, intervalloSettimana, intervalloSettimane, meseDellaSettimana, nomeMeseBreve, settimaneDelMese,
   ultimaSettimanaConclusa,
 } from '../lib/settimane'
 import type { Metrica, Rilevazione, Ufficio, VoceMensile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../componenti/Celle'
 import { GraficoAndamento } from '../componenti/Grafici'
+import { GraficoImbuto, NotaImbuto, TabellaImbuto } from '../componenti/Imbuto'
+import {
+  calcolaImbuto, codiciImbuto, IMBUTO_MENSILE, IMBUTO_SETTIMANALE, MESI_IMBUTO, SETTIMANE_IMBUTO, sommaPeriodi, type DefinizioneImbuto, type Imbuto,
+} from '../lib/imbuto'
 import { conta, Icona, Logo, useProgresso } from '../componenti/Interfaccia'
 import SceltaPeriodo, { descriviPeriodo, periodoPredefinito, type Periodo } from '../componenti/SceltaPeriodo'
 
@@ -172,12 +176,14 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
           <ul className="elenco-icone">
             <li><Icona nome="sigma" />i numeri dei <strong>rapportini mensili</strong>: {soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'} voce per voce, con il confronto sul mese prima e gli ultimi 6 mesi;</li>
             {cittaPerUfficio && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
+            <li><Icona nome="funnel" />imbuto della vendita degli ultimi {MESI_IMBUTO} mesi: dalle acquisizioni alle vendite, con i passaggi tra una fase e l'altra;</li>
             {uffici.length > 1 && <li><Icona nome="ranking" />classifiche degli uffici su {CLASSIFICHE_MENSILI.length} voci (acquisizioni, appuntamenti, incarichi, proposte, accettazioni, vendite).</li>}
           </ul>
         ) : (
           <ul className="elenco-icone">
             <li><Icona nome="sigma" />{soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'}, con il confronto sul periodo prima;</li>
             {cittaPerUfficio && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
+            <li><Icona nome="funnel" />imbuto della vendita delle ultime {SETTIMANE_IMBUTO} settimane: dalle valutazioni alle vendite;</li>
             {uffici.length > 1 && <li><Icona nome="ranking" />classifiche per ogni attività;</li>}
             <li><Icona nome="chart-pie-slice" />quota di mercato;</li>
             {AREE_ATTIVE && areeCitta.length > 0 && <li><Icona nome="map-trifold" />confronto tra aree;</li>}
@@ -408,6 +414,19 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
       nota: `Somma di tutti gli uffici di ${nomeCitta}: ${citta.ufficiConDati} su ${citta.ufficiCitta} hanno inserito dati ${parole.delPeriodo}. I numeri dei singoli uffici non si vedono.`,
     }))
   }
+
+  // 2 ter. Imbuto della vendita sulle ultime settimane (con una sola settimana i numeri sono troppo piccoli)
+  const settimaneImbuto = periodi.flat().slice(-SETTIMANE_IMBUTO)
+  const totaliImbuto = totaliPerUfficio(nelPeriodo(settimaneImbuto), ctx.metriche)
+  const risultatiDi = (t: Totali | undefined) => new Map(codiciImbuto(IMBUTO_SETTIMANALE).map((c) => [c, t?.get(c)?.risultato ?? null]))
+  out.push(...pagineImbuto({
+    def: IMBUTO_SETTIMANALE, nomeGruppo: titolo,
+    gruppo: risultatiDi(somma(totaliImbuto, uffici)),
+    perUfficio: uffici.map((u) => ({ nome: u.nome, valori: risultatiDi(totaliImbuto.get(u.id)) })),
+    citta: citta ? sommaPeriodi(citta.andamento.slice(-SETTIMANE_IMBUTO).map(risultatiDi), codiciImbuto(IMBUTO_SETTIMANALE)) : null,
+    nomeCitta,
+    periodo: `Ultime ${settimaneImbuto.length} settimane (${intervalloSettimane(settimaneImbuto[0], settimaneImbuto[settimaneImbuto.length - 1])}), rapportini settimanali`,
+  }))
 
   // 3. Classifiche, due attività per pagina (solo quelle con almeno un risultato; servono almeno due uffici)
   const compatta = uffici.length > 16
@@ -703,6 +722,59 @@ function paginaTotali({ titolo, andamento, portafoglioPrima, attivita, parole, p
   }
 }
 
+/**
+ * Pagine dell'imbuto della vendita. Con un ufficio solo: il suo imbuto accanto a quello di tutta la città.
+ * Con più uffici: l'imbuto del gruppo, poi una pagina con i passaggi ufficio per ufficio (colorati rispetto al gruppo).
+ */
+function pagineImbuto({ def, nomeGruppo, gruppo, perUfficio, citta, nomeCitta, periodo }: {
+  def: DefinizioneImbuto; nomeGruppo: string; gruppo: Map<string, number | null>
+  perUfficio: { nome: string; valori: Map<string, number | null> }[]
+  citta: Map<string, number | null> | null       // tutta la città dell'ufficio (solo le somme), null per gli altri
+  nomeCitta: string; periodo: string
+}): Diapositiva[] {
+  const imbutoGruppo = calcolaImbuto(def, gruppo)
+  const imbutoCitta: Imbuto | null = citta ? calcolaImbuto(def, citta) : null
+  const out: Diapositiva[] = [{
+    titolo: 'Imbuto della vendita',
+    contenuto: (t) => (
+      <div className="p-colonna">
+        <div className="imbuto-griglia">
+          <div className="p-card">
+            <GraficoImbuto t={t} titolo={nomeGruppo} imbuto={imbutoGruppo} riferimento={imbutoCitta} nomeRiferimento={nomeCitta} />
+          </div>
+          {imbutoCitta && (
+            <div className="p-card">
+              <GraficoImbuto t={t} titolo={`Tutta ${nomeCitta}`} imbuto={imbutoCitta} />
+            </div>
+          )}
+        </div>
+        <NotaImbuto periodo={periodo + (imbutoCitta ? `. In verde i passaggi almeno come tutta ${nomeCitta}, in arancio quelli sotto` : '')} />
+      </div>
+    ),
+  }]
+  if (perUfficio.length > 1) {
+    const righe = perUfficio.map((u) => ({ nome: u.nome, imbuto: calcolaImbuto(def, u.valori) }))
+    // tanti uffici: la tabella si divide in due colonne, così sta in una pagina
+    const colonne = righe.length > 14 ? [righe.slice(0, Math.ceil(righe.length / 2)), righe.slice(Math.ceil(righe.length / 2))] : [righe]
+    out.push({
+      titolo: 'Imbuto della vendita · ufficio per ufficio',
+      contenuto: () => (
+        <div className="p-colonna">
+          <div className="imbuto-tabelle">
+            {colonne.map((elenco, i) => (
+              <div key={i} className="p-card">
+                <TabellaImbuto righe={elenco} riferimento={imbutoGruppo} nomeRiferimento={`Totale ${nomeGruppo}`} compatta={righe.length > 14} />
+              </div>
+            ))}
+          </div>
+          <NotaImbuto periodo={`${periodo}. In verde i passaggi almeno come il totale ${nomeGruppo}, in arancio quelli sotto, "—" con meno di 5 casi`} />
+        </div>
+      ),
+    })
+  }
+  return out
+}
+
 // ---------------------------------------------------------------- Presentazione mensile (rapportini mensili)
 
 /** Le voci delle classifiche mensili (decise da Davide il 21/10/2026), due per pagina */
@@ -800,6 +872,19 @@ function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nome
       nota: `Somma di tutti gli uffici di ${nomeCitta}: ${citta.ufficiConDati} su ${citta.ufficiTotali} hanno inserito il rapportino del mese. I numeri dei singoli uffici non si vedono.`,
     }))
   }
+
+  // 2 bis. Imbuto della vendita sugli ultimi mesi (il mese presentato e i due prima)
+  const codici = codiciImbuto(IMBUTO_MENSILE)
+  const mesiImbuto = mesi.slice(-MESI_IMBUTO)
+  const ultimiMesi = (andamento: TotaliMese[]) => sommaPeriodi(andamento.slice(-MESI_IMBUTO), codici)
+  out.push(...pagineImbuto({
+    def: IMBUTO_MENSILE, nomeGruppo: titolo,
+    gruppo: ultimiMesi(gruppo.andamento),
+    perUfficio: uffici.map((u) => ({ nome: u.ufficio.nome, valori: ultimiMesi(u.totali) })),
+    citta: citta ? ultimiMesi(citta.andamento) : null,
+    nomeCitta,
+    periodo: `Ultimi ${mesiImbuto.length} mesi (${titoloMese(mesiImbuto[0]).toLowerCase()} – ${titoloMese(mesiImbuto[mesiImbuto.length - 1]).toLowerCase()}), rapportini mensili`,
+  }))
 
   // 3. Classifiche, due voci per pagina (servono almeno due uffici). Ci sono sempre: se nessuno ha
   // ancora inserito una voce, la pagina lo dice invece di sparire.

@@ -900,3 +900,41 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .pres-titoli h2 { font-size: 26px; }
   .tabella-dia td, .tabella-dia th { padding-top: 6px; padding-bottom: 6px; }
 }
+
+/* ---------------------------------------------------------------- Imbuto della vendita (src/componenti/Imbuto.tsx) */
+.imbuto { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.imbuto h3 { margin: 0 0 10px; }
+.imbuto-fase { display: grid; grid-template-columns: minmax(110px, 30%) 1fr 64px; gap: 12px; align-items: center; }
+.imbuto-nome { font-weight: 700; font-size: 15px; }
+.imbuto-pista { display: flex; justify-content: center; height: 30px; }
+.imbuto-barra { height: 100%; border-radius: 8px; background: var(--primario); transition: width .6s; }
+.imbuto-valore { text-align: right; font-size: 20px; color: var(--primario-900); }
+.imbuto-passaggio { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 4px 0 4px calc(30% + 12px); padding: 3px 10px; border-radius: 8px; font-size: 14px; color: var(--testo-3); }
+.imbuto-passaggio.vuoto { min-height: 10px; }
+.imbuto-passaggio i { font-size: 14px; align-self: center; }
+.imbuto-passaggio strong { font-size: 16px; color: var(--testo); }
+.imbuto-passaggio.sopra { background: var(--ok-bg); color: var(--ok-fg); }
+.imbuto-passaggio.sopra strong { color: var(--ok-fg); }
+.imbuto-passaggio.sotto { background: var(--secondario-100); color: var(--secondario-900); }
+.imbuto-passaggio.sotto strong { color: var(--secondario-800); }
+.imbuto-rif { opacity: .8; }
+.imbuto-griglia { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 18px; align-items: start; }
+.tabella-imbuto th, .tabella-imbuto td { white-space: nowrap; }
+.tabella-imbuto thead th { white-space: normal; font-size: 12px; }
+.tabella-imbuto tr.riga-riferimento > * { background: var(--primario-100); font-weight: 800; }
+.tabella-imbuto td.t-verde { font-weight: 700; }
+.tabella-imbuto td.imbuto-sotto { color: var(--secondario-800); font-weight: 700; }
+.tabella-imbuto td.imbuto-nessuno { color: var(--testo-3); }
+.tabella-imbuto.compatta th, .tabella-imbuto.compatta td { padding-top: 3px; padding-bottom: 3px; font-size: 14px; }
+/* nella presentazione, caratteri più grandi */
+.pres-corpo .imbuto-nome { font-size: 19px; }
+.pres-corpo .imbuto-pista { height: 40px; }
+.pres-corpo .imbuto-valore { font-size: 28px; }
+.pres-corpo .imbuto-passaggio { font-size: 17px; }
+.pres-corpo .imbuto-passaggio strong { font-size: 20px; }
+@media (max-width: 600px) {
+  .imbuto-fase { grid-template-columns: 96px 1fr 48px; gap: 8px; }
+  .imbuto-passaggio { margin-left: 0; }
+}
+.imbuto-tabelle { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 18px; align-items: start; }
+.tabella.tabella-imbuto.compatta th, .tabella.tabella-imbuto.compatta td { padding-top: 4px; padding-bottom: 4px; font-size: 15px; }

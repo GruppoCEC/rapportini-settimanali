@@ -1,5 +1,19 @@
 # Storia delle versioni
 
+## 0.14.0 — 21 ottobre 2026
+
+**Imbuto della vendita** (richiesta di Davide, punto 2.1.1 dell'analisi): le fasi dalla valutazione alla vendita e i **passaggi** tra una fase e l'altra, in parole semplici.
+- con i **rapportini settimanali**: Valutazioni → Incarichi → App.ti vendita → Proposte → Vendite, sulle **ultime 4 settimane**;
+- con i **rapportini mensili**: Acquisizioni → Incarichi vendita → Appuntamenti vendita → Proposte vendita → Accettazioni vendita → Vendite effettuate, sugli **ultimi 3 mesi**;
+- passaggi: "% delle valutazioni (acquisizioni) che diventa incarico", "appuntamenti per ogni proposta", "% delle proposte accettate", "% delle accettazioni arrivate a vendita" (per la settimana: "% delle proposte che diventa vendita"). Tra incarichi e appuntamenti non c'è un passaggio: non sono la stessa trattativa;
+- si guardano più settimane o mesi insieme perché le fasi si contano nello stesso periodo (un'accettazione di oggi può diventare vendita più avanti). Un passaggio si calcola solo con **almeno 5 casi** nella fase di partenza, altrimenti compare "—";
+- **Riunione e Presentazione** (settimana e mese), dopo i totali:
+  - amministratori e affiliati: l'imbuto della città (o dei propri uffici) e una pagina **ufficio per ufficio** con i passaggi in verde se almeno come il totale, in arancio se sotto;
+  - ufficio: il suo imbuto accanto a quello di **tutta la sua città** (solo le somme, come la pagina "Tutta Roma/Milano"), con i passaggi colorati rispetto alla città;
+- **Il mio ufficio / Andamento uffici**: nuovo riquadro **Imbuto della vendita** con i pulsanti *Ultime 4 settimane* e *Ultimi 3 mesi* (mesi e settimane già conclusi). Per un ufficio c'è anche l'imbuto di tutta la città;
+- corretto: in "Il mio ufficio" la frase sotto il grafico diceva per esempio "Settimane dal 4 a oggi", senza il mese;
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.13.0 — 21 ottobre 2026
 
 **Nota della settimana a tre caselle** (richiesta di Davide, punto 2.1.4 dell'analisi):
