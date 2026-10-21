@@ -970,3 +970,17 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .posizioni.compatto .posizione-nome { font-size: 14px; }
 .pres-corpo .posizione-nome { font-size: 19px; }
 .pres-corpo .posizione-numero strong { font-size: 56px; }
+
+/* ---------------------------------------------------------------- Collaboratori (src/pagine/Collaboratori.tsx) */
+.scheda-persona { display: flex; align-items: center; gap: 14px; }
+.scheda-persona .iniziali { width: 52px; height: 52px; font-size: 18px; color: #fff; }
+.scheda-persona h2 { margin: 0; }
+.scheda-persona p { margin: 2px 0 0; }
+.tabella tr .ufficio-fisso .piccolo { display: block; font-size: 11px; line-height: 1.3; font-weight: 500; }
+.tabella tr.riga-vuota > * { color: var(--testo-vuoto); }
+.tabella tr.riga-totale > th, .tabella tr.riga-totale > td { background: var(--primario-100); font-weight: 800; border-top: 2px solid var(--primario-700); }
+.tabella tr.riga-media > th, .tabella tr.riga-media > td { background: #F7F6F2; font-weight: 700; }
+.tabella tr.riga-media td.t-verde, .tabella tr.riga-media td.t-rosso { font-weight: 800; }
+.tabella td.cella-migliore { background: #FFE266 !important; color: #5C4600; font-weight: 800; }
+.tabella td.cella-da-seguire { background: var(--secondario-100); color: var(--secondario-900); font-weight: 800; box-shadow: inset 0 -3px 0 var(--secondario); }
+.testo-arancio { color: var(--secondario-800); font-weight: 700; }

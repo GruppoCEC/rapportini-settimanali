@@ -6,7 +6,7 @@
 // =====================================================================
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { aggiungiSettimane, lunediDi, oggiISO, settimanaPredefinita } from '../src/lib/settimane'
-import { aggiungiMesi, inServizio, mesePredefinito, riepilogoMensile, STAFF, totaleConStorico, vociDelRapportino } from '../src/lib/mensile'
+import { aggiungiMesi, inServizio, mesePredefinito, mesiDiServizio, riepilogoMensile, STAFF, totaleConStorico, vociDelRapportino } from '../src/lib/mensile'
 import { quotaDaTotali, totaliPerUfficio } from '../src/lib/aggregazioni'
 
 export const configurato = true
@@ -168,6 +168,14 @@ for (const u of uffici) {
   }
   if (u.id % 5 === 2) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo: 'collaboratore', data_inizio: `${meseDaCompilare.slice(0, 8)}${String(tra(1, 20)).padStart(2, '0')}`, data_fine: null })
 }
+// Collaboratori entrati negli ultimi mesi (per la scheda "Collaboratori" e la curva dei nuovi)
+for (const u of uffici) {
+  if (u.id % 2 !== 0) continue
+  const mese = mesiDemo[u.id % mesiDemo.length]
+  persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo: 'collaboratore',
+    data_inizio: `${mese.slice(0, 8)}${String(tra(1, 20)).padStart(2, '0')}`, data_fine: null })
+}
+
 for (const mese of mesiDemo) {
   for (const u of uffici) {
     // Situazione del mese da compilare: 2 uffici mancanti (Parioli, Città Studi), 1 parziale (Trastevere)
@@ -178,7 +186,10 @@ for (const mese of mesiDemo) {
     const giorno = mese === meseDaCompilare && (u.nome === 'Prati' || u.nome === 'Brera') ? '08' : `0${tra(1, 4)}`
     const ts = new Date(`${aggiungiMesi(mese, 1).slice(0, 8)}${giorno}T${tra(10, 18)}:${tra(10, 59)}:00`).toISOString()
     persone.filter((p) => p.ufficio_id === u.id && inServizio(p, mese)).forEach((p, n) => {
-      const peso = p.ruolo === 'collaboratore' ? 1 : p.ruolo === 'responsabile' ? 0.7 : 0.35
+      // i nuovi collaboratori crescono nei primi mesi (per la curva dei nuovi); qualcuno resta indietro
+      const servizio = mesiDiServizio(p.data_inizio, mese) + 1
+      const crescita = p.ruolo === 'collaboratore' && servizio <= 12 ? Math.min(1, 0.25 + 0.15 * servizio) * (p.id % 7 === 0 ? 0.35 : 1) : 1
+      const peso = (p.ruolo === 'collaboratore' ? 1 : p.ruolo === 'responsabile' ? 0.7 : 0.35) * crescita
       for (const [voce, [min, max]] of Object.entries(TIPICI)) {
         if (parziale && n > 1) continue
         valori_mensili.push({ persona_id: p.id, ufficio_id: u.id, mese, voce, valore: Math.round(tra(min, max) * peso), aggiornato_da: da, aggiornato_il: ts })

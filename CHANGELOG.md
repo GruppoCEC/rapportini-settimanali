@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.16.0 — 21 ottobre 2026
+
+**Scheda del collaboratore e curva dei nuovi** (richiesta di Davide, punti 2.2.6 e 2.2.7 dell'analisi), **solo per gli amministratori** (più avanti forse anche per gli affiliati). Nel **Report mensile** c'è la nuova scheda **Collaboratori**, con due viste:
+- **Scheda della persona**: si sceglie l'ufficio e la persona (anche chi è uscito). Mostra ruolo, ufficio, data di inizio e anzianità; i suoi numeri mese per mese negli ultimi 12 mesi (fino al mese scelto in alto), il totale, la **media al mese** in verde se è almeno come la media degli altri con lo stesso ruolo negli stessi mesi e in rosso se è sotto (incarichi scaduti al contrario); per i collaboratori il **punteggio della gara** di ogni mese, in giallo se è stato il più alto del mese. Sotto, il grafico di una voce a scelta con la linea della media dei colleghi. Con **Stampa** si ottiene la scheda da usare nel colloquio individuale;
+- **Curva dei nuovi**: per il 1°, 2°… 12° mese di servizio, la media di una voce a scelta (all'inizio Incarichi vendita) dei collaboratori in quel mese di servizio; un punto compare solo con almeno 3 persone. Sotto, i **collaboratori entrati negli ultimi 12 mesi** con il loro numero mese di servizio per mese di servizio: in **arancio** i mesi "da seguire", sotto la metà della media dei collaboratori nello stesso mese di servizio;
+- usano solo i numeri inseriti **persona per persona** sulla piattaforma: lo storico del file Excel ha solo i totali degli uffici, quindi all'inizio i mesi saranno pochi e la curva si riempirà con i prossimi rapportini mensili;
+- nel totale della scheda, staff e portafoglio sono quelli dell'ultimo mese (non si sommano, come nel Riepilogo anno);
+- grafici: con numeri piccoli l'asse mostra un decimale (prima poteva ripetere "1" due volte);
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.15.0 — 21 ottobre 2026
 
 **Posizione dell'ufficio nella sua città** (richiesta di Davide, punto 2.4.12 dell'analisi): ogni ufficio vede dove si trova tra gli uffici di Roma o di Milano, voce per voce, **senza vedere i nomi né i numeri degli altri**.

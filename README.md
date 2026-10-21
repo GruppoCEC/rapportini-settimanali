@@ -29,6 +29,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 | 4 | Grafici di andamento e modalità riunione | Codice pronto: da provare sul proiettore |
 | 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.635 valori (gen–ott 2026) |
 | 6 | Avvio per tutti gli uffici | Da fare |
+| — | Scheda del collaboratore e curva dei nuovi, solo amministratori (0.16.0) | Codice pronto: basta pubblicare (nessuna modifica al database) |
 | — | Posizione dell'ufficio nella sua città (0.15.0) | Codice pronto: eseguire `014_posizione_citta.sql` in Supabase, poi pubblicare |
 | — | Imbuto della vendita (0.14.0) | Codice pronto: basta pubblicare (nessuna modifica al database) |
 | — | Nota della settimana a tre caselle, richieste di aiuto (0.13.0) | Codice pronto: eseguire `013_nota_tre_caselle.sql` in Supabase, poi pubblicare |
@@ -61,7 +62,7 @@ Colleghi (browser/telefono)
 | `demo/` | Versione dimostrativa con finto database (`npm run demo`) |
 | `supabase/TUTTO_IN_UNO.sql` | Le migrazioni unite, da incollare in Supabase (si rigenera con `npm run sql:unico`) |
 | `test/` e `src/**/*.test.ts` | Test automatici, compresi quelli sulle regole di sicurezza |
-| `docs/` | Guide in italiano |
+| `docs/` | Guide in italiano; `docs/IDEE_SVILUPPO.md` raccoglie le idee per i prossimi sviluppi |
 | `import/` | File Excel storici: **esclusi da GitHub** |
 
 ## Regole di calcolo

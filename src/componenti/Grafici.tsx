@@ -14,6 +14,8 @@ interface Props {
   compatto?: boolean
   spark?: boolean
   t?: number                      // avanzamento dell'animazione (0–1)
+  nomeLinea?: string              // nome della linea tratteggiata nel suggerimento (predefinito "Obiettivo")
+  prefisso?: string               // prima dell'etichetta nel suggerimento (predefinito "Settimana del")
 }
 
 function massimoTondo(m: number): number {
@@ -25,7 +27,7 @@ function massimoTondo(m: number): number {
 
 const pct1 = (v: number) => `${(v * 100).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 
-export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 'Risultato', percentuale, rigaRiferimento, compatto, spark, t = 1 }: Props) {
+export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 'Risultato', percentuale, rigaRiferimento, compatto, spark, t = 1, nomeLinea = 'Obiettivo', prefisso = 'Settimana del' }: Props) {
   const id = useId().replace(/:/g, '')
   const [evidenziato, setEvidenziato] = useState<number | null>(null)
   const piccolo = compatto || spark
@@ -41,7 +43,8 @@ export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 
   const passo = (W - sx - dx) / Math.max(1, n - 1)
   const x = (i: number) => sx + i * passo
   const y = (v: number) => su + (1 - v / max) * (H - su - giu)
-  const formato = (v: number) => percentuale ? `${Math.round(v * 100)}%` : Math.round(v).toLocaleString('it-IT')
+  // con numeri piccoli (es. medie tra 0 e 3) un decimale, altrimenti l'asse ripeterebbe lo stesso numero
+  const formato = (v: number) => percentuale ? `${Math.round(v * 100)}%` : v.toLocaleString('it-IT', { maximumFractionDigits: max <= 5 ? 1 : 0 })
 
   const percorso = (serie: (number | null)[]) => {
     let d = '', penna = false
@@ -110,9 +113,9 @@ export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 
         const v = risultati[hi]
         return (
           <div className="grafico-suggerimento" style={{ left: `${sinistra}%`, transform: `translateX(${sinistra > 70 ? 'calc(-100% - 12px)' : '12px'})` }}>
-            <div className="etichetta-maiuscola">Settimana del {etichette[hi]}</div>
+            <div className="etichetta-maiuscola">{prefisso} {etichette[hi]}</div>
             <div style={{ fontWeight: 600 }}>{nomeSerie}: {v === null ? '—' : percentuale ? pct1(v) : v.toLocaleString('it-IT')}</div>
-            {ob && ob[hi] !== null && <div style={{ color: 'var(--testo-tenue)' }}>Obiettivo: {ob[hi]}</div>}
+            {ob && ob[hi] !== null && <div style={{ color: 'var(--testo-tenue)' }}>{nomeLinea}: {ob[hi]!.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</div>}
           </div>
         )
       })()}
@@ -121,11 +124,11 @@ export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 
 }
 
 /** Legenda risultato / obiettivo sopra i grafici */
-export function LegendaGrafico({ obiettivo = true }: { obiettivo?: boolean }) {
+export function LegendaGrafico({ obiettivo = true, nomi = ['risultato', 'obiettivo'] }: { obiettivo?: boolean; nomi?: [string, string] }) {
   return (
     <div className="grafico-legenda">
-      <span><span className="segno-ris" />risultato</span>
-      {obiettivo && <span><span className="segno-ob" />obiettivo</span>}
+      <span><span className="segno-ris" />{nomi[0]}</span>
+      {obiettivo && <span><span className="segno-ob" />{nomi[1]}</span>}
     </div>
   )
 }

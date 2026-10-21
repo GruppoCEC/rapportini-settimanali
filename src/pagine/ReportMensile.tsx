@@ -6,6 +6,7 @@ import { PROMEMORIA_ATTIVI, type Contesto } from '../lib/contesto'
 import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
 import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaStorico, caricaValoriMensili, caricaValoriMesi, caricaVociMensili, mensileAperto } from '../lib/dati'
 import { AvvisoProva } from './RapportinoMensile'
+import Collaboratori from './Collaboratori'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
   punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, dataOra, scadenzaPassata, scadenzaProposta, ultimoRitardo,
@@ -23,7 +24,7 @@ import {
   annotazioniIndicatori, TitoloStampa, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
 } from '../componenti/TabellaMensile'
 
-type Scheda = 'panoramica' | 'rapportini' | 'personale' | 'anno'
+type Scheda = 'panoramica' | 'rapportini' | 'personale' | 'collaboratori' | 'anno'
 
 /** Titolo del report per l'affiliato, che vede i suoi uffici anche di città diverse */
 const TITOLO_AFFILIATO = 'I miei uffici'
@@ -102,18 +103,20 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
       </div>
       <div className="comandi non-stampa">
         <div className="segmentato" role="tablist">
-          {(['panoramica', 'rapportini', 'personale', 'anno'] as Scheda[]).map((s) => (
+          {(['panoramica', 'rapportini', 'personale', ...(affiliato ? [] : ['collaboratori']), 'anno'] as Scheda[]).map((s) => (
             <button key={s} role="tab" aria-selected={scheda === s} className={scheda === s ? 'attivo' : ''} onClick={() => setScheda(s)}>
-              <Icona nome={{ panoramica: 'table', rapportini: 'storefront', personale: 'users-three', anno: 'calendar-dots' }[s]} />
-              {{ panoramica: 'Panoramica', rapportini: 'Singoli rapportini', personale: 'Personale', anno: 'Riepilogo anno' }[s]}
+              <Icona nome={{ panoramica: 'table', rapportini: 'storefront', personale: 'users-three', collaboratori: 'user-focus', anno: 'calendar-dots' }[s]} />
+              {{ panoramica: 'Panoramica', rapportini: 'Singoli rapportini', personale: 'Personale', collaboratori: 'Collaboratori', anno: 'Riepilogo anno' }[s]}
             </button>
           ))}
         </div>
-        <button className="btn btn-secondario" onClick={() => window.print()} disabled={scheda !== 'anno' && !dati.dati}><Icona nome="printer" />Stampa</button>
+        <button className="btn btn-secondario" onClick={() => window.print()} disabled={scheda !== 'anno' && scheda !== 'collaboratori' && !dati.dati}><Icona nome="printer" />Stampa</button>
       </div>
 
       {scheda === 'anno' && <RiepilogoAnno uffici={uffici} titolo={titolo} ctx={ctx} />}
-      {scheda !== 'anno' && (!dati.dati ? <Caricamento errore={dati.errore} /> : (
+      {/* scheda del collaboratore e curva dei nuovi: solo l'amministrazione (decisione di Davide del 21/10/2026) */}
+      {scheda === 'collaboratori' && !affiliato && <Collaboratori uffici={uffici} mese={mese} />}
+      {scheda !== 'anno' && scheda !== 'collaboratori' && (!dati.dati ? <Caricamento errore={dati.errore} /> : (
         <>
           {scheda === 'panoramica' && <Panoramica dati={dati.dati} mese={mese} titolo={titolo} generale={generale} affiliato={affiliato} ctx={ctx} onSalvato={dati.ricarica} />}
           {scheda === 'rapportini' && <SingoliRapportini dati={dati.dati} mese={mese} affiliato={affiliato} />}
