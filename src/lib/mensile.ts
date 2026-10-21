@@ -76,19 +76,25 @@ export function vociConPunti(voci: VoceMensile[]): VoceMensile[] {
   return vociDelRapportino(voci).filter((v) => v.con_punti !== false)
 }
 
+/** La fine è una promozione a responsabile (non un'uscita dal gruppo)? */
+export const promosso = (p: Persona) => p.motivo_fine === 'promozione'
+
 /**
- * Turnover dell'anno: chi ha lasciato l'ufficio nell'anno, con l'anzianità al giorno dell'uscita,
+ * Turnover dell'anno: chi ha lasciato il gruppo nell'anno, con l'anzianità al giorno dell'uscita,
  * e il tasso di uscita = uscite ÷ persone in servizio al 1° gennaio (vuoto se non calcolabile).
+ * Chi è stato promosso a responsabile non è un'uscita (decisione di Davide del 21/10/2026): è in `promossi`.
  */
 export function turnoverAnno(persone: Persona[], anno: string) {
   const inizioAnno = `${anno}-01-01`
-  const usciti = persone
+  const finiti = persone
     .filter((p) => p.data_fine && p.data_fine.startsWith(`${anno}-`))
     .map((p) => ({ persona: p, mesi: mesiTraDate(p.data_inizio, p.data_fine!) }))
     .sort((a, b) => a.persona.data_fine!.localeCompare(b.persona.data_fine!) || a.persona.nome.localeCompare(b.persona.nome))
+  const usciti = finiti.filter((u) => !promosso(u.persona))
+  const promossi = finiti.filter((u) => promosso(u.persona))
   const organicoInizio = persone.filter((p) => p.data_inizio <= inizioAnno && (!p.data_fine || p.data_fine >= inizioAnno)).length
   const anzianitaMedia = usciti.length ? Math.round(usciti.reduce((t, u) => t + u.mesi, 0) / usciti.length) : null
-  return { usciti, organicoInizio, anzianitaMedia, tasso: organicoInizio > 0 ? usciti.length / organicoInizio : null }
+  return { usciti, promossi, organicoInizio, anzianitaMedia, tasso: organicoInizio > 0 ? usciti.length / organicoInizio : null }
 }
 
 /** Solo i collaboratori partecipano alla gara a punti */
@@ -142,12 +148,13 @@ export function inServizio(p: Persona, mese: string): boolean {
 }
 
 /**
- * Cambi di personale nel mese: "uscita" se la persona ha lasciato l'ufficio in quel mese,
+ * Cambi di personale nel mese: "uscita" se la persona ha lasciato l'ufficio in quel mese ("promozione"
+ * se è stata promossa a responsabile),
  * "entrata" se ha iniziato in quel mese (se entrambe, conta l'uscita).
  */
-export function movimentoNelMese(p: Persona, mese: string): 'entrata' | 'uscita' | null {
+export function movimentoNelMese(p: Persona, mese: string): 'entrata' | 'uscita' | 'promozione' | null {
   const fine = ultimoGiornoDelMese(mese)
-  if (p.data_fine && p.data_fine >= mese && p.data_fine <= fine) return 'uscita'
+  if (p.data_fine && p.data_fine >= mese && p.data_fine <= fine) return promosso(p) ? 'promozione' : 'uscita'
   if (p.data_inizio >= mese && p.data_inizio <= fine) return 'entrata'
   return null
 }

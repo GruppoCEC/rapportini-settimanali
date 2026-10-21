@@ -120,11 +120,13 @@ export function EtichettaMovimento({ persona, mese }: { persona: Persona; mese: 
   const m = movimentoNelMese(persona, mese)
   if (m === 'entrata') return <span className="tag tag-ok tag-movimento">Nuovo ingresso dal {dataItaliana(persona.data_inizio)}</span>
   if (m === 'uscita') return <span className="tag tag-ko tag-movimento">Ha lasciato il {dataItaliana(persona.data_fine)}</span>
+  if (m === 'promozione') return <span className="tag tag-accento tag-movimento">Promosso a responsabile il {dataItaliana(persona.data_fine)}</span>
   return null
 }
 
+// chi è promosso esce dalla riga come chi lascia (non conta nel mese), ma senza il rosso
 export const classeMovimento = (persona: Persona, mese: string) =>
-  ({ entrata: 'riga-entrata', uscita: 'riga-uscita', nessuno: '' })[movimentoNelMese(persona, mese) ?? 'nessuno']
+  ({ entrata: 'riga-entrata', uscita: 'riga-uscita', promozione: '', nessuno: '' })[movimentoNelMese(persona, mese) ?? 'nessuno']
 
 /** Spiega i colori delle righe, solo quelli presenti nelle persone mostrate */
 export function LegendaMovimenti({ persone, mese }: { persone: Persona[]; mese: string }) {

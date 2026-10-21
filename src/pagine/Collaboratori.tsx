@@ -22,6 +22,9 @@ import { GraficoAndamento, LegendaGrafico } from '../componenti/Grafici'
 import { Icona } from '../componenti/Interfaccia'
 import { TestataVoci, TitoloStampa, ValoreConIndicatori } from '../componenti/TabellaMensile'
 
+/** "uscita il 01/03/2026" oppure "promosso a responsabile il 01/03/2026" */
+const fine = (p: Persona) => `${p.motivo_fine === 'promozione' ? 'promosso a responsabile' : 'uscita'} il ${dataItaliana(p.data_fine)}`
+
 /** Quanti mesi mostra la scheda della persona (l'ultimo è quello scelto in alto) */
 const MESI_SCHEDA = 12
 
@@ -96,8 +99,8 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
             {personeUfficio.attive.map((x) => <option key={x.id} value={x.id}>{x.nome} · {NOMI_RUOLO_PERSONA[x.ruolo].toLowerCase()}</option>)}
           </optgroup>
           {personeUfficio.uscite.length > 0 && (
-            <optgroup label="Uscite">
-              {personeUfficio.uscite.map((x) => <option key={x.id} value={x.id}>{x.nome} · uscita il {dataItaliana(x.data_fine)}</option>)}
+            <optgroup label="Non più collaboratori">
+              {personeUfficio.uscite.map((x) => <option key={x.id} value={x.id}>{x.nome} · {fine(x)}</option>)}
             </optgroup>
           )}
         </select>
@@ -153,7 +156,7 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
             <h2>{p.nome}</h2>
             <p className="piccolo">
               {NOMI_RUOLO_PERSONA[p.ruolo]} · {ufficio.nome} · dal {dataItaliana(p.data_inizio)} ({formattaAnzianita(mesiDiServizio(p.data_inizio, ultimo))})
-              {p.data_fine && <> · <strong>uscita il {dataItaliana(p.data_fine)}</strong></>}
+              {p.data_fine && <> · <strong>{fine(p)}</strong></>}
             </p>
           </div>
         </div>
@@ -164,7 +167,7 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
             <table className="tabella tabella-mensile tabella-report">
               <TestataVoci voci={colonne} prime={['Mese']} ultime={gara ? ['Punteggio'] : []}
                 titoloStampa={<TitoloStampa titolo={`Scheda di ${p.nome}`}
-                  sottotitolo={`${NOMI_RUOLO_PERSONA[p.ruolo]} · ${ufficio.nome} · dal ${dataItaliana(p.data_inizio)}${p.data_fine ? ` · uscita il ${dataItaliana(p.data_fine)}` : ''}`}
+                  sottotitolo={`${NOMI_RUOLO_PERSONA[p.ruolo]} · ${ufficio.nome} · dal ${dataItaliana(p.data_inizio)}${p.data_fine ? ` · ${fine(p)}` : ''}`}
                   info={`${titoloMese(righe[0]?.mese ?? ultimo)} – ${titoloMese(ultimo)}`} />} />
               <tbody>
                 {righe.map((r) => (

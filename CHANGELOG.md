@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.18.0 — 21 ottobre 2026
+
+**Promossi a responsabile: non sono uscite** (segnalato da Davide):
+- nel personale si indica il **motivo della fine**: *Ha lasciato il gruppo* oppure *Promosso a responsabile*. Si sceglie in **Inserisci mese → Personale**, premendo *Ha lasciato* o *Modifica*, sotto la data di fine;
+- chi è promosso non conta nel mese della promozione (come chi esce), ma **non è un'uscita**: in **Usciti nell'anno** non entra nelle uscite, nel tasso di uscita né nell'anzianità media; compare in un riquadro a parte, **Promossi a responsabile**, e tra i numeri in alto;
+- nel rapportino del mese la riga di chi è promosso non è rossa: ha l'etichetta "Promosso a responsabile il…";
+- nella scheda Collaboratori si legge "promosso a responsabile il…" invece di "uscita il…";
+- storico: Davide ha indicato 10 collaboratori promossi tra il 2024 e il 2026 (file `import/sql/PROMOSSI.sql`, solo sul Mac);
+- **da fare una volta in Supabase**, in questo ordine: eseguire `supabase/migrations/015_motivo_fine.sql`, poi `import/sql/PROMOSSI.sql`, poi pubblicare (Push). Senza la 015 il sito funziona come prima.
+
 ## 0.17.0 — 21 ottobre 2026
 
 **Segnali della settimana** (punto 3.3.11 dell'analisi, scelte di Davide): invece di guardare tutti gli uffici, la piattaforma indica quelli in cui qualcosa cambia davvero. **Solo per l'amministrazione.**

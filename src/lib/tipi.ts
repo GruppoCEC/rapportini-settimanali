@@ -72,7 +72,12 @@ export interface Persona {
   ruolo: RuoloPersona
   data_inizio: string         // 'AAAA-MM-GG'
   data_fine: string | null    // vuota finché la persona è in ufficio
+  motivo_fine?: MotivoFine | null   // perché è finita (015): vuoto = ha lasciato il gruppo
 }
+
+/** Perché una persona non è più nel personale: ha lasciato il gruppo, o è stata promossa a responsabile (non conta nel turnover) */
+export type MotivoFine = 'uscita' | 'promozione'
+export const NOMI_MOTIVO_FINE: Record<MotivoFine, string> = { uscita: 'Ha lasciato il gruppo', promozione: 'Promosso a responsabile' }
 
 /** Una colonna del rapportino mensile (es. gruppo "Proposte", sotto "vendita") */
 export interface VoceMensile {

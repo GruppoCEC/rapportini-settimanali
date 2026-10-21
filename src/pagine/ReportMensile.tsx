@@ -618,6 +618,7 @@ function SchedaUscite({ uffici, annoIniziale }: { uffici: DatiUfficio[]; annoIni
         <div><span className="etichetta-maiuscola">In servizio al 1° gennaio</span><strong>{t.organicoInizio}</strong></div>
         <div><span className="etichetta-maiuscola">Tasso di uscita</span><strong>{t.tasso === null ? '—' : formattaPercentuale(t.tasso)}</strong><span className="piccolo">uscite ÷ in servizio al 1° gennaio</span></div>
         <div><span className="etichetta-maiuscola">Anzianità media all'uscita</span><strong className="testo-medio">{t.anzianitaMedia === null ? '—' : formattaAnzianita(t.anzianitaMedia)}</strong></div>
+        <div><span className="etichetta-maiuscola">Promossi a responsabile</span><strong>{t.promossi.length}</strong><span className="piccolo">non contano come uscite</span></div>
         {perRuolo.length > 0 && <div><span className="etichetta-maiuscola">Per ruolo</span><span className="per-ruolo">{perRuolo.map(([r, n]) => `${n === 1 ? NOMI_RUOLO_PERSONA[r] : PLURALI_RUOLO[r]}: ${n}`).join(' · ')}</span></div>}
       </div>
       {t.usciti.length === 0 ? <p className="piccolo">Nessuna uscita registrata nel {anno}.</p> : (
@@ -651,7 +652,29 @@ function SchedaUscite({ uffici, annoIniziale }: { uffici: DatiUfficio[]; annoIni
           </table>
         </div>
       )}
-      <p className="piccolo non-stampa">Sono comprese tutte le persone con data di fine nell'anno, di tutti i ruoli. Gli uffici seguono il filtro per città qui sopra.</p>
+      {t.promossi.length > 0 && (
+        <div className="promossi">
+          <h3><Icona nome="medal" />Promossi a responsabile nel {anno} <span className="piccolo">({t.promossi.length})</span></h3>
+          <div className="tabella-scorrevole">
+            <table className="tabella tabella-punteggi tabella-uscite">
+              <thead><tr><th>Nome</th><th>Ruolo</th><th>Ufficio</th><th>Data di inizio</th><th>Promosso il</th><th>Anzianità alla promozione</th></tr></thead>
+              <tbody>
+                {t.promossi.map(({ persona: p, mesi }) => (
+                  <tr key={p.id}>
+                    <th scope="row">{p.nome}</th>
+                    <td>{NOMI_RUOLO_PERSONA[p.ruolo]}</td>
+                    <td>{ufficioDi.get(p.id)}</td>
+                    <td>{dataItaliana(p.data_inizio)}</td>
+                    <td>{dataItaliana(p.data_fine)}</td>
+                    <td>{formattaAnzianita(mesi)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      <p className="piccolo non-stampa">Sono comprese tutte le persone con data di fine nell'anno, di tutti i ruoli. Chi è stato promosso a responsabile non conta come uscita né nel tasso. Gli uffici seguono il filtro per città qui sopra.</p>
     </section>
   )
 }

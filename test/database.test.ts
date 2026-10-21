@@ -701,6 +701,23 @@ describe('Posizione dell\'ufficio nella sua città', () => {
   })
 })
 
+describe('Motivo della fine (promossi a responsabile)', () => {
+  it('il motivo vale solo con una data di fine (senza, si toglie); cambiarlo da solo è una modifica vera', async () => {
+    const p = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaA}, 'Paola Promossa', 'collaboratore', '2022-01-01') returning id`)
+    await come('a@test.it', `update persone set motivo_fine = 'promozione' where id = $1`, [p])               // senza data di fine: si toglie
+    expect((await db.query<{ motivo_fine: string | null }>(`select motivo_fine from persone where id = $1`, [p])).rows[0].motivo_fine).toBeNull()
+    await rifiutata('a@test.it', `update persone set data_fine = '2026-05-01', motivo_fine = 'altro' where id = $1`, [p])
+    await come('a@test.it', `update persone set data_fine = '2026-05-01', motivo_fine = 'uscita' where id = $1`, [p])
+    // cambiare solo il motivo è una modifica vera (non viene ignorata)
+    await come('a@test.it', `update persone set motivo_fine = 'promozione' where id = $1`, [p])
+    expect((await db.query<{ motivo_fine: string }>(`select motivo_fine from persone where id = $1`, [p])).rows[0].motivo_fine).toBe('promozione')
+    await come('a@test.it', `update persone set data_fine = null where id = $1`, [p])
+    expect((await db.query<{ motivo_fine: string | null }>(`select motivo_fine from persone where id = $1`, [p])).rows[0].motivo_fine).toBeNull()
+    // un altro ufficio non tocca il personale di Roma A
+    expect(await come('b@test.it', `update persone set data_fine = '2026-05-01', motivo_fine = 'promozione' where id = $1 returning id`, [p])).toHaveLength(0)
+  })
+})
+
 describe('Nota della settimana a tre caselle', () => {
   const salva = `insert into note_settimana (ufficio_id, settimana, bene, difficolta, aiuto) values ($1, '2026-10-19', $2, $3, $4)
                  on conflict (ufficio_id, settimana) do update set bene = excluded.bene, difficolta = excluded.difficolta, aiuto = excluded.aiuto`
@@ -731,10 +748,10 @@ describe('Nota della settimana a tre caselle', () => {
 })
 
 describe('Migrazioni rieseguite', () => {
-  it('006–014 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–015 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
     const note = (await db.query(`select * from note_settimana order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

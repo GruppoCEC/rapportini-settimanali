@@ -179,10 +179,14 @@ export async function caricaVociMensili(): Promise<VoceMensile[]> {
 /** Il personale degli uffici indicati (anche chi ha lasciato l'ufficio) */
 export async function caricaPersone(ufficiIds: number[]): Promise<Persona[]> {
   if (ufficiIds.length === 0) return []
-  return aPagine<Persona>((da, a) => supabase.from('persone')
-    .select('id, ufficio_id, nome, ruolo, data_inizio, data_fine')
-    .in('ufficio_id', ufficiIds).order('id').range(da, a))
+  const richiesta = (colonne: string) => aPagine<Persona>((da, a) => supabase.from('persone')
+    .select(colonne).in('ufficio_id', ufficiIds).order('id').range(da, a))
+  // senza la 015 nel database la colonna del motivo non c'è ancora: si legge il resto
+  return richiesta(COLONNE_PERSONA).catch(() => richiesta(COLONNE_PERSONA_VECCHIE))
 }
+
+const COLONNE_PERSONA = 'id, ufficio_id, nome, ruolo, data_inizio, data_fine, motivo_fine'
+const COLONNE_PERSONA_VECCHIE = 'id, ufficio_id, nome, ruolo, data_inizio, data_fine'
 
 /** I numeri di un mese ('AAAA-MM-01') per gli uffici indicati */
 export async function caricaValoriMensili(mese: string, ufficiIds: number[]): Promise<ValoreMensile[]> {
@@ -250,7 +254,7 @@ export async function caricaMensilePerBackup() {
   try {
     const [voci, persone, valori] = await Promise.all([
       caricaVociMensili(),
-      tutteLeRighe<Persona>('persone', 'id, ufficio_id, nome, ruolo, data_inizio, data_fine', 'id'),
+      tutteLeRighe<Persona>('persone', COLONNE_PERSONA, 'id').catch(() => tutteLeRighe<Persona>('persone', COLONNE_PERSONA_VECCHIE, 'id')),
       aPagine<ValoreMensile>((da, a) => supabase.from('valori_mensili')
         .select('persona_id, ufficio_id, mese, voce, valore, aggiornato_da, aggiornato_il')
         .order('mese').order('persona_id').order('voce').range(da, a)),

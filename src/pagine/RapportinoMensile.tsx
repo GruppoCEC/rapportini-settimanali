@@ -9,7 +9,7 @@ import { caricaPersone, caricaScadenza, caricaStorico, caricaValoriMensili, cari
 import {
   dataItaliana, dataOra, inServizio, meseChiuso, mesePredefinito, scadenzaPassata, ordinaPersone, righeDelMese, titoloMese, totaleUfficio, ORDINE_RUOLI,
 } from '../lib/mensile'
-import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
+import { NOMI_MOTIVO_FINE, NOMI_RUOLO_PERSONA, type MotivoFine, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
 import { oggiISO } from '../lib/settimane'
 import { useDati } from '../lib/useDati'
 import { Caricamento } from '../componenti/Celle'
@@ -253,7 +253,7 @@ interface PropsPersonale {
   bloccato?: boolean                    // Work in progress: niente modifiche al personale
 }
 
-type Bozza = { nome: string; ruolo: RuoloPersona; data_inizio: string; data_fine: string }
+type Bozza = { nome: string; ruolo: RuoloPersona; data_inizio: string; data_fine: string; motivo_fine: MotivoFine }
 
 function messaggioErrore(m: string): string {
   if (/check constraint|violates check/i.test(m)) return 'Controlla i dati: il nome non può essere vuoto e la data di fine non può essere prima di quella di inizio.'
@@ -261,7 +261,7 @@ function messaggioErrore(m: string): string {
 }
 
 function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, bloccato }: PropsPersonale) {
-  const vuota: Bozza = { nome: '', ruolo: 'collaboratore', data_inizio: '', data_fine: '' }
+  const vuota: Bozza = { nome: '', ruolo: 'collaboratore', data_inizio: '', data_fine: '', motivo_fine: 'uscita' }
   const [nuova, setNuova] = useState<Bozza>(vuota)
   const [inModifica, setInModifica] = useState<{ id: number; bozza: Bozza } | null>(null)
   const [errore, setErrore] = useState<string | null>(null)
@@ -292,7 +292,10 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
   async function salvaModifica() {
     if (!inModifica) return
     const b = inModifica.bozza
-    const ok = await esegui(supabase.from('persone').update({ nome: b.nome.trim(), ruolo: b.ruolo, data_inizio: b.data_inizio, data_fine: b.data_fine || null }).eq('id', inModifica.id),
+    // il motivo si scrive solo se c'è una data di fine (e solo se il database ha già la 015)
+    const campi = { nome: b.nome.trim(), ruolo: b.ruolo, data_inizio: b.data_inizio, data_fine: b.data_fine || null,
+      ...(b.data_fine && (b.motivo_fine === 'promozione' || persone.some((x) => 'motivo_fine' in x)) ? { motivo_fine: b.motivo_fine } : {}) }
+    const ok = await esegui(supabase.from('persone').update(campi).eq('id', inModifica.id),
       `Scheda di ${b.nome.trim()} aggiornata.`)
     if (ok) setInModifica(null)
   }
@@ -307,7 +310,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
   }
 
   const modifica = (p: Persona, dataFine?: string) =>
-    setInModifica({ id: p.id, bozza: { nome: p.nome, ruolo: p.ruolo, data_inizio: p.data_inizio, data_fine: dataFine ?? p.data_fine ?? '' } })
+    setInModifica({ id: p.id, bozza: { nome: p.nome, ruolo: p.ruolo, data_inizio: p.data_inizio, data_fine: dataFine ?? p.data_fine ?? '', motivo_fine: p.motivo_fine ?? 'uscita' } })
   const campoBozza = (campo: keyof Bozza, valore: string) =>
     setInModifica((m) => m && { ...m, bozza: { ...m.bozza, [campo]: valore } })
 
@@ -316,7 +319,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
       <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="users-three" /></span>Personale dell'ufficio</h2>
       <p className="piccolo">
         Il personale si inserisce una volta sola e vale per tutti i mesi, a partire dalla data di inizio.
-        Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong> e indica l'ultimo giorno: non conta già dal mese in cui esce (niente riga nel rapportino, totali, staff né gara), ma i suoi numeri dei mesi precedenti restano.
+        Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong>, indica l'ultimo giorno e il motivo (ha lasciato il gruppo, oppure promosso a responsabile): non conta già dal mese in cui esce (niente riga nel rapportino, totali, staff né gara), ma i suoi numeri dei mesi precedenti restano.
       </p>
       {errore && <p className="errore-box" role="alert"><Icona nome="warning-circle" />{errore}</p>}
 
@@ -348,7 +351,14 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
                         {ORDINE_RUOLI.map((r) => <option key={r} value={r}>{NOMI_RUOLO_PERSONA[r]}</option>)}
                       </select></td>
                       <td><input type="date" value={b.data_inizio} aria-label="Data di inizio" onChange={(e) => campoBozza('data_inizio', e.target.value)} /></td>
-                      <td><input type="date" value={b.data_fine} aria-label="Data di fine" onChange={(e) => campoBozza('data_fine', e.target.value)} /></td>
+                      <td>
+                        <input type="date" value={b.data_fine} aria-label="Data di fine" onChange={(e) => campoBozza('data_fine', e.target.value)} />
+                        {b.data_fine && (
+                          <select value={b.motivo_fine} aria-label="Motivo" style={{ marginTop: 6 }} onChange={(e) => campoBozza('motivo_fine', e.target.value)}>
+                            {(Object.keys(NOMI_MOTIVO_FINE) as MotivoFine[]).map((m) => <option key={m} value={m}>{NOMI_MOTIVO_FINE[m]}</option>)}
+                          </select>
+                        )}
+                      </td>
                       <td />
                       <td className="azioni">
                         <button className="btn btn-primario" disabled={occupato || !b.nome.trim() || !b.data_inizio} onClick={salvaModifica}>Salva</button>
@@ -362,7 +372,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
                     <th scope="row">{p.nome}</th>
                     <td>{NOMI_RUOLO_PERSONA[p.ruolo]}</td>
                     <td>{dataItaliana(p.data_inizio)}</td>
-                    <td>{dataItaliana(p.data_fine)}</td>
+                    <td>{dataItaliana(p.data_fine)}{p.motivo_fine === 'promozione' && <span className="piccolo" style={{ display: 'block' }}>promosso a responsabile</span>}</td>
                     <td>
                       <EtichettaMovimento persona={p} mese={mese} />
                       {!classeMovimento(p, mese) && (

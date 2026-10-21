@@ -254,6 +254,16 @@ describe('turnover dell\'anno', () => {
     expect(t.tasso).toBe(1)                     // 3 uscite su 3
     expect(t.anzianitaMedia).toBe(30)
   })
+
+  it('chi è promosso a responsabile non è un\'uscita: è nei promossi e non pesa sul tasso', () => {
+    const promossa = { ...persona(6, 'collaboratore', '2022-01-01', '2026-05-01'), motivo_fine: 'promozione' as const }
+    const t = turnoverAnno([persona(1, 'collaboratore', '2020-03-01', '2026-02-15'), persona(3, 'collaboratore', '2018-01-01'), promossa], '2026')
+    expect(t.usciti.map((u) => u.persona.id)).toEqual([1])
+    expect(t.promossi.map((u) => [u.persona.id, u.mesi])).toEqual([[6, 52]])
+    expect(t.tasso).toBe(1 / 3)
+    expect(movimentoNelMese(promossa, '2026-05-01')).toBe('promozione')
+    expect(inServizio(promossa, '2026-05-01')).toBe(false)     // come chi esce, non conta nel mese della promozione
+  })
 })
 
 describe('gara a punti dei collaboratori', () => {
