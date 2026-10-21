@@ -30,6 +30,7 @@ le proprie attività e i dati di zona. Sostituisce i file Excel su OneDrive.
 | 5 | Import dello storico dagli Excel | ✅ Caricato il 13/10/2026: 47 uffici, 11.635 valori (gen–ott 2026) |
 | 6 | Avvio per tutti gli uffici | Da fare |
 | — | Account affiliati in sola consultazione (0.6.0) | Codice pronto: prima di usarli eseguire `006_affiliati.sql` in Supabase (vedi `docs/GUIDA_SETUP.md`, "Affiliati") |
+| — | Settimane vuote completate dal rapportino mensile (0.11.0) | Codice pronto: eseguire `011_settimane_dal_mensile.sql` in Supabase, poi pubblicare |
 | — | Presentazione mensile con i rapportini mensili (0.10.0) | Codice pronto: eseguire `010_totali_mensili_citta.sql` in Supabase (dopo la 009), poi pubblicare |
 | — | Storico mensile 2026 e confronto 2025 dal file Excel annuale (0.9.0) | Codice pronto: eseguire `009_storico_mensile.sql` e `import/sql/STORICO_MENSILE_2026.sql` in Supabase |
 | — | Totali della città nella Presentazione degli uffici (0.8.0) | Codice pronto: eseguire `008_totali_citta.sql` in Supabase, poi pubblicare |

@@ -183,11 +183,21 @@ const TESTI = {
 }
 
 // ---------- Rapportino settimanale ----------
+// I numeri inseriti dal database per completare le settimane con il rapportino mensile
+// (011_settimane_dal_mensile.sql, colonna da_mensile) non contano: l'ufficio va comunque avvisato.
+async function scrittiDagliUffici(settimana) {
+  try {
+    return await tutte('rilevazioni', 'ufficio_id', (q) => q.eq('settimana', settimana).not('risultato', 'is', null).eq('da_mensile', false))
+  } catch (e) {
+    if (!/da_mensile/.test(e.message)) throw e
+    return tutte('rilevazioni', 'ufficio_id', (q) => q.eq('settimana', settimana).not('risultato', 'is', null))   // 011 non ancora eseguita
+  }
+}
+
 async function settimanale(tipo) {
   const settimana = settimanaDelPromemoria(tipo, oggi)
   const intervallo = dalAl(settimana, aggiungiGiorni(settimana, 6))
-  const rilevazioni = await tutte('rilevazioni', 'ufficio_id', (q) => q.eq('settimana', settimana).not('risultato', 'is', null))
-  const conDati = new Set(rilevazioni.map((r) => r.ufficio_id))
+  const conDati = new Set((await scrittiDagliUffici(settimana)).map((r) => r.ufficio_id))
   const mancanti = uffici.filter((u) => !conDati.has(u.id))
   for (const u of mancanti) {
     const dest = emailUfficio(u)
@@ -276,6 +286,13 @@ async function scadenzaPerProva(mese) {
   }
   const { data: giorno, orario } = inItalia(s.scadenza)
   return { ...s, giorno, orario }
+}
+
+// ---------- Settimane dei mesi appena finiti, completate con il rapportino mensile ----------
+// Serve quando un ufficio ha inserito il mensile prima che finisse l'ultima settimana del mese.
+{
+  const { error } = await db.rpc('ricostruisci_mesi_recenti')
+  if (error) console.log(`Settimane dal rapportino mensile non ricalcolate: ${error.message}`)
 }
 
 // ---------- Cosa tocca adesso ----------

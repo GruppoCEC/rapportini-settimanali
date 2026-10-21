@@ -14,6 +14,7 @@ const AMBIENTE_SUPABASE = `
   create role anon nologin;
   create role authenticated nologin;
   create role supabase_auth_admin nologin;
+  create role service_role nologin;
   create schema auth;
   create function auth.jwt() returns jsonb language sql stable as
     $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
@@ -554,10 +555,75 @@ describe('Totali mensili della propria città (presentazione mensile dell\'uffic
   })
 })
 
+describe('Settimane completate dal rapportino mensile', () => {
+  // marzo 2024: settimane del 4, 11, 18 e 25 marzo (quella del 1° aprile ha il giovedì in aprile)
+  const settimana = async (metrica: string) => Object.fromEntries((await db.query<{ settimana: string; risultato: number | null; da_mensile: boolean }>(
+    `select to_char(settimana, 'MM-DD') settimana, risultato, da_mensile from rilevazioni
+     where ufficio_id = $1 and metrica = $2 and settimana between '2024-03-04' and '2024-03-25' order by 1`, [romaA, metrica])).rows
+    .map((r) => [r.settimana, r.risultato]))
+
+  beforeAll(async () => {
+    await db.exec(`insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato) values
+      (${romaA}, '2024-03-04', 'incarichi', 2, 3), (${romaA}, '2024-03-11', 'incarichi', 2, 2), (${romaA}, '2024-03-18', 'incarichi', 2, null)`)
+    await db.exec(`insert into totali_mensili_storico (ufficio_id, mese, voce, valore) values
+      (${romaA}, '2024-03-01', 'incarichi_vendita', 10), (${romaA}, '2024-03-01', 'acquisizioni', 3), (${romaA}, '2024-03-01', 'portafoglio_vendita', 40)`)
+  })
+
+  it('divide in parti uguali tra le settimane vuote quello che manca al mensile', async () => {
+    // incarichi: 10 nel mese, 3 + 2 già scritti → 5 su due settimane vuote = 3 e 2; l'obiettivo resta
+    expect(await settimana('incarichi')).toEqual({ '03-04': 3, '03-11': 2, '03-18': 3, '03-25': 2 })
+    expect((await db.query(`select obiettivo from rilevazioni where ufficio_id = $1 and settimana = '2024-03-18' and metrica = 'incarichi'`, [romaA])).rows[0])
+      .toEqual({ obiettivo: 2 })
+    // valutazioni = acquisizioni: 3 su quattro settimane vuote = 1, 1, 1, 0
+    expect(await settimana('valutazioni')).toEqual({ '03-04': 1, '03-11': 1, '03-18': 1, '03-25': 0 })
+    // il portafoglio e le voci senza corrispondenza non si toccano
+    expect(await settimana('portafoglio')).toEqual({})
+    expect(await settimana('im3')).toEqual({})
+  })
+
+  it('se l\'ufficio scrive una settimana, le altre vuote si ricalcolano; il suo numero non si tocca più', async () => {
+    await come('a@test.it', `insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato) values ($1, '2024-03-18', 'incarichi', 2, 4)
+      on conflict (ufficio_id, settimana, metrica) do update set obiettivo = excluded.obiettivo, risultato = excluded.risultato`, [romaA])
+    expect(await settimana('incarichi')).toEqual({ '03-04': 3, '03-11': 2, '03-18': 4, '03-25': 1 })
+    const scritta = (await db.query<{ da_mensile: boolean }>(`select da_mensile from rilevazioni where ufficio_id = $1 and settimana = '2024-03-18' and metrica = 'incarichi'`, [romaA])).rows[0]
+    expect(scritta.da_mensile).toBe(false)
+  })
+
+  it('se cambia il mensile si ricalcola; se le settimane lo superano già, non inserisce nulla', async () => {
+    await db.exec(`update totali_mensili_storico set valore = 12 where ufficio_id = ${romaA} and mese = '2024-03-01' and voce = 'incarichi_vendita'`)
+    expect((await settimana('incarichi'))['03-25']).toBe(3)
+    await db.exec(`update totali_mensili_storico set valore = 5 where ufficio_id = ${romaA} and mese = '2024-03-01' and voce = 'incarichi_vendita'`)
+    expect(await settimana('incarichi')).toEqual({ '03-04': 3, '03-11': 2, '03-18': 4 })
+  })
+
+  it('vale anche per i rapportini mensili inseriti persona per persona', async () => {
+    // maggio 2024: settimane del 29 aprile e del 6, 13, 20, 27 maggio → 4 incarichi = 1, 1, 1, 1, 0
+    const persona = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaB}, 'Bea Bassi', 'collaboratore', '2020-01-01') returning id`)
+    await db.exec(`insert into valori_mensili (persona_id, mese, voce, valore) values (${persona}, '2024-05-01', 'incarichi_vendita', 4)`)
+    const r = (await db.query<{ s: string; risultato: number }>(`select to_char(settimana, 'MM-DD') s, risultato from rilevazioni
+      where ufficio_id = $1 and metrica = 'incarichi' and settimana between '2024-04-29' and '2024-05-27' order by 1`, [romaB])).rows
+    expect(r.map((x) => x.risultato)).toEqual([1, 1, 1, 1, 0])
+    // tolto il mensile, spariscono anche i numeri inseriti
+    await db.exec(`delete from valori_mensili where persona_id = ${persona}`)
+    expect((await db.query(`select * from rilevazioni where ufficio_id = $1 and metrica = 'incarichi' and settimana between '2024-04-29' and '2024-05-27'`, [romaB])).rows).toHaveLength(0)
+  })
+
+  it('i mesi non ancora finiti non si toccano', async () => {
+    const mese = new Date().toISOString().slice(0, 8) + '01'
+    await db.exec(`insert into totali_mensili_storico (ufficio_id, mese, voce, valore) values (${romaC}, '${mese}', 'ribassi', 9)`)
+    expect((await db.query(`select * from rilevazioni where ufficio_id = $1 and metrica = 'ribassi' and da_mensile`, [romaC])).rows).toHaveLength(0)
+  })
+
+  it('nessun account può lanciare la ricostruzione a mano', async () => {
+    await rifiutata('davide@test.it', `select ricostruisci_mesi_recenti()`)
+    await rifiutata('a@test.it', `select ricostruisci_settimane($1, '2024-03-01')`, [romaA])
+  })
+})
+
 describe('Migrazioni rieseguite', () => {
-  it('006–010 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–011 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

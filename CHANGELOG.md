@@ -1,5 +1,29 @@
 # Storia delle versioni
 
+## 0.11.0 — 21 ottobre 2026
+
+**Settimane vuote completate dal rapportino mensile** (richiesta di Davide):
+- quando a un ufficio mancano dei numeri settimanali, il database li inserisce da solo nelle settimane vuote, così che la somma delle settimane del mese sia uguale al rapportino mensile;
+- voci collegate (decise da Davide):
+
+  | Settimanale | Mensile |
+  |---|---|
+  | App.ti Vendita | Appuntamenti vendita |
+  | Proposte | Proposte vendita |
+  | Incarichi | Incarichi vendita |
+  | Valutazioni | Acquisizioni |
+  | Vendite | Vendite effettuate |
+  | Ribassi | Ribassi |
+
+  Portafoglio, IM3, +90 e gli altri dati di zona non si toccano;
+- la differenza tra il mensile e le settimane già compilate si divide **in parti uguali** tra le settimane vuote (i resti alle prime). Le settimane scritte dall'ufficio non si toccano mai; gli obiettivi restano com'erano;
+- è **automatico**, anche in futuro: si ricalcola quando cambia il rapportino mensile o lo storico Excel, e quando un ufficio scrive una settimana (le altre vuote si aggiustano). Solo per i mesi già finiti;
+- se le settimane superano già il mensile, non si inserisce nulla;
+- i numeri inseriti così non sono evidenziati nel sito (decisione di Davide). Il database li riconosce solo per ricalcolarli e perché **non fermino i promemoria**: un ufficio senza numeri suoi in una settimana viene comunque avvisato;
+- i promemoria (sabato e lunedì) ricalcolano anche i mesi appena finiti, per quando il mensile è stato inserito prima della fine dell'ultima settimana;
+- prova sui dati veri (storico gennaio–settembre): circa 8.400 caselle completate, e in ogni ufficio e mese la somma delle settimane è uguale al mensile;
+- **da fare una volta in Supabase**: eseguire `supabase/migrations/011_settimane_dal_mensile.sql`, poi pubblicare (Push).
+
 ## 0.10.1 — 21 ottobre 2026
 
 **Riepilogo anno: staff e portafoglio non si sommano più** (richiesta di Davide):

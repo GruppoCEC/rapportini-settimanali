@@ -254,6 +254,17 @@ dopo la 009:
 
 Senza questo passo la presentazione mensile funziona lo stesso, ma senza la pagina della città per gli uffici.
 
+## Settimane completate dal rapportino mensile (dalla versione 0.11.0)
+
+Il database riempie da solo le settimane vuote perché la loro somma sia uguale al rapportino mensile
+(App.ti Vendita, Proposte, Incarichi, Valutazioni, Vendite, Ribassi). Si attiva **una volta sola**:
+1. Supabase → il progetto → **SQL Editor** → **New query**.
+2. Copia **tutto** il file `supabase/migrations/011_settimane_dal_mensile.sql`, incollalo e premi **Run**
+   ("Success. No rows returned"). La prima volta completa anche i mesi già caricati (gennaio–settembre 2026).
+3. Pubblica il sito con **Push origin** (serve anche ai promemoria).
+
+Da quel momento funziona da solo: non c'è nulla da fare quando arrivano nuovi rapportini mensili.
+
 ---
 
 ## Provare il sito sul Mac
