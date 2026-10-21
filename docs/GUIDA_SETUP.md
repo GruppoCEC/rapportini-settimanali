@@ -191,10 +191,14 @@ I promemoria partono da GitHub:
 
 Da quel momento potrà creare da solo uffici e account di Milano, senza vedere Roma.
 
-## Affiliati (account in sola consultazione, dalla versione 0.6.0)
+## Affiliati (dalla versione 0.6.0; dalla 0.12.0 inseriscono anche i dati)
 
-Gli affiliati vedono gli uffici che assegni loro, anche di Roma e Milano insieme, senza poter
-scrivere nulla: Cruscotto, Andamento uffici e Report mensile (senza gara a punti). Non ricevono promemoria.
+Gli affiliati vedono gli uffici che assegni loro, anche di Roma e Milano insieme, e dalla versione 0.12.0
+ne inseriscono i dati settimanali e mensili come l'account dell'ufficio. Vedono Cruscotto, Andamento uffici,
+Presentazione e Report mensile (senza gara a punti). I promemoria arrivano agli uffici, non agli affiliati.
+
+Per permettere l'inserimento (0.12.0), **una volta sola**: Supabase → **SQL Editor** → **New query**, incolla
+tutto `supabase/migrations/012_affiliati_compilano.sql` e premi **Run**.
 
 **Una volta sola**, prima di crearli, va aggiunta la loro tabella al database:
 1. Apri Supabase → il progetto → **SQL Editor** (icona a sinistra) → **New query**.
@@ -203,8 +207,8 @@ scrivere nulla: Cruscotto, Andamento uffici e Report mensile (senza gara a punti
    (Non incollare `TUTTO_IN_UNO.sql`: rifarebbe tutto da capo e darebbe errore.)
 
 Poi, per ogni affiliato (solo l'amministratore generale può farlo):
-1. **Amministrazione → Account → Nuovo account**, ruolo **Affiliato (consultazione)**.
-2. Spunta gli uffici che può vedere, scrivi nome utente e nome, poi **Crea account**.
+1. **Amministrazione → Account → Nuovo account**, ruolo **Affiliato**.
+2. Spunta i suoi uffici (li vedrà e potrà inserirne i dati), scrivi nome utente e nome, poi **Crea account**.
 3. Copia le credenziali che compaiono e mandale all'affiliato.
 
 Gli affiliati sono elencati in fondo alla pagina, nella sezione **Affiliati**: da lì cambi gli uffici

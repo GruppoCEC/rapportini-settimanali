@@ -394,13 +394,32 @@ describe('Affiliato (sola consultazione)', () => {
     expect(utenti.map((u) => u.nome_utente)).toEqual(['aff'])
   })
 
-  it('non può scrivere nulla, nemmeno sui suoi uffici', async () => {
-    await rifiutata(aff, `insert into rilevazioni (ufficio_id, settimana, metrica, risultato) values ($1, '2026-10-12', 'vendite', 1)`, [romaB])
-    await rifiutata(aff, `insert into note_settimana (ufficio_id, settimana, testo) values ($1, '2026-10-12', 'x')`, [romaB])
-    await rifiutata(aff, `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, 'Intruso', 'marketer', '2026-01-01')`, [romaB])
-    expect(await come(aff, `update rilevazioni set risultato = 99 where ufficio_id = $1 returning *`, [romaB])).toHaveLength(0)
-    expect(await come(aff, `update persone set nome = 'X' returning *`)).toHaveLength(0)
-    expect(await come(aff, `delete from valori_mensili returning *`)).toHaveLength(0)
+  it('inserisce i dati dei suoi uffici (dal 21/10/2026), anche di città diverse', async () => {
+    await come(aff, `insert into rilevazioni (ufficio_id, settimana, metrica, obiettivo, risultato) values ($1, '2026-10-12', 'vendite', 1, 1), ($2, '2026-10-12', 'vendite', 1, 2)
+      on conflict (ufficio_id, settimana, metrica) do update set risultato = excluded.risultato`, [romaB, milanoA])
+    await come(aff, `insert into note_settimana (ufficio_id, settimana, testo) values ($1, '2026-10-12', 'Settimana buona')
+      on conflict (ufficio_id, settimana) do update set testo = excluded.testo`, [romaB])
+    const [p] = await come<{ id: number }>(aff, `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, 'Nuova Collega', 'marketer', '2026-01-01') returning id`, [romaB])
+    await come(aff, `insert into valori_mensili (persona_id, mese, voce, valore) values ($1, '2026-09-01', 'colloqui', 3)`, [p.id])
+    const scritto = await come<{ aggiornato_da: string }>(aff, `select aggiornato_da from rilevazioni where ufficio_id = $1 and settimana = '2026-10-12' and metrica = 'vendite'`, [milanoA])
+    expect(scritto[0].aggiornato_da).toBe(aff)
+  })
+
+  it('non scrive sugli uffici che non sono suoi, né sulle parti dell\'amministrazione', async () => {
+    await rifiutata(aff, `insert into rilevazioni (ufficio_id, settimana, metrica, risultato) values ($1, '2026-10-12', 'vendite', 1)`, [romaA])
+    await rifiutata(aff, `insert into note_settimana (ufficio_id, settimana, testo) values ($1, '2026-10-12', 'x')`, [romaA])
+    await rifiutata(aff, `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, 'Intruso', 'marketer', '2026-01-01')`, [romaA])
+    expect(await come(aff, `update rilevazioni set risultato = 99 where ufficio_id = $1 returning *`, [romaA])).toHaveLength(0)
+    await rifiutata(aff, `insert into punti_mensili (voce, punti) values ('kiron', 5)`)
+    await rifiutata(aff, `insert into confronto_anno_prima (mese, voce, valore) values ('2025-09-01', 'kiron', 1)`)
+    await rifiutata(aff, `insert into uffici (nome, citta_id) values ('Ufficio Z', 1)`)
+  })
+
+  it('con il mensile in prova non scrive il rapportino mensile, come gli uffici', async () => {
+    await db.exec(`update impostazioni set valore = 'no' where chiave = 'mensile_aperto'`)
+    try {
+      await rifiutata(aff, `insert into persone (ufficio_id, nome, ruolo, data_inizio) values ($1, 'Altra Collega', 'marketer', '2026-01-01')`, [romaB])
+    } finally { await db.exec(`update impostazioni set valore = 'si' where chiave = 'mensile_aperto'`) }
   })
 
   it('non vede la gara a punti né il confronto con l\'anno prima', async () => {
@@ -621,9 +640,9 @@ describe('Settimane completate dal rapportino mensile', () => {
 })
 
 describe('Migrazioni rieseguite', () => {
-  it('006–011 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–012 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

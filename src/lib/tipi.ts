@@ -57,7 +57,7 @@ export const NOMI_RUOLO: Record<Ruolo, string> = {
   responsabile: 'Responsabile d\'area',
   admin_citta: 'Amministratore di città',
   admin_generale: 'Amministratore generale',
-  affiliato: 'Affiliato (consultazione)',
+  affiliato: 'Affiliato',
 }
 
 // ---------------------------------------------------------------- Rapportino mensile

@@ -323,8 +323,9 @@ class Interrogazione {
     const op = this.operazione
     if (op) {
       if (!me) return { data: null, error: { message: 'permission denied' } }
-      // affiliato: sola consultazione; gli uffici agli affiliati li assegna solo l'amministratore generale
-      if (me.ruolo === 'affiliato' || (this.tabella === 'uffici_affiliato' && me.ruolo !== 'admin_generale')) {
+      // affiliato: scrive solo i dati dei suoi uffici (controllati sotto); gli uffici agli affiliati li assegna solo l'amministratore generale
+      if ((me.ruolo === 'affiliato' && !['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella))
+        || (this.tabella === 'uffici_affiliato' && me.ruolo !== 'admin_generale')) {
         return { data: null, error: { message: 'new row violates row-level security policy' } }
       }
       const ora = new Date().toISOString()
@@ -337,12 +338,12 @@ class Interrogazione {
             const riservata = voci_mensili.find((v) => v.codice === r.voce)?.solo_ruolo
             if (riservata && riservata !== persona?.ruolo) return { data: null, error: { message: `La voce ${r.voce} si compila solo per il ruolo ${riservata}` } }
           }
-          if (['persone', 'valori_mensili'].includes(this.tabella) && me.ruolo === 'ufficio') {   // in prova: come la regola del database
+          if (['persone', 'valori_mensili'].includes(this.tabella) && ['ufficio', 'affiliato'].includes(me.ruolo)) {   // in prova: come la regola del database
             let inProva = false
             try { inProva = localStorage.getItem('rapportini.demo.mensileInProva') === 'si' } catch { /* niente */ }
             if (inProva) return { data: null, error: { message: 'new row violates row-level security policy' } }
           }
-          if (this.tabella === 'valori_mensili' && me.ruolo === 'ufficio') {      // mese chiuso: come il trigger del database
+          if (this.tabella === 'valori_mensili' && ['ufficio', 'affiliato'].includes(me.ruolo)) {      // mese chiuso: come il trigger del database
             const s = scadenze_mensili.find((x) => x.mese === r.mese)
             if (s && s.blocca && Date.now() > new Date(s.scadenza).getTime()) return { data: null, error: { message: 'Inserimento chiuso: la scadenza per questo mese è passata. Per correzioni contatta l\'amministratore' } }
           }

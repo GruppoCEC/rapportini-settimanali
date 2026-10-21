@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.12.0 — 21 ottobre 2026
+
+**Gli affiliati inseriscono i dati dei loro uffici** (richiesta di Davide: chi è operativo in un ufficio non deve avere un secondo accesso):
+- gli account **affiliato** non sono più in sola consultazione: inseriscono i dati settimanali (con la nota) e il rapportino mensile (con il personale) in **tutti** gli uffici assegnati, anche di Roma e Milano insieme;
+- valgono le stesse regole degli uffici: mensile in prova ("Work in progress"), scadenze, mese chiuso dopo la scadenza;
+- nel menu dell'affiliato compaiono **Inserisci settimana** e **Inserisci mese**, con la scelta dell'ufficio in alto; nella testata vede quanti dei suoi uffici hanno compilato;
+- il ruolo ora si chiama semplicemente **Affiliato**;
+- restano solo all'amministrazione: gara a punti, confronto con l'anno prima, uffici, account e Stato compilazione. I promemoria continuano ad arrivare agli uffici, non agli affiliati;
+- **da fare una volta in Supabase**: eseguire `supabase/migrations/012_affiliati_compilano.sql`, poi pubblicare.
+
 ## 0.11.1 — 21 ottobre 2026
 
 **Inserisci settimana: niente avviso "Modifiche non salvate" per i soli suggerimenti** (segnalato da Davide):

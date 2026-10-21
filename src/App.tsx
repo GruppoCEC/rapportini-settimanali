@@ -132,7 +132,7 @@ export default function App() {
   }
   const compilabili = ufficiCompilabili(utente, dati.uffici, cittaId)
   const vedeInsieme = utente.ruolo !== 'ufficio'
-  const affiliato = isAffiliato(utente)       // sola consultazione: niente pagine sulla compilazione
+  const affiliato = isAffiliato(utente)       // compila i suoi uffici, ma senza Stato compilazione
 
   // Voci di menu in base al ruolo
   const menu: (VoceMenu & { id: Pagina })[] = [

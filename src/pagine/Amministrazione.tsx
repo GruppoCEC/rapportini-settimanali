@@ -70,7 +70,7 @@ export default function Amministrazione({ ctx }: { ctx: Contesto }) {
 
 // ---------------------------------------------------------------- ACCOUNT
 
-/** Affiliato con gli uffici che può consultare */
+/** Affiliato con gli uffici che vede e compila */
 type Affiliato = Utente & { uffici: number[] }
 
 function SezioneAccount({ ctx }: { ctx: Contesto }) {
@@ -119,7 +119,7 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
     e.preventDefault()
     const dati = { ...nuovo, nome_utente: nuovo.nome_utente.trim().toLowerCase() }
     const affiliato = dati.ruolo === 'affiliato'
-    if (affiliato && dati.uffici.length === 0) { setEsito({ tipo: 'errore', testo: 'Scegli almeno un ufficio che l\'affiliato può consultare.' }); return }
+    if (affiliato && dati.uffici.length === 0) { setEsito({ tipo: 'errore', testo: 'Scegli almeno un ufficio per l\'affiliato.' }); return }
     esegui(async () => {
       await gestioneAccount({
         azione: 'crea', nome_utente: dati.nome_utente, password: dati.password, nome: dati.nome, ruolo: dati.ruolo,
@@ -225,7 +225,7 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
         </div>
         {nuovo.ruolo === 'affiliato' && (
           <div className="campo">
-            <span className="etichetta">Uffici che può consultare ({nuovo.uffici.length} scelti) <span style={{ fontSize: 11, fontWeight: 400 }}>· vede settimanale e mensile in sola lettura, senza gara a punti</span></span>
+            <span className="etichetta">Uffici dell'affiliato ({nuovo.uffici.length} scelti) <span style={{ fontSize: 11, fontWeight: 400 }}>· li vede e ne inserisce i dati settimanali e mensili, senza gara a punti</span></span>
             <SceltaUffici uffici={ctx.uffici} citta={ctx.citta} scelti={nuovo.uffici} onCambia={(uffici) => setNuovo({ ...nuovo, uffici })} />
           </div>
         )}
@@ -273,7 +273,7 @@ function SezioneAccount({ ctx }: { ctx: Contesto }) {
       {generale && (affiliati.caricamento || affiliati.errore || !affiliati.dati ? <Caricamento errore={affiliati.errore} /> : (
         <section className="scheda">
           <h2>Affiliati ({affiliati.dati.length})</h2>
-          <p className="piccolo">Consultano in sola lettura gli uffici assegnati, di Roma e di Milano: Cruscotto, Andamento uffici e Report mensile (senza gara a punti). Non ricevono promemoria.</p>
+          <p className="piccolo">Vedono gli uffici assegnati, di Roma e di Milano, e ne inseriscono i dati settimanali e mensili (come l'account dell'ufficio): Inserisci settimana e mese, Cruscotto, Andamento uffici, Presentazione e Report mensile (senza gara a punti). I promemoria arrivano agli uffici, non agli affiliati.</p>
           {affiliati.dati.length === 0 ? <p className="piccolo">Nessun affiliato: per crearne uno scegli il ruolo "{NOMI_RUOLO.affiliato}" qui sopra.</p> : (
             <div className="tabella-scorrevole">
               <table className="tabella tabella-admin" style={{ minWidth: 900 }}>
@@ -352,7 +352,7 @@ function RigaModificaAccount({ u, ctx, ruoli, onAnnulla, onSalva }: {
   )
 }
 
-/** Sostituisce gli uffici che l'affiliato può consultare */
+/** Sostituisce gli uffici dell'affiliato */
 async function salvaUfficiAffiliato(nomeUtente: string, uffici: number[]) {
   const { error: e1 } = await supabase.from('uffici_affiliato').delete().eq('nome_utente', nomeUtente)
   if (e1) throw new Error(e1.message)

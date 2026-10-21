@@ -49,10 +49,11 @@ Dopo i totali del tuo ufficio trovi la pagina **Totali · Tutta Roma** (o **Tutt
 l'intera città, con gli stessi numeri della riunione del lunedì. Mostra solo i totali della città,
 non i numeri dei singoli uffici.
 
-## Per gli affiliati (sola consultazione)
+## Per gli affiliati
 
-Con un account da affiliato vedi solo gli uffici che ti sono stati assegnati, anche di città diverse.
-Non puoi modificare nulla. Nel menu trovi:
+Con un account da affiliato vedi gli uffici che ti sono stati assegnati, anche di città diverse, e ne
+inserisci i dati come farebbe l'ufficio. Nel menu trovi:
+- **Inserisci settimana** e **Inserisci mese**: scegli l'ufficio in alto, poi compila come descritto sopra;
 - **Andamento uffici**: scegli un ufficio in alto per vedere il grafico delle ultime 12 settimane e il riepilogo mese per mese;
 - **Cruscotto**: la tabella dei tuoi uffici per la settimana o per il mese (pulsanti *Settimana* / *Mese* e frecce ‹ ›), con il totale e i colori dell'obiettivo;
 - **Presentazione**: la presentazione a tutto schermo con i soli tuoi uffici (totali, classifiche, quota di mercato e una pagina per ufficio). Prima di avviarla scegli *Settimana* o *Mese*: il mese usa i rapportini mensili;
