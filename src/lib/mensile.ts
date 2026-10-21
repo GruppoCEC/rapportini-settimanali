@@ -235,15 +235,26 @@ export function mesiDellAnno(anno: string, ultimo: string = mesePredefinito()): 
 }
 
 /**
+ * Voci "di consistenza": dicono quante persone e quanti immobili ci sono, non cosa si è fatto nel mese.
+ * Nel riepilogo dell'anno non si sommano i mesi (decisione di Davide del 21/10/2026).
+ */
+export const VOCI_CONSISTENZA = [STAFF, 'portafoglio_vendita', 'portafoglio_locazione']
+
+/**
  * Riepilogo dell'anno di un ufficio: ogni voce è la somma dei totali dei mesi (stesse regole del mese:
  * chi esce non conta nel mese in cui esce; i mesi senza numeri persona per persona usano lo storico).
- * Lo staff è quello dell'ultimo mese, non una somma.
+ * Staff e portafoglio (VOCI_CONSISTENZA) non si sommano: vale il dato dell'ultimo mese in cui l'ufficio
+ * ha inserito il rapportino (per lo staff, se non ne ha inseriti, l'ultimo mese).
  */
 export function totaleAnnoUfficio(persone: Persona[], valori: ValoreMensile[], mesi: string[], voci: VoceMensile[], storico: StoricoMensile[] = []) {
   const perMese = mesi.map((m) => totaleConStorico(persone, valori, m, voci, storico).totale)
-  const totale = sommaTotali(perMese.map((t) => new Map([...t].filter(([k]) => k !== STAFF))))
-  totale.set(STAFF, perMese.length ? perMese[perMese.length - 1].get(STAFF) ?? null : null)
-  const mesiCompilati = perMese.filter((t) => [...t].some(([k, v]) => k !== STAFF && v !== null)).length
+  const compilato = (t: TotaliMese) => [...t].some(([k, v]) => k !== STAFF && v !== null)
+  const totale = sommaTotali(perMese.map((t) => new Map([...t].filter(([k]) => !VOCI_CONSISTENZA.includes(k)))))
+  for (const c of VOCI_CONSISTENZA) {
+    const ultimo = [...perMese].reverse().find((t) => compilato(t) && t.get(c) != null)
+    totale.set(c, ultimo?.get(c) ?? (c === STAFF && perMese.length ? perMese[perMese.length - 1].get(STAFF) ?? null : null))
+  }
+  const mesiCompilati = perMese.filter(compilato).length
   return { totale, perMese, mesiCompilati }
 }
 

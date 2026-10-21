@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.10.1 — 21 ottobre 2026
+
+**Riepilogo anno: staff e portafoglio non si sommano più** (richiesta di Davide):
+- staff, portafoglio immobili vendita e portafoglio immobili locazione dicono quante persone e quanti immobili ci sono, non cosa si è fatto nel mese: sommarli sui mesi dava numeri fuorvianti;
+- nel **Riepilogo anno** per ogni ufficio vale il dato dell'**ultimo mese in cui ha inserito il rapportino**; il totale del gruppo è la somma di questi dati (come il portafoglio nei rapportini settimanali);
+- le altre voci restano la somma dei mesi;
+- la pagina e la stampa lo spiegano. Nessuna modifica al database: basta pubblicare.
+
 ## 0.10.0 — 21 ottobre 2026
 
 **Presentazione mensile con i rapportini mensili** (richiesta di Davide):

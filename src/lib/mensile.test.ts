@@ -169,6 +169,17 @@ describe('storico dal file Excel annuale', () => {
     expect(mesiCompilati).toBe(3)
     expect(totale.get(STAFF)).toBe(2)                      // a marzo, dalla piattaforma
   })
+
+  it('staff e portafoglio non si sommano: vale l\'ultimo mese compilato', () => {
+    const conPortafoglio: VoceMensile[] = [...voci, { codice: 'portafoglio_vendita', gruppo: 'Portafoglio immobili', sotto: 'vendita', ordine: 0 }]
+    const s = [st('2026-01-01', 'portafoglio_vendita', 20), st('2026-01-01', 'colloqui', 1), st('2026-01-01', STAFF, 5),
+      st('2026-02-01', 'portafoglio_vendita', 22), st('2026-02-01', 'colloqui', 1), st('2026-02-01', STAFF, 6)]
+    // marzo e aprile: nessun rapportino (né sulla piattaforma né nell'Excel)
+    const { totale } = totaleAnnoUfficio(persone, [], mesiDellAnno('2026', '2026-04-01'), conPortafoglio, s)
+    expect(totale.get('portafoglio_vendita')).toBe(22)     // febbraio, non 20 + 22
+    expect(totale.get(STAFF)).toBe(6)                      // febbraio, ultimo mese compilato
+    expect(totale.get('colloqui')).toBe(2)                 // le attività si sommano
+  })
 })
 
 describe('presentazione mensile', () => {

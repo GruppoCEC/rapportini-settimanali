@@ -356,7 +356,7 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
         <label className="campo campo-anno"><span className="etichetta">Anno</span>
           <select value={anno} onChange={(e) => setAnno(e.target.value)}>{anni.map((a) => <option key={a} value={a}>{a}</option>)}</select>
         </label>
-        <p className="avviso"><Icona nome="info" /><span>Ogni voce è la <strong>somma dei mesi</strong>{periodo ? ` da ${periodo}` : ''}. Lo staff è quello dell'ultimo mese.</span></p>
+        <p className="avviso"><Icona nome="info" /><span>Ogni voce è la <strong>somma dei mesi</strong>{periodo ? ` da ${periodo}` : ''}. <strong>Staff e portafoglio immobili</strong> (vendita e locazione) non si sommano: sono quelli dell'ultimo mese compilato da ogni ufficio.</span></p>
       </div>
       {mesi.length === 0 ? <div className="scheda"><p className="piccolo">Nessun mese concluso nel {anno}.</p></div>
         : !dati.dati ? <Caricamento errore={dati.errore} /> : (() => {
@@ -366,7 +366,6 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
           const totale = sommaTotali(righe.map((r) => r.totale))
           const blocchi = [1, 2].map((b) => righe.filter((r) => (r.ufficio.blocco_mensile ?? 1) === b)).filter((b) => b.length > 0)
           const piuCitta = new Set(righe.map((r) => r.ufficio.citta_id)).size > 1
-          const ultimoMese = titoloMese(mesi[mesi.length - 1]).toLowerCase()
           const cella = (t: TotaliMese, c: string) => <td key={c} className={`destra ${t.get(c) == null ? 'cella-vuota' : ''}`}>{formattaNumero(t.get(c))}</td>
           return (
             <>
@@ -375,7 +374,7 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
                 <div className="tabella-scorrevole">
                   <table className="tabella tabella-mensile tabella-report">
                     <TestataVoci voci={voci} prime={['Ufficio', 'Staff']}
-                      titoloStampa={<TitoloStampa titolo={`Riepilogo dell'anno · ${titolo}`} sottotitolo={periodo} info={`Staff = persone in servizio a ${ultimoMese}`} />} />
+                      titoloStampa={<TitoloStampa titolo={`Riepilogo dell'anno · ${titolo}`} sottotitolo={periodo} info="Staff e portafoglio: ultimo mese compilato da ogni ufficio" />} />
                     <tbody>
                       {blocchi.map((b, i) => [
                         i > 0 && <tr key={`sep${i}`} className="separatore-blocco"><td colSpan={colonne.length + 1} /></tr>,
@@ -397,6 +396,7 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
                   </table>
                 </div>
                 <p className="legenda-stampa">
+                  Staff e portafoglio immobili non si sommano: sono quelli dell'ultimo mese compilato da ogni ufficio.
                   "n mesi su {mesi.length}" accanto all'ufficio: nell'anno ha compilato solo quei mesi, quindi i suoi totali sono parziali.
                   {conStorico && ' I mesi compilati prima della piattaforma vengono dal file Excel annuale (totale di ogni ufficio).'}
                 </p>
@@ -425,6 +425,7 @@ function RiepilogoAnno({ uffici, titolo, ctx }: { uffici: Ufficio[]; titolo: str
                     </tbody>
                   </table>
                 </div>
+                <p className="legenda-stampa">Nella riga «Totale {anno}» staff e portafoglio immobili sono quelli dell'ultimo mese compilato da ogni ufficio, non la somma dei mesi.</p>
               </section>
             </>
           )
