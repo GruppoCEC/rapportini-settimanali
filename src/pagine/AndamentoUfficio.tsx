@@ -81,6 +81,8 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
         ) : <h1 className="titolo-pagina">{ufficio?.nome}</h1>}
       </div>
 
+      {ufficio && <RiquadroImbuto key={ufficio.id} ufficio={ufficio} conCitta={ctx.utente.ruolo === 'ufficio'} nomeCitta={ctx.citta.find((c) => c.id === ufficio.citta_id)?.nome ?? ''} />}
+
       {caricamento || errore || !dati ? <Caricamento errore={errore} /> : (
         <>
           <section className="scheda">
@@ -127,7 +129,6 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
             <Legenda />
           </section>
 
-          {ufficio && <RiquadroImbuto key={ufficio.id} ufficio={ufficio} conCitta={ctx.utente.ruolo === 'ufficio'} nomeCitta={ctx.citta.find((c) => c.id === ufficio.citta_id)?.nome ?? ''} />}
         </>
       )}
     </div>
@@ -180,7 +181,7 @@ function RiquadroImbuto({ ufficio, conCitta, nomeCitta }: { ufficio: Ufficio; co
   const t = useProgresso(`${tipo}-${ufficio.id}-${!!dati}`)
 
   return (
-    <section className="scheda entra entra-2">
+    <section className="scheda entra">
       <div className="scheda-titolo">
         <h2 className="titolo-icona"><span className="icona-quadrata icona-blu"><Icona nome="funnel" /></span>Imbuto della vendita</h2>
         {MENSILE_ATTIVO && (

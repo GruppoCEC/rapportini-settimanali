@@ -45,6 +45,32 @@ export function GraficoImbuto({ imbuto, titolo, riferimento, nomeRiferimento, t 
   )
 }
 
+/**
+ * Imbuto compatto su una riga (pagina dell'ufficio nella presentazione): le fasi con il numero e,
+ * tra una fase e l'altra, il passaggio colorato rispetto al riferimento.
+ */
+export function ImbutoInRiga({ imbuto, riferimento, nomeRiferimento }: { imbuto: Imbuto; riferimento?: Imbuto | null; nomeRiferimento?: string }) {
+  return (
+    <div className="imbuto-riga">
+      {imbuto.fasi.map((f, i) => {
+        const p = imbuto.passaggi[i]
+        const rif = riferimento?.passaggi[i]
+        const confronto = riferimento ? confrontaPassaggio(p ?? null, rif ?? null) : null
+        return (
+          <div key={f.codice} className="imbuto-riga-pezzo">
+            <div className="imbuto-riga-fase"><span>{f.nome}</span><strong>{f.valore === null ? '—' : f.valore.toLocaleString('it-IT')}</strong></div>
+            {i < imbuto.fasi.length - 1 && (
+              <div className={`imbuto-riga-passaggio ${p ? confronto ?? '' : 'vuoto'}`}>
+                {p ? <><strong>{p.valore}</strong>{rif && rif.rapporto !== null && <span>{nomeRiferimento}: {rif.valore}</span>}</> : <Icona nome="caret-right" />}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Tabella dei passaggi ufficio per ufficio, colorati rispetto al riferimento (la città o il gruppo di uffici) */
 export function TabellaImbuto({ righe, riferimento, nomeRiferimento, compatta }: {
   righe: { nome: string; imbuto: Imbuto }[]

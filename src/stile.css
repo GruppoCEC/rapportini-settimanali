@@ -938,3 +938,16 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 }
 .imbuto-tabelle { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 18px; align-items: start; }
 .tabella.tabella-imbuto.compatta th, .tabella.tabella-imbuto.compatta td { padding-top: 4px; padding-bottom: 4px; font-size: 15px; }
+/* imbuto in una riga (pagina dell'ufficio nella presentazione) */
+.imbuto-riga { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.imbuto-riga-pezzo { display: flex; align-items: stretch; gap: 8px; }
+.imbuto-riga-fase { display: flex; flex-direction: column; justify-content: center; padding: 8px 14px; border-radius: 10px; background: var(--primario-100); min-width: 110px; }
+.imbuto-riga-fase span { font-size: 14px; font-weight: 700; color: var(--primario-800); }
+.imbuto-riga-fase strong { font-size: 26px; color: var(--primario-900); }
+.imbuto-riga-passaggio { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 6px 10px; border-radius: 10px; font-size: 13px; color: var(--testo-3); }
+.imbuto-riga-passaggio strong { font-size: 17px; color: var(--testo); white-space: nowrap; }
+.imbuto-riga-passaggio.sopra { background: var(--ok-bg); color: var(--ok-fg); }
+.imbuto-riga-passaggio.sopra strong { color: var(--ok-fg); }
+.imbuto-riga-passaggio.sotto { background: var(--secondario-100); color: var(--secondario-900); }
+.imbuto-riga-passaggio.sotto strong { color: var(--secondario-800); }
+.imbuto-riga-passaggio.vuoto i { font-size: 22px; color: var(--testo-3); }

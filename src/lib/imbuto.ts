@@ -1,11 +1,11 @@
-// Imbuto della vendita: le fasi dall'acquisizione alla vendita e i passaggi tra una fase e l'altra
-// (es. "1 proposta ogni 7 appuntamenti"). Con i rapportini settimanali e con quelli mensili.
-import { formattaPercentuale } from './calcoli'
+// Imbuto della vendita: le fasi dall'acquisizione alla vendita e i passaggi tra una fase e l'altra,
+// sempre nella forma "1 incarico ogni 3,6 acquisizioni" (scelta di Davide). Con i rapportini settimanali e mensili.
 
-/** Come si legge il passaggio tra due fasi */
-type Passaggio =
-  | { tipo: 'percentuale'; testo: string }               // "42% delle valutazioni diventa incarico"
-  | { tipo: 'ogni'; uno: string; unoPlurale: string; molti: string }   // "7 appuntamenti per ogni proposta"
+/** Come si legge il passaggio tra due fasi: "1 {uno} ogni N {base}" */
+interface Passaggio {
+  uno: string; unoPlurale: string       // la fase dopo: "incarico", "incarichi"
+  base: string; basePlurale: string     // la fase prima: "acquisizione", "acquisizioni"
+}
 
 export interface DefinizioneImbuto {
   fasi: { codice: string; nome: string }[]
@@ -23,10 +23,10 @@ export const IMBUTO_SETTIMANALE: DefinizioneImbuto = {
     { codice: 'vendite', nome: 'Vendite' },
   ],
   passaggi: [
-    { tipo: 'percentuale', testo: 'delle valutazioni diventa incarico' },
+    { uno: 'incarico', unoPlurale: 'incarichi', base: 'valutazione', basePlurale: 'valutazioni' },
     null,
-    { tipo: 'ogni', uno: 'proposta', unoPlurale: 'proposte', molti: 'appuntamenti' },
-    { tipo: 'percentuale', testo: 'delle proposte diventa vendita' },
+    { uno: 'proposta', unoPlurale: 'proposte', base: 'appuntamento', basePlurale: 'appuntamenti' },
+    { uno: 'vendita', unoPlurale: 'vendite', base: 'proposta', basePlurale: 'proposte' },
   ],
 }
 
@@ -41,11 +41,11 @@ export const IMBUTO_MENSILE: DefinizioneImbuto = {
     { codice: 'vendite_effettuate', nome: 'Vendite effettuate' },
   ],
   passaggi: [
-    { tipo: 'percentuale', testo: 'delle acquisizioni diventa incarico' },
+    { uno: 'incarico', unoPlurale: 'incarichi', base: 'acquisizione', basePlurale: 'acquisizioni' },
     null,
-    { tipo: 'ogni', uno: 'proposta', unoPlurale: 'proposte', molti: 'appuntamenti' },
-    { tipo: 'percentuale', testo: 'delle proposte è accettata' },
-    { tipo: 'percentuale', testo: 'delle accettazioni arriva a vendita' },
+    { uno: 'proposta', unoPlurale: 'proposte', base: 'appuntamento', basePlurale: 'appuntamenti' },
+    { uno: 'accettazione', unoPlurale: 'accettazioni', base: 'proposta', basePlurale: 'proposte' },
+    { uno: 'vendita', unoPlurale: 'vendite', base: 'accettazione', basePlurale: 'accettazioni' },
   ],
 }
 
@@ -60,9 +60,9 @@ export interface FaseCalcolata { codice: string; nome: string; valore: number | 
 
 export interface PassaggioCalcolato {
   rapporto: number | null      // fase dopo ÷ fase prima (più alto = meglio); null se non calcolabile
-  valore: string               // per le tabelle: "42%", "1 ogni 6,5", oppure "—"
-  numero: string               // per l'imbuto, prima del testo: "42%", "6,5"
-  testo: string                // "delle valutazioni diventa incarico", "appuntamenti per ogni proposta"
+  valore: string               // per le tabelle: "1 ogni 6,5", "0 su 12" oppure "—"
+  numero: string               // per l'imbuto, in grassetto: "1 proposta ogni 6,5"
+  testo: string                // per l'imbuto, dopo il numero: "appuntamenti"
   motivo?: 'mancante' | 'pochi'
 }
 
@@ -79,16 +79,14 @@ export function calcolaImbuto(def: DefinizioneImbuto, valori: Map<string, number
   const passaggi = def.passaggi.map((p, i): PassaggioCalcolato | null => {
     if (!p) return null
     const da = fasi[i].valore, a = fasi[i + 1].valore
-    const testo = p.tipo === 'percentuale' ? p.testo : `${p.molti} per ogni ${p.uno}`
-    if (da === null || a === null) return { rapporto: null, valore: '—', numero: '—', testo, motivo: 'mancante' }
-    if (da < MINIMO_CASI) return { rapporto: null, valore: '—', numero: '—', testo: `${testo} (pochi casi)`, motivo: 'pochi' }
+    const vuoto = { rapporto: null, valore: '—', numero: `1 ${p.uno} ogni …`, testo: p.basePlurale }
+    if (da === null || a === null) return { ...vuoto, motivo: 'mancante' }
+    if (da < MINIMO_CASI) return { ...vuoto, testo: `${p.basePlurale} (pochi casi)`, motivo: 'pochi' }
     const rapporto = a / da
-    if (p.tipo === 'percentuale') {
-      const percentuale = formattaPercentuale(rapporto).replace(',0%', '%')
-      return { rapporto, valore: percentuale, numero: percentuale, testo }
-    }
-    if (a === 0) return { rapporto, valore: `0 su ${unDecimale(da)}`, numero: '0', testo: `${p.unoPlurale} su ${unDecimale(da)} ${p.molti}` }
-    return { rapporto, valore: `1 ogni ${unDecimale(da / a)}`, numero: unDecimale(da / a), testo }
+    if (a === 0) return { rapporto, valore: `0 su ${unDecimale(da)}`, numero: `0 ${p.unoPlurale}`, testo: `su ${unDecimale(da)} ${p.basePlurale}` }
+    const ogni = da / a
+    const n = unDecimale(ogni)
+    return { rapporto, valore: `1 ogni ${n}`, numero: `1 ${p.uno} ogni ${n}`, testo: n === '1' ? p.base : p.basePlurale }
   })
   return { fasi, passaggi }
 }

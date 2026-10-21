@@ -28,7 +28,7 @@ import type { Metrica, Rilevazione, Ufficio, VoceMensile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../componenti/Celle'
 import { GraficoAndamento } from '../componenti/Grafici'
-import { GraficoImbuto, NotaImbuto, TabellaImbuto } from '../componenti/Imbuto'
+import { GraficoImbuto, ImbutoInRiga, NotaImbuto, TabellaImbuto } from '../componenti/Imbuto'
 import {
   calcolaImbuto, codiciImbuto, IMBUTO_MENSILE, IMBUTO_SETTIMANALE, MESI_IMBUTO, SETTIMANE_IMBUTO, sommaPeriodi, type DefinizioneImbuto, type Imbuto,
 } from '../lib/imbuto'
@@ -419,14 +419,20 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
   const settimaneImbuto = periodi.flat().slice(-SETTIMANE_IMBUTO)
   const totaliImbuto = totaliPerUfficio(nelPeriodo(settimaneImbuto), ctx.metriche)
   const risultatiDi = (t: Totali | undefined) => new Map(codiciImbuto(IMBUTO_SETTIMANALE).map((c) => [c, t?.get(c)?.risultato ?? null]))
+  const valoriCittaImbuto = citta ? sommaPeriodi(citta.andamento.slice(-SETTIMANE_IMBUTO).map(risultatiDi), codiciImbuto(IMBUTO_SETTIMANALE)) : null
+  const valoriGruppoImbuto = risultatiDi(somma(totaliImbuto, uffici))
+  const periodoImbuto = `Ultime ${settimaneImbuto.length} settimane (${intervalloSettimane(settimaneImbuto[0], settimaneImbuto[settimaneImbuto.length - 1])})`
   out.push(...pagineImbuto({
     def: IMBUTO_SETTIMANALE, nomeGruppo: titolo,
-    gruppo: risultatiDi(somma(totaliImbuto, uffici)),
+    gruppo: valoriGruppoImbuto,
     perUfficio: uffici.map((u) => ({ nome: u.nome, valori: risultatiDi(totaliImbuto.get(u.id)) })),
-    citta: citta ? sommaPeriodi(citta.andamento.slice(-SETTIMANE_IMBUTO).map(risultatiDi), codiciImbuto(IMBUTO_SETTIMANALE)) : null,
+    citta: valoriCittaImbuto,
     nomeCitta,
-    periodo: `Ultime ${settimaneImbuto.length} settimane (${intervalloSettimane(settimaneImbuto[0], settimaneImbuto[settimaneImbuto.length - 1])}), rapportini settimanali`,
+    periodo: `${periodoImbuto}, rapportini settimanali`,
   }))
+  // Nelle pagine dei singoli uffici l'imbuto si confronta con tutta la città (per un ufficio) o con il totale del gruppo
+  const riferimentoImbuto = calcolaImbuto(IMBUTO_SETTIMANALE, valoriCittaImbuto ?? valoriGruppoImbuto)
+  const nomeRiferimentoImbuto = valoriCittaImbuto ? nomeCitta : titolo
 
   // 3. Classifiche, due attività per pagina (solo quelle con almeno un risultato; servono almeno due uffici)
   const compatta = uffici.length > 16
@@ -525,6 +531,7 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
     const tu = totali.get(u.id)
     const noteUfficio = note.filter((n) => n.ufficio_id === u.id)
     const andamentoUfficio = andamento([u])
+    const imbutoUfficio = calcolaImbuto(IMBUTO_SETTIMANALE, risultatiDi(totaliImbuto.get(u.id)))
     const s = stati.get(u.id)!
     const ultimo = diQuesto.filter((r) => r.ufficio_id === u.id && r.aggiornato_il).sort((a, b) => b.aggiornato_il!.localeCompare(a.aggiornato_il!))[0]
     const raggiunti = attivita.filter((m) => { const x = tu?.get(m.codice); return x?.obiettivo != null && x.risultato != null && x.risultato >= x.obiettivo }).length
@@ -623,6 +630,10 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
                 ))}
               </div>
             </div>
+          </div>
+          <div className="p-card">
+            <span className="p-etichetta">Imbuto della vendita · {periodoImbuto.toLowerCase()}</span>
+            <ImbutoInRiga imbuto={imbutoUfficio} riferimento={uffici.length > 1 || valoriCittaImbuto ? riferimentoImbuto : null} nomeRiferimento={nomeRiferimentoImbuto} />
           </div>
         </div>
       ),
