@@ -2,6 +2,7 @@
 // settimana e i dati di zona. Esito e quota di mercato si calcolano da soli.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { CASELLE_NOTA, caricaNota, type CampoNota } from '../lib/dati'
 import { nomeDaEmail } from '../lib/account'
 import { esito, formattaEsito, formattaPercentuale, leggiNumero, OBIETTIVO_QUOTA, quotaMercato } from '../lib/calcoli'
 import { intervalloSettimana, settimanaPredefinita } from '../lib/settimane'
@@ -22,6 +23,11 @@ type Caselle = Record<string, { obiettivo: string; risultato: string }>
 const testo = (n: number | null | undefined) => (n === null || n === undefined ? '' : String(n))
 const num = (s: string) => { const v = leggiNumero(s); return typeof v === 'number' ? v : null }
 
+/** Le tre caselle della nota (cosa è andato bene, difficoltà, mi serve aiuto su…) */
+type CaselleNota = Record<CampoNota, string>
+const NOTA_VUOTA: CaselleNota = { bene: '', difficolta: '', aiuto: '' }
+const noteDiverse = (a: CaselleNota, b: CaselleNota) => CASELLE_NOTA.some(({ campo }) => a[campo] !== b[campo])
+
 function caselleVuote(metriche: Metrica[]): Caselle {
   return Object.fromEntries(metriche.map((m) => [m.codice, { obiettivo: '', risultato: '' }]))
 }
@@ -32,8 +38,9 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
   const [caselle, setCaselle] = useState<Caselle>(() => caselleVuote(metriche))
   const [originali, setOriginali] = useState<Caselle>(() => caselleVuote(metriche))   // come sono nel database
   const [iniziali, setIniziali] = useState<Caselle>(() => caselleVuote(metriche))     // come si mostrano all'apertura (con i suggerimenti)
-  const [nota, setNota] = useState('')
-  const [notaOriginale, setNotaOriginale] = useState('')
+  const [nota, setNota] = useState<CaselleNota>(NOTA_VUOTA)
+  const [notaOriginale, setNotaOriginale] = useState<CaselleNota>(NOTA_VUOTA)
+  const [notaVecchia, setNotaVecchia] = useState('')   // nota libera scritta prima delle tre caselle: si mostra e basta
   const [proposteDa, setProposteDa] = useState<string | null>(null)   // settimana da cui sono copiati i dati di zona
   const [obiettiviDa, setObiettiviDa] = useState<string | null>(null)  // settimana da cui sono copiati gli obiettivi
   const [ultimoSalvataggio, setUltimoSalvataggio] = useState<{ quando: string; chi: string | null } | null>(null)
@@ -49,11 +56,11 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
   const diverse = (a: Caselle, b: Caselle) => metriche.some((m) =>
     a[m.codice].obiettivo !== b[m.codice].obiettivo || a[m.codice].risultato !== b[m.codice].risultato)
   // C'è qualcosa da salvare (anche solo i suggerimenti accettati così come sono)
-  const daSalvare = useMemo(() => nota !== notaOriginale || diverse(caselle, originali),
+  const daSalvare = useMemo(() => noteDiverse(nota, notaOriginale) || diverse(caselle, originali),
     [caselle, originali, nota, notaOriginale, metriche])  // eslint-disable-line react-hooks/exhaustive-deps
   // L'utente ha scritto qualcosa: solo allora si avvisa prima di cambiare settimana.
   // I suggerimenti (obiettivi e dati di zona della settimana prima) da soli non sono modifiche.
-  const modificato = useMemo(() => nota !== notaOriginale || diverse(caselle, iniziali),
+  const modificato = useMemo(() => noteDiverse(nota, notaOriginale) || diverse(caselle, iniziali),
     [caselle, iniziali, nota, notaOriginale, metriche])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Avvisa se si chiude la pagina con modifiche non salvate
@@ -71,11 +78,11 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
     ;(async () => {
       const [righe, notaDb] = await Promise.all([
         supabase.from('rilevazioni').select('*').eq('ufficio_id', ufficioId).eq('settimana', settimana),
-        supabase.from('note_settimana').select('testo').eq('ufficio_id', ufficioId).eq('settimana', settimana).maybeSingle(),
+        caricaNota(ufficioId, settimana).catch((e: Error) => e),
       ])
       if (annullato) return
-      if (righe.error || notaDb.error) {
-        setMessaggio({ tipo: 'errore', testo: `Impossibile caricare i dati: ${(righe.error ?? notaDb.error)!.message}` })
+      if (righe.error || notaDb instanceof Error) {
+        setMessaggio({ tipo: 'errore', testo: `Impossibile caricare i dati: ${righe.error?.message ?? (notaDb as Error).message}` })
         setStato('pronto')
         return
       }
@@ -126,8 +133,10 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
       setOriginali(salvate)
       setIniziali(proposte)
       setCaselle(proposte)
-      setNota(notaDb.data?.testo ?? '')
-      setNotaOriginale(notaDb.data?.testo ?? '')
+      const salvata: CaselleNota = notaDb ? { bene: notaDb.bene, difficolta: notaDb.difficolta, aiuto: notaDb.aiuto } : NOTA_VUOTA
+      setNota(salvata)
+      setNotaOriginale(salvata)
+      setNotaVecchia(notaDb?.testo.trim() ?? '')
       setProposteDa(da)
       setObiettiviDa(obDa)
       setStato('pronto')
@@ -171,8 +180,10 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
       righe.length > 0
         ? supabase.from('rilevazioni').upsert(righe, { onConflict: 'ufficio_id,settimana,metrica' })
         : Promise.resolve({ error: null }),
-      nota !== notaOriginale
-        ? supabase.from('note_settimana').upsert({ ufficio_id: ufficioId, settimana, testo: nota.trim() }, { onConflict: 'ufficio_id,settimana' })
+      noteDiverse(nota, notaOriginale)
+        ? supabase.from('note_settimana').upsert(
+          { ufficio_id: ufficioId, settimana, bene: nota.bene.trim(), difficolta: nota.difficolta.trim(), aiuto: nota.aiuto.trim() },
+          { onConflict: 'ufficio_id,settimana' })
         : Promise.resolve({ error: null }),
     ])
     const errore = esiti.find((r) => r.error)?.error
@@ -295,8 +306,20 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
 
           <section className="scheda">
             <h2 className="titolo-icona"><span className="icona-quadrata icona-ambra"><Icona nome="note-pencil" /></span>Note della settimana <span className="piccolo">(facoltative, mostrate in riunione)</span></h2>
-            <textarea rows={3} maxLength={2000} value={nota} disabled={disattivo} aria-label="Note della settimana" placeholder="Es. acquisito incarico importante in via…"
-              onChange={(e) => { setNota(e.target.value); setMessaggio(null) }} />
+            {notaVecchia && (
+              <div className="nota-vecchia">
+                <span className="etichetta-maiuscola">Nota scritta prima delle tre caselle</span>
+                <p>“{notaVecchia}”</p>
+              </div>
+            )}
+            {CASELLE_NOTA.map(({ campo, nome, segnaposto }) => (
+              <div key={campo} className={`campo campo-nota${campo === 'aiuto' ? ' campo-aiuto' : ''}`}>
+                <label htmlFor={`nota-${campo}`}>{nome}</label>
+                <textarea id={`nota-${campo}`} rows={2} maxLength={1000} value={nota[campo]} disabled={disattivo} placeholder={segnaposto}
+                  onChange={(e) => { const v = e.target.value; setNota((n) => ({ ...n, [campo]: v })); setMessaggio(null) }} />
+              </div>
+            ))}
+            <p className="piccolo">Ciò che scrivi in <strong>Mi serve aiuto su…</strong> è messo in risalto nella riunione e arriva all'amministrazione.</p>
           </section>
         </div>
       </div>

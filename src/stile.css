@@ -115,6 +115,12 @@ select { width: auto; }
 .campo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .campo > label, .campo > span.etichetta { font-size: 13px; font-weight: 700; color: var(--testo-2); }
 .campo select, .campo input { width: 100%; }
+/* Nota della settimana a tre caselle (Inserisci settimana) */
+.campo-nota textarea { width: 100%; min-height: 64px; }
+.campo-aiuto > label { color: var(--secondario-800); }
+.campo-aiuto textarea { border-color: var(--secondario-400); background: var(--secondario-100); }
+.nota-vecchia { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 10px; background: var(--sfondo); }
+.nota-vecchia p { margin: 0; font-style: italic; white-space: pre-wrap; }
 .griglia-campi { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 16px 24px; }
 
 .segmentato { display: inline-flex; gap: 2px; padding: 4px; border-radius: 10px; background: #E7E5DE; }
@@ -588,6 +594,15 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .nota-card { flex-direction: row; gap: 16px; align-items: flex-start; background: var(--secondario-100); border-color: var(--secondario-200); }
 .nota-card > i { font-size: 34px; color: var(--secondario-700); flex: none; }
 .nota-card p { font-size: 20px; line-height: 1.45; font-weight: 500; white-space: pre-wrap; }
+/* Riunione: le tre caselle della nota; "Mi serve aiuto" in risalto */
+.nota-righe { display: flex; flex-direction: column; gap: 4px; }
+.nota-righe .nota-etichetta { font-weight: 800; color: var(--secondario-800); }
+.nota-righe .nota-aiuto { background: var(--secondario); color: #fff; border-radius: 10px; padding: 6px 12px; }
+.nota-righe .nota-aiuto .nota-etichetta { color: #fff; }
+/* Stato compilazione: richieste di aiuto della settimana */
+.richieste-aiuto { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.richieste-aiuto li { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-left: 4px solid var(--secondario); background: var(--secondario-100); border-radius: 0 10px 10px 0; }
+.richieste-aiuto p { margin: 0; white-space: pre-wrap; }
 .tabella-dia { font-size: 17px; }
 .griglia-mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .mini { display: flex; flex-direction: column; gap: 4px; background: #F6F8FA; border-radius: 12px; padding: 10px 12px 6px; min-width: 0; }

@@ -639,13 +639,44 @@ describe('Settimane completate dal rapportino mensile', () => {
   })
 })
 
+describe('Nota della settimana a tre caselle', () => {
+  const salva = `insert into note_settimana (ufficio_id, settimana, bene, difficolta, aiuto) values ($1, '2026-10-19', $2, $3, $4)
+                 on conflict (ufficio_id, settimana) do update set bene = excluded.bene, difficolta = excluded.difficolta, aiuto = excluded.aiuto`
+
+  it('l\'ufficio scrive le tre caselle del proprio ufficio, non di un altro', async () => {
+    await come('a@test.it', salva, [romaA, 'Due incarichi', '', 'Trattativa bloccata'])
+    const r = (await db.query<{ bene: string; aiuto: string; testo: string; aggiornato_da: string }>(
+      `select bene, aiuto, testo, aggiornato_da from note_settimana where ufficio_id = $1 and settimana = '2026-10-19'`, [romaA])).rows[0]
+    expect(r).toEqual({ bene: 'Due incarichi', aiuto: 'Trattativa bloccata', testo: '', aggiornato_da: 'a@test.it' })
+    await rifiutata('a@test.it', salva, [romaB, 'x', '', ''])
+    expect(await come('b@test.it', `select * from note_settimana where ufficio_id = $1`, [romaA])).toHaveLength(0)
+  })
+
+  it('una modifica solo nelle nuove caselle si salva e finisce nel registro', async () => {
+    const conta = async () => (await db.query<{ n: number }>(`select count(*)::int as n from storico_modifiche where tabella = 'note_settimana'`)).rows[0].n
+    const prima = await conta()
+    await come('a@test.it', salva, [romaA, 'Due incarichi', 'Colleghi in ferie', 'Trattativa bloccata'])
+    expect(await conta()).toBe(prima + 1)
+    await come('a@test.it', salva, [romaA, 'Due incarichi', 'Colleghi in ferie', 'Trattativa bloccata'])   // identica: ignorata
+    expect(await conta()).toBe(prima + 1)
+    const r = (await db.query<{ difficolta: string }>(`select difficolta from note_settimana where ufficio_id = $1 and settimana = '2026-10-19'`, [romaA])).rows[0]
+    expect(r.difficolta).toBe('Colleghi in ferie')
+  })
+
+  it('ogni casella ha al massimo 1000 caratteri', async () => {
+    await rifiutata('a@test.it', salva, [romaA, 'x'.repeat(1001), '', ''])
+  })
+})
+
 describe('Migrazioni rieseguite', () => {
-  it('006–012 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–013 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql']) {
+    const note = (await db.query(`select * from note_settimana order by 1, 2`)).rows
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)
+    expect((await db.query(`select * from note_settimana order by 1, 2`)).rows).toEqual(note)
     expect(await ufficiVisti('rapportini+aff@gmail.com')).toEqual([romaB, milanoA])
   })
 })

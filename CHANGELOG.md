@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.13.0 — 21 ottobre 2026
+
+**Nota della settimana a tre caselle** (richiesta di Davide, punto 2.1.4 dell'analisi):
+- in **Inserisci settimana** la nota libera diventa tre caselle brevi: **Cosa è andato bene**, **Difficoltà**, **Mi serve aiuto su…** (quest'ultima in arancio). Tutte facoltative, fino a 1000 caratteri ciascuna;
+- le note già scritte non si perdono: se una settimana ha la vecchia nota, compare sopra le caselle in sola lettura e si vede ancora in riunione;
+- in **riunione** (e nella Presentazione) la pagina dell'ufficio mostra le tre caselle con il loro nome; **Mi serve aiuto** è su sfondo arancio;
+- in **Stato compilazione** gli amministratori trovano il riquadro **Richieste di aiuto**: gli uffici che hanno scritto in "Mi serve aiuto su…" in quella settimana, con il testo. Se nessuno chiede aiuto, il riquadro non c'è;
+- il **backup in Excel** ha una colonna per ogni casella nel foglio Note; nei fogli degli uffici le caselle sono una sotto l'altra;
+- **da fare una volta in Supabase**: eseguire `supabase/migrations/013_nota_tre_caselle.sql`, poi pubblicare (Push). Senza la 013 il sito continua a mostrare le vecchie note, ma le tre caselle non si possono salvare.
+
 ## 0.12.0 — 21 ottobre 2026
 
 **Gli affiliati inseriscono i dati dei loro uffici** (richiesta di Davide: chi è operativo in un ufficio non deve avere un secondo accesso):

@@ -101,8 +101,18 @@ for (const u of uffici) {
       rilevazioni.push({ ufficio_id: u.id, settimana: s, metrica: codice, obiettivo: null, risultato: valore, aggiornato_da: da, aggiornato_il: ts })
     }
   }
-  if (u.id % 3 === 1) {
-    note.push({ ufficio_id: u.id, settimana: daCompilare, testo: ['Acquisito incarico in esclusiva in via Chisimaio, trilocale con terrazzo.', 'Due proposte in trattativa, firma prevista la prossima settimana.', 'Settimana rallentata da due colleghi in ferie.', 'Avviata campagna volantinaggio sulla zona nord.'][u.id % 4], aggiornato_da: null, aggiornato_il: new Date().toISOString() })
+  // note della settimana: le tre caselle (013_nota_tre_caselle.sql); qualche ufficio ha ancora la vecchia nota libera
+  // (nella settimana in corso e in quella della riunione, appena chiusa)
+  for (const [i, settimana] of [aggiungiSettimane(daCompilare, -1), daCompilare].entries()) {
+    if (u.id % 3 !== (i === 0 ? 2 : 1)) continue
+    const k = u.id % 4
+    note.push({
+      ufficio_id: u.id, settimana, aggiornato_da: null, aggiornato_il: new Date().toISOString(),
+      testo: k === 3 ? 'Avviata campagna volantinaggio sulla zona nord.' : '',
+      bene: ['Acquisito incarico in esclusiva in via Chisimaio, trilocale con terrazzo.', 'Due proposte in trattativa, firma prevista la prossima settimana.', 'Tre valutazioni da passaparola di clienti.', ''][k],
+      difficolta: ['', 'Settimana rallentata da due colleghi in ferie.', 'Poche richieste sui bilocali.', ''][k],
+      aiuto: ['', 'Un venditore vuole ritirare l\'incarico dopo il ribasso: come lo gestiamo?', 'Serve un collega esperto di locazioni per un cliente aziendale.', ''][k],
+    })
   }
 }
 

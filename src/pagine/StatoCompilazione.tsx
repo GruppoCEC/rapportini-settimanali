@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { nomeDaEmail } from '../lib/account'
 import { statoCompilazione, type StatoCompilazione as Stato } from '../lib/aggregazioni'
 import { AREE_ATTIVE, PROMEMORIA_ATTIVI, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
-import { caricaRilevazioni } from '../lib/dati'
+import { caricaNote, caricaRilevazioni } from '../lib/dati'
 import { isAmministratore } from '../lib/permessi'
 import { settimanaPredefinita } from '../lib/settimane'
 import { supabase } from '../lib/supabase'
@@ -32,6 +32,8 @@ export default function StatoCompilazione({ ctx }: { ctx: Contesto }) {
     if (error) throw new Error(error.message)
     return data as Utente[]
   }, [admin, ctx.cittaId])
+  // Richieste di aiuto della settimana (casella "Mi serve aiuto su…" della nota): solo per gli amministratori
+  const note = useDati(() => (admin ? caricaNote([settimana], ids) : Promise.resolve([])), [admin, settimana, ids.join(',')])
 
   const t = useProgresso(`${settimana}-${caricamento}`)
   const nomeCitta = ctx.citta.find((c) => c.id === ctx.cittaId)?.nome ?? ''
@@ -68,6 +70,10 @@ export default function StatoCompilazione({ ctx }: { ctx: Contesto }) {
     setTimeout(() => setCopiato(false), 2500)
   }
 
+  const richiesteAiuto = (note.dati ?? []).filter((x) => x.aiuto.trim() !== '')
+    .map((x) => ({ ufficio: uffici.find((u) => u.id === x.ufficio_id), testo: x.aiuto.trim() }))
+    .sort((x, y) => (x.ufficio?.nome ?? '').localeCompare(y.ufficio?.nome ?? ''))
+
   const n = righe.length || 1
   const RIQUADRI = [
     { stato: 'completo' as Stato, nome: 'Completi', classe: 'verde', sotto: 'tutte le attività inserite', colore: 'var(--ok)' },
@@ -93,6 +99,19 @@ export default function StatoCompilazione({ ctx }: { ctx: Contesto }) {
           {RIQUADRI.map((q) => <div key={q.stato} style={{ width: `${conta(q.stato) / n * 100 * t}%`, background: q.colore }} />)}
         </div>
       </div>
+
+      {richiesteAiuto.length > 0 && (
+        <section className="scheda entra">
+          <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="hand-waving" /></span>
+            Richieste di aiuto ({richiesteAiuto.length})</h2>
+          <p className="piccolo">Quello che gli uffici hanno scritto in "Mi serve aiuto su…" nella nota di questa settimana.</p>
+          <ul className="richieste-aiuto">
+            {richiesteAiuto.map((r, i) => (
+              <li key={i}><strong>{r.ufficio?.nome ?? 'Ufficio'}</strong><p>{r.testo}</p></li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="scheda">
         <div className="scheda-titolo">

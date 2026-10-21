@@ -28,17 +28,59 @@ export async function caricaRilevazioni(da: string, a: string, ufficiIds?: numbe
 export interface Nota {
   ufficio_id: number
   settimana: string
-  testo: string
+  testo: string          // nota libera scritta prima delle tre caselle (fino alla 0.12)
+  bene: string           // cosa è andato bene
+  difficolta: string     // difficoltà della settimana
+  aiuto: string          // mi serve aiuto su… (in risalto in riunione e in Stato compilazione)
+}
+
+/** Le tre caselle della nota della settimana (013_nota_tre_caselle.sql), nell'ordine in cui si mostrano */
+export const CASELLE_NOTA = [
+  { campo: 'bene', nome: 'Cosa è andato bene', segnaposto: 'Es. acquisito un incarico in esclusiva in via…' },
+  { campo: 'difficolta', nome: 'Difficoltà', segnaposto: 'Es. due colleghi in ferie, poche richieste in zona…' },
+  { campo: 'aiuto', nome: 'Mi serve aiuto su…', segnaposto: 'Es. una trattativa bloccata, un incarico da rinegoziare…' },
+] as const
+
+export type CampoNota = typeof CASELLE_NOTA[number]['campo']
+
+/** La nota ha almeno una casella scritta (vecchia nota compresa)? */
+export function notaScritta(n: Pick<Nota, 'testo' | CampoNota>): boolean {
+  return [n.testo, n.bene, n.difficolta, n.aiuto].some((t) => (t ?? '').trim() !== '')
+}
+
+const COLONNE_NOTA = 'ufficio_id, settimana, testo, bene, difficolta, aiuto'
+const COLONNE_NOTA_VECCHIE = 'ufficio_id, settimana, testo'
+
+/** Completa le note lette prima della 013 (solo "testo") con le tre caselle vuote */
+const completaNota = (r: Partial<Nota>): Nota =>
+  ({ ufficio_id: r.ufficio_id!, settimana: r.settimana!, testo: r.testo ?? '', bene: r.bene ?? '', difficolta: r.difficolta ?? '', aiuto: r.aiuto ?? '' })
+
+/**
+ * Legge le note con le tre caselle; se il database non ha ancora la 013
+ * le rilegge con la sola nota libera, così il sito funziona anche prima di eseguirla.
+ */
+async function leggiNote<T>(richiesta: (colonne: string) => PromiseLike<{ data: T | null; error: { message: string } | null }>) {
+  const prima = await richiesta(COLONNE_NOTA)
+  if (!prima.error) return prima
+  const vecchie = await richiesta(COLONNE_NOTA_VECCHIE)
+  return vecchie.error ? prima : vecchie
 }
 
 /** Note degli uffici per le settimane indicate (una sola, o tutte quelle di un mese) */
 export async function caricaNote(settimane: string[], ufficiIds: number[]): Promise<Nota[]> {
   if (ufficiIds.length === 0 || settimane.length === 0) return []
-  const { data, error } = await supabase.from('note_settimana')
-    .select('ufficio_id, settimana, testo').in('settimana', settimane).in('ufficio_id', ufficiIds)
-    .order('settimana')
+  const { data, error } = await leggiNote((colonne) => supabase.from('note_settimana')
+    .select(colonne).in('settimana', settimane).in('ufficio_id', ufficiIds).order('settimana'))
   if (error) throw new Error(error.message)
-  return (data as Nota[]).filter((n) => n.testo.trim() !== '')
+  return ((data ?? []) as unknown as Partial<Nota>[]).map(completaNota).filter(notaScritta)
+}
+
+/** La nota di un ufficio in una settimana (null se non c'è), per Inserisci settimana */
+export async function caricaNota(ufficioId: number, settimana: string): Promise<Nota | null> {
+  const { data, error } = await leggiNote((colonne) => supabase.from('note_settimana')
+    .select(colonne).eq('ufficio_id', ufficioId).eq('settimana', settimana).maybeSingle())
+  if (error) throw new Error(error.message)
+  return data ? completaNota(data as unknown as Partial<Nota>) : null
 }
 
 /**
@@ -81,11 +123,12 @@ async function tutteLeRighe<T>(tabella: string, colonne: string, ordine: string)
 export async function caricaTuttoPerBackup() {
   const [rilevazioni, note, utenti, metriche] = await Promise.all([
     caricaRilevazioni('2000-01-01', '2100-12-31'),
-    tutteLeRighe<Nota>('note_settimana', 'ufficio_id, settimana, testo', 'settimana'),
+    tutteLeRighe<Partial<Nota>>('note_settimana', COLONNE_NOTA, 'settimana')
+      .catch(() => tutteLeRighe<Partial<Nota>>('note_settimana', COLONNE_NOTA_VECCHIE, 'settimana')),
     tutteLeRighe<Utente>('utenti', '*', 'nome_utente'),
     tutteLeRighe<Metrica>('metriche', '*', 'ordine'),
   ])
-  return { rilevazioni, note: note.filter((n) => n.testo.trim() !== ''), utenti, metriche }
+  return { rilevazioni, note: note.map(completaNota).filter(notaScritta), utenti, metriche }
 }
 
 // ---------------------------------------------------------------- Rapportino mensile

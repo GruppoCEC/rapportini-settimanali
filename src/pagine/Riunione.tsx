@@ -13,7 +13,7 @@ import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../l
 import { AREE_ATTIVE, MENSILE_ATTIVO, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { nomeDaEmail } from '../lib/account'
 import {
-  caricaNote, caricaPersone, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
+  CASELLE_NOTA, caricaNote, caricaPersone, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
 } from '../lib/dati'
 import {
   formattaNumero, inServizio, meseInCorso as meseAttuale, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
@@ -576,10 +576,15 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
                   <span className="p-etichetta" style={{ color: 'var(--secondario-800)' }}>Note dell'ufficio</span>
                   {noteUfficio.length === 0 && <p style={{ color: 'var(--testo-tenue)' }}>{parole.nessunaNota}</p>}
                   {noteUfficio.map((n) => (
-                    <p key={n.settimana} style={{ color: 'var(--testo)' }}>
-                      {periodo.tipo === 'mese' && <strong style={{ color: 'var(--secondario-800)' }}>Settimana del {etichettaBreve(n.settimana)}: </strong>}
-                      “{n.testo}”
-                    </p>
+                    <div key={n.settimana} className="nota-righe">
+                      {periodo.tipo === 'mese' && <strong style={{ color: 'var(--secondario-800)' }}>Settimana del {etichettaBreve(n.settimana)}</strong>}
+                      {n.testo.trim() && <p style={{ color: 'var(--testo)' }}>“{n.testo}”</p>}
+                      {CASELLE_NOTA.filter(({ campo }) => n[campo].trim()).map(({ campo, nome }) => (
+                        <p key={campo} className={campo === 'aiuto' ? 'nota-aiuto' : ''} style={campo === 'aiuto' ? undefined : { color: 'var(--testo)' }}>
+                          <span className="nota-etichetta">{nome.replace(/…$/, '')}: </span>{n[campo]}
+                        </p>
+                      ))}
+                    </div>
                   ))}
                 </div>
               </div>

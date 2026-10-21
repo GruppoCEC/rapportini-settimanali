@@ -8,7 +8,7 @@ import { quotaMercato, totaliPeriodo } from './calcoli'
 import { intervalloSettimana, lunediDi, meseDellaSettimana, nomeMese, oggiISO, settimaneDelMese, aggiungiGiorni } from './settimane'
 import { NOMI_RUOLO, NOMI_RUOLO_PERSONA, type Citta, type Metrica, type Persona, type Rilevazione, type Ufficio, type Utente, type ValoreMensile, type VoceMensile } from './tipi'
 import { ordinaPersone, ordinaUfficiReport, titoloMese } from './mensile'
-import type { Nota } from './dati'
+import { CASELLE_NOTA, type Nota } from './dati'
 
 export interface DatiBackup {
   citta: Citta[]
@@ -32,6 +32,12 @@ const sottile: Partial<ExcelJS.Border> = { style: 'thin', color: { argb: 'FFD7D3
 const bordi: Partial<ExcelJS.Borders> = { top: sottile, left: sottile, bottom: sottile, right: sottile }
 const dataUTC = (iso: string) => { const [a, m, g] = iso.split('-').map(Number); return new Date(Date.UTC(a, m - 1, g)) }
 const maiuscola = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+/** La nota della settimana in un solo testo, per il foglio dell'ufficio: nota libera, poi le tre caselle */
+export function testoNota(n: Nota): string {
+  return [n.testo.trim(), ...CASELLE_NOTA.filter(({ campo }) => n[campo].trim()).map(({ campo, nome }) => `${nome.replace(/…$/, '')}: ${n[campo].trim()}`)]
+    .filter(Boolean).join('\n')
+}
 
 /** Mesi da `da` ad `a` compresi (formato AAAA-MM) */
 function mesiTra(da: string, a: string): string[] {
@@ -91,7 +97,7 @@ export function creaBackup(d: DatiBackup): ExcelJS.Workbook {
   const fogli: [string, string][] = [
     ['Un foglio per ufficio', 'Come i vecchi rapportini: mesi uno sotto l\'altro, 5 settimane con obiettivo, risultato ed esito, totale del mese, dati di zona, quota di mercato e note.'],
     ['Dati', 'Tutti i valori inseriti, una riga per ufficio, settimana e voce, con chi li ha modificati e quando. È la copia completa: si può filtrare e ordinare.'],
-    ['Note', 'Le note settimanali degli uffici.'],
+    ['Note', 'Le note settimanali degli uffici: cosa è andato bene, difficoltà, mi serve aiuto su… (e la nota libera scritta prima delle tre caselle).'],
     ['Uffici', 'Elenco degli uffici con città, stato e account.'],
     ['Account', 'Gli account della piattaforma. Le password non ci sono: il sistema le conserva solo in forma cifrata.'],
     ...(d.mensile ? [
@@ -239,7 +245,8 @@ export function creaBackup(d: DatiBackup): ExcelJS.Workbook {
       const rNote = ws.addRow(['Note'])
       let altezza = 0
       for (let k = 0; k < SETTIMANE_PER_MESE; k++) {
-        const testo = settimane[k] ? noteUfficio.find((x) => x.settimana === settimane[k])?.testo ?? '' : ''
+        const n = settimane[k] ? noteUfficio.find((x) => x.settimana === settimane[k]) : undefined
+        const testo = n ? testoNota(n) : ''
         const c = colonnaSett(k)
         if (testo) {
           rNote.getCell(c).value = testo
@@ -303,13 +310,15 @@ export function creaBackup(d: DatiBackup): ExcelJS.Workbook {
     ]
   }))
 
-  tabella('Note', [
+  const foglioNote = tabella('Note', [
     { titolo: 'Città', larghezza: 10 }, { titolo: 'Ufficio', larghezza: 24 },
-    { titolo: 'Settimana dal', larghezza: 13, formato: 'dd/mm/yyyy' }, { titolo: 'Nota', larghezza: 100 },
+    { titolo: 'Settimana dal', larghezza: 13, formato: 'dd/mm/yyyy' },
+    ...CASELLE_NOTA.map(({ nome }) => ({ titolo: nome, larghezza: 45 })), { titolo: 'Nota libera (prima delle tre caselle)', larghezza: 45 },
   ], [...d.note].sort((a, b) => a.settimana.localeCompare(b.settimana)).map((n) => {
     const u = ufficioDi.get(n.ufficio_id)
-    return [nomeCitta(u?.citta_id ?? null), u?.nome ?? '', dataUTC(n.settimana), n.testo]
-  })).getColumn(4).alignment = { wrapText: true, vertical: 'top' }
+    return [nomeCitta(u?.citta_id ?? null), u?.nome ?? '', dataUTC(n.settimana), ...CASELLE_NOTA.map(({ campo }) => n[campo]), n.testo]
+  }))
+  for (let c = 4; c <= 4 + CASELLE_NOTA.length; c++) foglioNote.getColumn(c).alignment = { wrapText: true, vertical: 'top' }
 
   tabella('Uffici', [
     { titolo: 'Città', larghezza: 10 }, { titolo: 'Ufficio', larghezza: 26 }, { titolo: 'Stato', larghezza: 12 },

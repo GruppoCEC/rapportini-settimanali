@@ -23,7 +23,10 @@ const dati = {
     r(1, '2026-09-28', 'incarichi', 3, 2), r(1, '2026-10-05', 'incarichi', 3, 4),
     r(1, '2026-10-05', 'portafoglio', null, 10), r(1, '2026-10-05', 'incarichi_zona', null, 40),
   ],
-  note: [{ ufficio_id: 1, settimana: '2026-10-05', testo: 'Nuovo incarico in via Mogadiscio' }],
+  note: [
+    { ufficio_id: 1, settimana: '2026-09-28', testo: '', bene: 'Due incarichi in esclusiva', difficolta: '', aiuto: 'Trattativa bloccata in via Chisimaio' },
+    { ufficio_id: 1, settimana: '2026-10-05', testo: 'Nuovo incarico in via Mogadiscio', bene: '', difficolta: '', aiuto: '' },
+  ],
   utenti: [{ email: 'somalia@rapportini.local', nome_utente: 'somalia', nome: 'Ufficio Somalia', email_promemoria: 'x@y.it', ruolo: 'ufficio' as const, citta_id: 1, ufficio_id: 1, area_id: null, attivo: true }],
   generatoDa: 'Davide',
   adesso: new Date('2026-10-13T10:00:00'),
@@ -62,7 +65,15 @@ describe('backup in Excel', () => {
     const quota = ws.getRow(trovaRiga(ws, 'Quota di mercato (obiettivo 20%)', mese))
     expect(quota.getCell(6).value).toMatchObject({ result: 0.25 })                  // 10 ÷ 40
     const note = ws.getRow(trovaRiga(ws, 'Note', mese))
-    expect(note.getCell(5).value).toBe('Nuovo incarico in via Mogadiscio')
+    expect(note.getCell(5).value).toBe('Nuovo incarico in via Mogadiscio')               // nota libera scritta prima delle tre caselle
+    expect(note.getCell(2).value).toBe('Cosa è andato bene: Due incarichi in esclusiva\nMi serve aiuto su: Trattativa bloccata in via Chisimaio')
+  })
+
+  it('il foglio Note ha una colonna per ognuna delle tre caselle', () => {
+    const ws = creaBackup(dati).getWorksheet('Note')!
+    expect(ws.getRow(1).values).toEqual([undefined, 'Città', 'Ufficio', 'Settimana dal', 'Cosa è andato bene', 'Difficoltà', 'Mi serve aiuto su…', 'Nota libera (prima delle tre caselle)'])
+    expect(ws.getRow(2).getCell(6).value).toBe('Trattativa bloccata in via Chisimaio')
+    expect(ws.getRow(3).getCell(7).value).toBe('Nuovo incarico in via Mogadiscio')
   })
 
   it('con il rapportino mensile aggiunge i fogli Mensile e Personale', () => {
