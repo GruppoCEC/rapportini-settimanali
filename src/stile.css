@@ -954,17 +954,16 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 
 /* ---------------------------------------------------------------- Posizione dell'ufficio nella città (src/componenti/Posizione.tsx) */
 .posizioni { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 14px; }
-.posizione { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border-radius: 14px; border: 1px solid #E3E6EB; background: #fff; border-top: 6px solid var(--testo-3); }
+.posizione { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border-radius: 14px; border: 1px solid #E3E6EB; background: #fff; border-top: 8px solid var(--testo-3); }
 .posizione-nome { font-weight: 700; font-size: 16px; }
 .posizione-numero { display: flex; align-items: baseline; gap: 8px; }
 .posizione-numero strong { font-size: 44px; line-height: 1; color: var(--primario-900); }
 .posizione-numero span { font-size: 16px; color: var(--testo-3); font-weight: 600; }
-.posizione-fascia { align-self: flex-start; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
 .posizione .delta { align-self: flex-start; }
-.fascia-primo { border-top-color: var(--ok-fg); } .fascia-primo .posizione-fascia { background: var(--ok-fg); color: #fff; }
-.fascia-secondo { border-top-color: var(--ok); } .fascia-secondo .posizione-fascia { background: var(--ok-bg); color: var(--ok-fg); }
-.fascia-terzo { border-top-color: var(--quasi); } .fascia-terzo .posizione-fascia { background: var(--quasi-bg); color: var(--quasi-fg); }
-.fascia-ultimo { border-top-color: var(--secondario); } .fascia-ultimo .posizione-fascia { background: var(--secondario-100); color: var(--secondario-900); }
+.fascia-primo { border-top-color: var(--ok-fg); } .fascia-primo .posizione-numero strong { color: var(--ok-fg); }
+.fascia-secondo { border-top-color: var(--ok); } .fascia-secondo .posizione-numero strong { color: var(--ok); }
+.fascia-terzo { border-top-color: var(--quasi); } .fascia-terzo .posizione-numero strong { color: var(--quasi-fg); }
+.fascia-ultimo { border-top-color: var(--secondario); } .fascia-ultimo .posizione-numero strong { color: var(--secondario-800); }
 .posizioni.compatto { grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 10px; }
 .posizioni.compatto .posizione { padding: 10px 12px; gap: 4px; }
 .posizioni.compatto .posizione-numero strong { font-size: 30px; }

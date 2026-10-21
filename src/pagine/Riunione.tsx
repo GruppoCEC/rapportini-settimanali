@@ -444,6 +444,7 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
     citta: valoriCittaImbuto,
     nomeCitta,
     periodo: `${periodoImbuto}, rapportini settimanali`,
+    tabellaUffici: false,     // l'imbuto di ogni ufficio è già nella sua pagina
   }))
   // Nelle pagine dei singoli uffici l'imbuto si confronta con tutta la città (per un ufficio) o con il totale del gruppo
   const riferimentoImbuto = calcolaImbuto(IMBUTO_SETTIMANALE, valoriCittaImbuto ?? valoriGruppoImbuto)
@@ -765,13 +766,15 @@ function paginaPosizione({ nomeCitta, posizioni, voci, prima, extra }: {
 
 /**
  * Pagine dell'imbuto della vendita. Con un ufficio solo: il suo imbuto accanto a quello di tutta la città.
- * Con più uffici: l'imbuto del gruppo, poi una pagina con i passaggi ufficio per ufficio (colorati rispetto al gruppo).
+ * Con più uffici: l'imbuto del gruppo e, se chiesto, una pagina con i passaggi ufficio per ufficio (colorati rispetto
+ * al gruppo). Nella settimana non serve: ogni ufficio ha già il suo imbuto nella sua pagina (decisione di Davide).
  */
-function pagineImbuto({ def, nomeGruppo, gruppo, perUfficio, citta, nomeCitta, periodo }: {
+function pagineImbuto({ def, nomeGruppo, gruppo, perUfficio, citta, nomeCitta, periodo, tabellaUffici }: {
   def: DefinizioneImbuto; nomeGruppo: string; gruppo: Map<string, number | null>
   perUfficio: { nome: string; valori: Map<string, number | null> }[]
   citta: Map<string, number | null> | null       // tutta la città dell'ufficio (solo le somme), null per gli altri
   nomeCitta: string; periodo: string
+  tabellaUffici: boolean                         // aggiungere la pagina "ufficio per ufficio"
 }): Diapositiva[] {
   const imbutoGruppo = calcolaImbuto(def, gruppo)
   const imbutoCitta: Imbuto | null = citta ? calcolaImbuto(def, citta) : null
@@ -793,7 +796,7 @@ function pagineImbuto({ def, nomeGruppo, gruppo, perUfficio, citta, nomeCitta, p
       </div>
     ),
   }]
-  if (perUfficio.length > 1) {
+  if (tabellaUffici && perUfficio.length > 1) {
     const righe = perUfficio.map((u) => ({ nome: u.nome, imbuto: calcolaImbuto(def, u.valori) }))
     // tanti uffici: la tabella si divide in due colonne, così sta in una pagina
     const colonne = righe.length > 14 ? [righe.slice(0, Math.ceil(righe.length / 2)), righe.slice(Math.ceil(righe.length / 2))] : [righe]
@@ -933,6 +936,7 @@ function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nome
     perUfficio: uffici.map((u) => ({ nome: u.ufficio.nome, valori: ultimiMesi(u.totali) })),
     citta: citta ? ultimiMesi(citta.andamento) : null,
     nomeCitta,
+    tabellaUffici: true,      // nel mese non ci sono pagine per ufficio
     periodo: `Ultimi ${mesiImbuto.length} mesi (${titoloMese(mesiImbuto[0]).toLowerCase()} – ${titoloMese(mesiImbuto[mesiImbuto.length - 1]).toLowerCase()}), rapportini mensili`,
   }))
 

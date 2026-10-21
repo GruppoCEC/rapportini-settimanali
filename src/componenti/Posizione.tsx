@@ -1,5 +1,6 @@
 // Posizione del proprio ufficio nella sua città, voce per voce: "8° su 38", la fascia (quale quarto
-// della città) e il confronto con il periodo prima. Mai nomi o numeri degli altri uffici.
+// della città, solo come colore: Davide non vuole la scritta) e il confronto con il periodo prima.
+// Mai nomi o numeri degli altri uffici.
 import { fascia, NOMI_FASCIA, type Posizione } from '../lib/aggregazioni'
 import { Icona } from './Interfaccia'
 
@@ -27,10 +28,9 @@ export function PosizioniCitta({ posizioni, voci, prima, compatto }: {
         const f = fascia(p.posizione, p.su)
         const m = movimento(p)
         return (
-          <div key={v.codice} className={`posizione fascia-${f}`}>
+          <div key={v.codice} className={`posizione fascia-${f}`} title={NOMI_FASCIA[f]}>
             <span className="posizione-nome">{v.nome}</span>
             <div className="posizione-numero"><strong>{p.posizione}°</strong><span>su {p.su}</span></div>
-            <span className="posizione-fascia">{NOMI_FASCIA[f]}</span>
             {m && <span className={`delta ${m.classe}`} title={prima}>{m.testo}</span>}
           </div>
         )
@@ -44,7 +44,8 @@ export function NotaPosizione({ nomeCitta, prima, extra }: { nomeCitta: string; 
   return (
     <p className="piccolo">
       <Icona nome="lock-simple" /> Posizione del tuo ufficio tra gli uffici di {nomeCitta} che hanno il dato: 1° = il numero più alto.
-      A pari numero, pari posizione. La freccia confronta con la posizione {prima}. I nomi e i numeri degli altri uffici non si vedono.
+      A pari numero, pari posizione. Il colore dice in quale quarto della città sei: verde scuro il primo quarto, verde il secondo,
+      giallo il terzo, arancio l'ultimo. La freccia confronta con la posizione {prima}. I nomi e i numeri degli altri uffici non si vedono.
       {extra && ` ${extra}`}
     </p>
   )

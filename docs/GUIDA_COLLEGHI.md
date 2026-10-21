@@ -38,7 +38,7 @@ In **Il mio ufficio** trovi:
   sulle ultime 4 settimane o sugli ultimi 3 mesi. Accanto c'è quello di tutta la tua città, per confrontarti: in verde i passaggi
   almeno come la città, in arancio quelli sotto;
 - **la tua posizione a Roma** (o Milano) nell'ultima settimana: per ogni attività in che posizione sei tra gli uffici della città
-  ("8° su 31"), in quale quarto della città sei e se sei salito o sceso rispetto alla settimana prima. Non vedi i nomi né i numeri degli altri uffici;
+  ("8° su 31"), con un colore che dice in quale quarto della città sei (verde scuro i primi, arancio gli ultimi), e se sei salito o sceso rispetto alla settimana prima. Non vedi i nomi né i numeri degli altri uffici;
 - il grafico delle ultime 12 settimane per ogni attività;
 - il riepilogo mese per mese.
 
