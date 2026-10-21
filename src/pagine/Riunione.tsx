@@ -1,7 +1,8 @@
 // Modalità riunione: presentazione a tutto schermo per la riunione del lunedì.
 // Gli amministratori la usano per la città; uffici e affiliati la vedono come "Presentazione",
 // solo con i propri uffici (il database manda loro solo quelli). Prima di avviarla si sceglie
-// se presentare una settimana o un mese (il mese somma le settimane, come nel Cruscotto).
+// se presentare una settimana (rapportini settimanali) o un mese (rapportini mensili, con lo
+// storico del file Excel annuale per i mesi compilati prima della piattaforma).
 // Si avanza con le frecce della tastiera (o i pulsanti), Esc per uscire.
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
@@ -9,15 +10,21 @@ import {
   totaliPerPeriodi, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali, type TotaliCitta,
 } from '../lib/aggregazioni'
 import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../lib/calcoli'
-import { AREE_ATTIVE, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
+import { AREE_ATTIVE, MENSILE_ATTIVO, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { nomeDaEmail } from '../lib/account'
-import { caricaNote, caricaRilevazioni, caricaTotaliCitta, type Nota } from '../lib/dati'
+import {
+  caricaNote, caricaPersone, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
+} from '../lib/dati'
+import {
+  formattaNumero, inServizio, meseInCorso as meseAttuale, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
+  type RiepilogoMensile, type TotaliMese,
+} from '../lib/mensile'
 import { isAffiliato, isAmministratore } from '../lib/permessi'
 import {
   aggiungiMesi, aggiungiSettimane, intervalloSettimana, meseDellaSettimana, nomeMeseBreve, settimaneDelMese,
   ultimaSettimanaConclusa,
 } from '../lib/settimane'
-import type { Metrica, Rilevazione, Ufficio } from '../lib/tipi'
+import type { Metrica, Rilevazione, Ufficio, VoceMensile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../componenti/Celle'
 import { GraficoAndamento } from '../componenti/Grafici'
@@ -54,6 +61,38 @@ interface Diapositiva {
 
 interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null }
 
+/** Presentazione mensile: i rapportini mensili degli uffici negli ultimi 6 mesi */
+interface DatiMensili {
+  voci: VoceMensile[]
+  mesi: string[]                       // 'AAAA-MM-01', dal più vecchio; l'ultimo è quello presentato
+  uffici: { ufficio: Ufficio; totali: TotaliMese[]; stato: Stato; daStorico: boolean }[]
+  citta: RiepilogoMensile | null       // per un ufficio: tutta la sua città (solo le somme)
+}
+
+/** Staff e colonne del rapportino mensile (l'indicatore delle coordinatrici resta fuori) */
+const colonneMensili = (voci: VoceMensile[]) => [STAFF, ...vociDelRapportino(voci).map((v) => v.codice)]
+
+async function caricaDatiMensili(mesi: string[], uffici: Ufficio[], soloUfficio: boolean): Promise<DatiMensili> {
+  const ids = uffici.map((u) => u.id)
+  const [voci, persone, valori, storico] = await Promise.all([caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids), caricaStorico(mesi, ids)])
+  const citta = soloUfficio ? await caricaTotaliMensiliCitta(mesi, colonneMensili(voci)) : null
+  const ultimo = mesi[mesi.length - 1]
+  return {
+    voci, mesi, citta,
+    uffici: uffici.map((ufficio) => {
+      const suePersone = persone.filter((p) => p.ufficio_id === ufficio.id)
+      const suoiValori = valori.filter((v) => v.ufficio_id === ufficio.id)
+      const suoStorico = storico.filter((s) => s.ufficio_id === ufficio.id)
+      const perMese = mesi.map((m) => totaleConStorico(suePersone, suoiValori, m, voci, suoStorico))
+      const daStorico = perMese[perMese.length - 1].daStorico
+      return {
+        ufficio, daStorico, totali: perMese.map((x) => x.totale),
+        stato: daStorico ? 'completo' : statoMensile(suePersone.filter((p) => inServizio(p, ultimo)), suoiValori.filter((v) => v.mese === ultimo), voci),
+      }
+    }),
+  }
+}
+
 export default function Riunione({ ctx }: { ctx: Contesto }) {
   const [periodo, setPeriodo] = useState<Periodo>(periodoPredefinito)
   const [areaFiltro, setAreaFiltro] = useState<number | 'tutte'>('tutte')
@@ -73,22 +112,35 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
   const titolo = areaFiltro === 'tutte' ? nomeGruppo : `${nomeGruppo} · ${nomeArea(ctx, areaFiltro)}`
   const nomePresentazione = amministrazione ? 'Riunione' : 'Presentazione'
 
+  // Il mese usa i rapportini mensili; la settimana i rapportini settimanali
+  const mensile = MENSILE_ATTIVO && periodo.tipo === 'mese'
+  const mesi = Array.from({ length: STORICO.mese }, (_, i) => `${aggiungiMesi(meseDellaSettimana(periodo.settimana), i - STORICO.mese + 1)}-01`)
+  const caricoMese = useDati<DatiMensili | null>(async () => (mensile ? caricaDatiMensili(mesi, uffici, soloUfficio) : null),
+    [mensile, mesi.join(','), ids.join(','), soloUfficio])
+
   const periodi = periodiStorico(periodo)
   const correnti = periodi[periodi.length - 1]
-  const carico = useDati<DatiRiunione>(async () => {
+  const caricoSettimane = useDati<DatiRiunione | null>(async () => {
+    if (mensile) return null
     const [dati, note, citta] = await Promise.all([
       caricaRilevazioni(periodi[0][0], correnti[correnti.length - 1], ids),
       caricaNote(correnti, ids),
       soloUfficio ? caricaTotaliCitta(periodi) : null,     // un ufficio vede anche come va tutta la sua città
     ])
     return { dati, note, citta }
-  }, [periodi[0][0], correnti.join(','), ids.join(','), soloUfficio])
+  }, [mensile, periodi[0][0], correnti.join(','), ids.join(','), soloUfficio])
 
-  const diapositive = carico.dati ? costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, ...carico.dati }) : []
+  const carico = mensile ? caricoMese : caricoSettimane
+  const datiMese = mensile ? caricoMese.dati : null
+  const datiSettimane = mensile ? null : caricoSettimane.dati
+  const pronto = !!(datiMese ?? datiSettimane)
+  const diapositive = datiMese ? costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, ...datiMese })
+    : datiSettimane ? costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, ...datiSettimane }) : []
   const daControllare = settimaneDaControllare(correnti)
-  const compilati = carico.dati
-    ? uffici.filter((u) => statoCompilazionePeriodo(carico.dati!.dati.filter((r) => r.ufficio_id === u.id), ctx.metriche, daControllare) !== 'mancante').length
+  const compilati = datiMese ? datiMese.uffici.filter((u) => u.stato !== 'mancante').length
+    : datiSettimane ? uffici.filter((u) => statoCompilazionePeriodo(datiSettimane.dati.filter((r) => r.ufficio_id === u.id), ctx.metriche, daControllare) !== 'mancante').length
     : null
+  const cittaPerUfficio = !!(datiMese?.citta ?? datiSettimane?.citta)
   const marchio = `${titolo} · ${periodo.tipo === 'settimana' ? intervalloSettimana(periodo.settimana) : descriviPeriodo(periodo)}`
 
   function avvia() {
@@ -113,14 +165,22 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
           {amministrazione ? 'Una presentazione a tutto schermo da proiettare in riunione:'
             : `Una presentazione a tutto schermo con i dati ${soloUfficio ? 'del tuo ufficio' : 'dei tuoi uffici'}, settimanali o mensili:`}
         </p>
-        <ul className="elenco-icone">
-          <li><Icona nome="sigma" />{soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'}, con il confronto sul periodo prima;</li>
-          {carico.dati?.citta && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
-          {uffici.length > 1 && <li><Icona nome="ranking" />classifiche per ogni attività;</li>}
-          <li><Icona nome="chart-pie-slice" />quota di mercato;</li>
-          {AREE_ATTIVE && areeCitta.length > 0 && <li><Icona nome="map-trifold" />confronto tra aree;</li>}
-          <li><Icona nome="storefront" />{uffici.length > 1 ? 'una pagina per ogni ufficio, con le sue note.' : 'la pagina dell\'ufficio, con le sue note e l\'andamento.'}</li>
-        </ul>
+        {mensile ? (
+          <ul className="elenco-icone">
+            <li><Icona nome="sigma" />i numeri dei <strong>rapportini mensili</strong>: {soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'} voce per voce, con il confronto sul mese prima e gli ultimi 6 mesi;</li>
+            {cittaPerUfficio && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
+            {uffici.length > 1 && <li><Icona nome="ranking" />classifiche degli uffici su {CLASSIFICHE_MENSILI.length} voci (acquisizioni, appuntamenti, incarichi, proposte, accettazioni, vendite).</li>}
+          </ul>
+        ) : (
+          <ul className="elenco-icone">
+            <li><Icona nome="sigma" />{soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'}, con il confronto sul periodo prima;</li>
+            {cittaPerUfficio && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
+            {uffici.length > 1 && <li><Icona nome="ranking" />classifiche per ogni attività;</li>}
+            <li><Icona nome="chart-pie-slice" />quota di mercato;</li>
+            {AREE_ATTIVE && areeCitta.length > 0 && <li><Icona nome="map-trifold" />confronto tra aree;</li>}
+            <li><Icona nome="storefront" />{uffici.length > 1 ? 'una pagina per ogni ufficio, con le sue note.' : 'la pagina dell\'ufficio, con le sue note e l\'andamento.'}</li>
+          </ul>
+        )}
         <p className="piccolo" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
           Durante la presentazione: <kbd>→</kbd> o <kbd>spazio</kbd> avanti, <kbd>←</kbd> indietro, <kbd>Esc</kbd> per uscire.
         </p>
@@ -130,7 +190,8 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignSelf: 'flex-start' }}>
           <SceltaPeriodo periodo={periodo} onCambia={setPeriodo} />
           <strong style={{ fontSize: 18 }}>{descriviPeriodo(periodo)}</strong>
-          {periodo.tipo === 'mese' && <span className="piccolo">Il mese somma le settimane che hanno il giovedì nel mese ({correnti.length} settimane).{meseInCorso(correnti) ? ' Il mese non è ancora finito.' : ''}</span>}
+          {mensile && <span className="piccolo">Il mese usa i numeri dei rapportini mensili (per i mesi prima della piattaforma, il file Excel annuale).{mesi[mesi.length - 1] >= meseAttuale() ? ' Il mese non è ancora finito.' : ''}</span>}
+          {periodo.tipo === 'mese' && !mensile && <span className="piccolo">Il mese somma le settimane che hanno il giovedì nel mese ({correnti.length} settimane).{meseInCorso(correnti) ? ' Il mese non è ancora finito.' : ''}</span>}
         </div>
         {areeCitta.length > 0 && (
           <div className="campo">
@@ -142,11 +203,11 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
           </div>
         )}
         <div className="contatori">
-          <div><strong>{carico.dati ? diapositive.length : '…'}</strong><span className="piccolo">pagine</span></div>
-          <div><strong>{compilati === null ? '…' : `${compilati} / ${uffici.length}`}</strong><span className="piccolo">{uffici.length === 1 ? 'ufficio' : 'uffici'} con i dati inseriti</span></div>
+          <div><strong>{pronto ? diapositive.length : '…'}</strong><span className="piccolo">pagine</span></div>
+          <div><strong>{compilati === null ? '…' : `${compilati} / ${uffici.length}`}</strong><span className="piccolo">{uffici.length === 1 ? 'ufficio' : 'uffici'} con {mensile ? 'il rapportino mensile inserito' : 'i dati inseriti'}</span></div>
         </div>
         <div>
-          <button className="btn btn-primario btn-grande" onClick={avvia} disabled={!carico.dati || uffici.length === 0}>
+          <button className="btn btn-primario btn-grande" onClick={avvia} disabled={!pronto || uffici.length === 0}>
             <Icona nome={carico.caricamento ? 'circle-notch' : 'play'} className={carico.caricamento ? 'gira' : ''} />
             {carico.caricamento ? 'Preparazione…' : 'Avvia la presentazione'}
           </button>
@@ -629,6 +690,203 @@ function paginaTotali({ titolo, andamento, portafoglioPrima, attivita, parole, p
             {nota && ` ${nota}`}
           </p>
         </div>
+      </div>
+    ),
+  }
+}
+
+// ---------------------------------------------------------------- Presentazione mensile (rapportini mensili)
+
+/** Le voci delle classifiche mensili (decise da Davide il 21/10/2026), due per pagina */
+const CLASSIFICHE_MENSILI = ['acquisizioni', 'appuntamenti_vendita', 'incarichi_vendita', 'proposte_vendita', 'accettazioni_vendita', 'vendite_effettuate']
+/** I numeri della copertina mensile */
+const COPERTINA_MENSILE = ['staff', 'portafoglio_vendita', 'incarichi_vendita', 'vendite_effettuate']
+
+/** "Appuntamenti vendita", "Kiron", "Staff" */
+function nomeVoceMensile(voci: VoceMensile[], codice: string): string {
+  if (codice === STAFF) return 'Staff'
+  const v = voci.find((x) => x.codice === codice)
+  return v ? `${v.gruppo}${v.sotto ? ` ${v.sotto}` : ''}` : codice
+}
+
+/** Classe e testo della variazione sul mese prima (per le voci "meglio se scende" un aumento è in rosso) */
+function deltaMensile(variazione: number | null, voce?: VoceMensile) {
+  const classe = variazione === null || variazione === 0 ? '' : variazioneBuona(variazione, voce) ? 'su' : 'giu'
+  const testo = variazione === null ? '—' : variazione === 0 ? '= uguale' : `${variazione > 0 ? '▲ +' : '▼ '}${formattaNumero(variazione)}`
+  return { classe, testo }
+}
+
+function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, voci, mesi, uffici, citta }: DatiMensili & {
+  periodo: Periodo; titolo: string; nomePresentazione: string; nomeCitta: string
+}): Diapositiva[] {
+  const colonne = colonneMensili(voci)
+  const etichette = mesi.map((m) => nomeMeseBreve(m.slice(0, 7)))
+  const gruppo = riepilogoMensile(uffici.map((u) => u.totali), colonne)
+  const totale = gruppo.andamento[gruppo.andamento.length - 1]
+  const inCorso = mesi[mesi.length - 1] >= meseAttuale()
+  const mancanti = uffici.filter((u) => u.stato === 'mancante').map((u) => u.ufficio.nome)
+  const compilati = uffici.length - mancanti.length
+  const out: Diapositiva[] = []
+
+  // 1. Copertina
+  const statistiche = COPERTINA_MENSILE.filter((c) => colonne.includes(c)).map((c) => {
+    const v = gruppo.variazioni.get(c)!
+    const d = deltaMensile(v.variazione, voci.find((x) => x.codice === c))
+    return {
+      nome: nomeVoceMensile(voci, c), valore: totale.get(c) ?? null,
+      sotto: v.variazione === null ? 'nessun confronto con il mese prima' : `${d.testo} rispetto al mese prima${v.confrontati < v.conDato ? ` (su ${v.confrontati} uffici)` : ''}`,
+      colore: d.classe === 'su' ? VERDE_CHIARO : d.classe === 'giu' ? ROSA : '#AFC0D4',
+    }
+  })
+  out.push({
+    titolo: `${nomePresentazione} mensile`,
+    contenuto: (t) => (
+      <div className="copertina" style={{ flex: 1 }}>
+        <div className="cerchio cerchio-a" /><div className="cerchio cerchio-b" />
+        <div>
+          <div className="cop-marchio"><Logo dimensione={44} />{nomePresentazione} mensile · Gruppo CEC</div>
+          <h1 className="cop-citta">{titolo}</h1>
+          <span className="cop-settimana">{descriviPeriodo(periodo)}{inCorso ? ' · mese in corso' : ''} · rapportini mensili</span>
+          <div className="cop-stats">
+            {statistiche.map((s) => (
+              <div key={s.nome} className="cop-stat">
+                <span>{s.nome}</span><strong>{s.valore === null ? '—' : conta(s.valore, t)}</strong><span style={{ color: s.colore }}>{s.sotto}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ gap: 22 }}>
+          <div className="anello-riga">
+            <div className="anello" style={{ background: `conic-gradient(var(--secondario) ${uffici.length ? compilati / uffici.length * 360 * t : 0}deg, rgba(255,255,255,.12) 0)` }}>
+              <div><strong>{conta(compilati, t)}</strong><span>su {uffici.length} {uffici.length === 1 ? 'ufficio' : 'uffici'}</span></div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 200, flex: 1 }}>
+              <span style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.2 }}>{uffici.length === 1 ? 'ha' : 'hanno'} inserito il rapportino del mese</span>
+              {mancanti.length > 0 && <span style={{ fontSize: 17, color: ROSA }}>Mancano: {mancanti.join(', ')}</span>}
+            </div>
+          </div>
+          {uffici.length > 1 && (
+            <div className="mosaico">
+              {uffici.map((u) => <div key={u.ufficio.id} className={CLASSE_MOSAICO[u.stato]} title={u.ufficio.nome}><span>{u.ufficio.nome}</span><span>{SIMBOLO_MOSAICO[u.stato]}</span></div>)}
+            </div>
+          )}
+          {uffici.length > 1 && (
+            <div style={{ display: 'flex', gap: 18, fontSize: 13, fontWeight: 600, color: '#AFC0D4' }}>
+              <span>✓ completo</span><span>◐ parziale</span><span>✗ mancante</span>
+            </div>
+          )}
+        </div>
+      </div>
+    ),
+  })
+
+  // 2. Totali voce per voce (e, per un ufficio, tutta la sua città)
+  const storicoUsato = uffici.some((u) => u.daStorico)
+  out.push(paginaTotaliMensili({
+    titolo: `Totali · ${titolo}`, riepilogo: gruppo, voci, colonne, etichette,
+    nota: storicoUsato ? `${uffici.length === 1 ? 'I numeri vengono' : 'Per alcuni uffici i numeri vengono'} dal file Excel annuale (solo il totale dell'ufficio).` : '',
+  }))
+  if (citta) {
+    out.push(paginaTotaliMensili({
+      titolo: `Totali · Tutta ${nomeCitta}`, riepilogo: citta, voci, colonne, etichette,
+      nota: `Somma di tutti gli uffici di ${nomeCitta}: ${citta.ufficiConDati} su ${citta.ufficiTotali} hanno inserito il rapportino del mese. I numeri dei singoli uffici non si vedono.`,
+    }))
+  }
+
+  // 3. Classifiche, due voci per pagina (servono almeno due uffici)
+  const compatta = uffici.length > 16
+  const classificaDi = (c: string) => uffici
+    .map((u) => ({ ufficio: u.ufficio, valore: u.totali[u.totali.length - 1].get(c) ?? null }))
+    .filter((x): x is { ufficio: Ufficio; valore: number } => x.valore !== null)
+    .sort((a, b) => b.valore - a.valore || a.ufficio.nome.localeCompare(b.ufficio.nome))
+  const conDati = uffici.length > 1 ? CLASSIFICHE_MENSILI.filter((c) => colonne.includes(c) && classificaDi(c).length > 0) : []
+  for (let i = 0; i < conDati.length; i += 2) {
+    const coppia = conDati.slice(i, i + 2)
+    out.push({
+      titolo: `Classifica · ${coppia.map((c) => nomeVoceMensile(voci, c)).join(' e ')}`,
+      contenuto: (t) => (
+        <div className={`classifiche ${compatta ? 'compatta' : ''}`}>
+          {coppia.map((c) => {
+            const elenco = classificaDi(c)
+            const max = Math.max(1, ...elenco.map((x) => x.valore))
+            return (
+              <div key={c} className="p-card" style={{ gap: compatta ? 2 : 6 }}>
+                <h3>{nomeVoceMensile(voci, c)}</h3>
+                {elenco.map((x) => (
+                  <div key={x.ufficio.id} className="barra-classifica">
+                    <span title={x.ufficio.nome}>{x.ufficio.nome}</span>
+                    <div className="pista"><div style={{ width: `${x.valore / max * 100 * t}%`, background: 'var(--primario)' }} /></div>
+                    <span style={{ color: 'var(--primario-800)' }}>{formattaNumero(x.valore)}</span>
+                  </div>
+                ))}
+                <p className="piccolo" style={{ marginTop: 12 }}>Totale del mese di ogni ufficio, dal rapportino mensile.</p>
+              </div>
+            )
+          })}
+        </div>
+      ),
+    })
+  }
+  return out
+}
+
+/** Pagina dei totali mensili: ogni voce con il valore del mese, il confronto con il mese prima e gli ultimi 6 mesi */
+function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota }: {
+  titolo: string; riepilogo: RiepilogoMensile; voci: VoceMensile[]; colonne: string[]; etichette: string[]; nota: string
+}): Diapositiva {
+  const totale = riepilogo.andamento[riepilogo.andamento.length - 1]
+  let su = 0, giu = 0
+  const righe = colonne.map((c) => {
+    const voce = voci.find((x) => x.codice === c)
+    const v = riepilogo.variazioni.get(c) ?? { variazione: null, confrontati: 0, conDato: 0 }
+    const d = deltaMensile(v.variazione, voce)
+    if (c !== STAFF && d.classe === 'su') su++
+    if (c !== STAFF && d.classe === 'giu') giu++
+    return { c, nome: nomeVoceMensile(voci, c), valore: totale.get(c) ?? null, d, v, serie: riepilogo.andamento.map((x) => x.get(c) ?? null) }
+  })
+  const parziale = righe.some((r) => r.v.confrontati < r.v.conDato)
+  const meta = Math.ceil(righe.length / 2)
+  const colonna = (elenco: typeof righe, t: number) => (
+    <div className="p-card tabellone">
+      <div className="tabellone-riga testa"><span>Voce</span><span>Mese</span><span>Mese prima</span><span>Ultimi {etichette.length} mesi</span></div>
+      {elenco.map((r) => (
+        <div key={r.c} className="tabellone-riga">
+          <span className="nome">{r.nome}</span>
+          <span className="valori"><strong>{r.valore === null ? '—' : conta(r.valore, t)}</strong></span>
+          <span className={`delta ${r.d.classe}`}>{r.d.testo}</span>
+          <GraficoAndamento spark t={t} etichette={etichette} nomeSerie={r.nome} risultati={r.serie} />
+        </div>
+      ))}
+    </div>
+  )
+  return {
+    titolo,
+    contenuto: (t) => (
+      <div className="p-colonna">
+        <div className="sintesi-griglia sintesi-compatta">
+          <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
+            <span><Icona nome="users-three" /></span>
+            <div><span className="p-etichetta">Staff</span><strong>{totale.get(STAFF) == null ? '—' : conta(totale.get(STAFF)!, t)}</strong><span>persone in servizio nel mese</span></div>
+          </div>
+          <div className="sintesi" style={{ background: 'var(--ok-bg)', color: 'var(--ok-fg)' }}>
+            <span><Icona nome="clipboard-text" /></span>
+            <div><span className="p-etichetta">Rapportini inseriti</span><strong>{riepilogo.ufficiConDati} su {riepilogo.ufficiTotali}</strong><span>{riepilogo.ufficiTotali === 1 ? 'ufficio' : 'uffici'} con i numeri del mese</span></div>
+          </div>
+          <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
+            <span><Icona nome="trend-up" /></span>
+            <div><span className="p-etichetta">Rispetto al mese prima</span><strong>{su} ▲ · {giu} ▼</strong><span>{su} voci migliorate, {giu} peggiorate</span></div>
+          </div>
+        </div>
+        <div className="tabellone-mensile">
+          {colonna(righe.slice(0, meta), t)}
+          {colonna(righe.slice(meta), t)}
+        </div>
+        <p className="piccolo">
+          Numeri dei rapportini mensili.
+          {parziale && ' Il confronto con il mese prima conta solo gli uffici che hanno la voce in entrambi i mesi.'}
+          {' Incarichi scaduti: se aumentano è in rosso.'}
+          {nota && ` ${nota}`}
+        </p>
       </div>
     ),
   }

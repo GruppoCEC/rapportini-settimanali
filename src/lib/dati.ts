@@ -2,6 +2,7 @@
 // automaticamente: ognuno riceve solo le righe che può vedere.
 import { supabase } from './supabase'
 import { totaliCittaDaRighe, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
+import { riepilogoDaRighe, type RiepilogoMensile, type RigaTotaliMensiliCitta } from './mensile'
 import type { Metrica, Persona, Rilevazione, Scadenza, StoricoMensile, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
@@ -52,6 +53,17 @@ export async function caricaTotaliCitta(periodi: string[][]): Promise<TotaliCitt
   })
   if (error || !data || (data as RigaTotaliCitta[]).length === 0) return null
   return totaliCittaDaRighe(data as RigaTotaliCitta[], periodi.length)
+}
+
+/**
+ * Rapportini mensili di tutta la città dell'ufficio collegato, mese per mese ('AAAA-MM-01', dal più vecchio).
+ * Solo le somme, mai i singoli altri uffici (010_totali_mensili_citta.sql). `colonne` = staff e voci del rapportino.
+ * null se la funzione non c'è ancora nel database o se l'account non è di un ufficio.
+ */
+export async function caricaTotaliMensiliCitta(mesi: string[], colonne: string[]): Promise<RiepilogoMensile | null> {
+  const { data, error } = await supabase.rpc('totali_mensili_mia_citta', { p_mesi: mesi })
+  if (error || !data || (data as RigaTotaliMensiliCitta[]).length === 0) return null
+  return riepilogoDaRighe(data as RigaTotaliMensiliCitta[], mesi.length, colonne)
 }
 
 /** Tutte le righe di una tabella, a pagine da 1000 (per il backup) */

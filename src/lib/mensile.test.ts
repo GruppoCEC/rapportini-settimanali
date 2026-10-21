@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   aggiungiMesi, formattaAnzianita, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
-  righeDelMese, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione,
+  righeDelMese, riepilogoDaRighe, riepilogoMensile, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione,
 } from './mensile'
 import type { Persona, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
 
@@ -168,6 +168,45 @@ describe('storico dal file Excel annuale', () => {
     expect(totale.get('colloqui')).toBe(7 + 4 + 3)
     expect(mesiCompilati).toBe(3)
     expect(totale.get(STAFF)).toBe(2)                      // a marzo, dalla piattaforma
+  })
+})
+
+describe('presentazione mensile', () => {
+  const t = (staff: number | null, colloqui: number | null) => new Map([[STAFF, staff], ['colloqui', colloqui]])
+  const colonne = [STAFF, 'colloqui']
+
+  it('somma gli uffici mese per mese e confronta solo chi ha il dato in entrambi i mesi', () => {
+    const r = riepilogoMensile([
+      [t(3, 10), t(3, 12)],        // +2
+      [t(4, null), t(4, 7)],       // ad agosto non aveva compilato: non conta nella variazione
+      [t(2, 5), t(2, null)],       // a settembre non ha ancora compilato
+    ], colonne)
+    expect(r.andamento[1].get('colloqui')).toBe(19)
+    expect(r.variazioni.get('colloqui')).toEqual({ variazione: 2, confrontati: 1, conDato: 2 })
+    expect(r.variazioni.get(STAFF)).toEqual({ variazione: 0, confrontati: 1, conDato: 2 })   // solo gli uffici con il rapportino in entrambi i mesi
+    expect(r.ufficiConDati).toBe(2)                      // lo staff da solo non vuol dire "compilato"
+    expect(r.ufficiTotali).toBe(3)
+  })
+
+  it('lo staff si confronta solo tra mesi con il rapportino inserito', () => {
+    const r = riepilogoMensile([
+      [t(9, null), t(5, 3)],       // il mese prima nessun rapportino: lo staff contato dal personale non si confronta
+      [t(4, 1), t(6, 2)],          // +2
+    ], colonne)
+    expect(r.variazioni.get(STAFF)).toEqual({ variazione: 2, confrontati: 1, conDato: 2 })
+  })
+
+  it('rimette in forma le somme della città arrivate dal database', () => {
+    const r = riepilogoDaRighe([
+      { posizione: 1, voce: 'colloqui', valore: 15, uffici_con_dato: 2, uffici_con_dati: 2, variazione: null, confrontati: 0, uffici_citta: 38 },
+      { posizione: 2, voce: 'colloqui', valore: '19' as never, uffici_con_dato: 2, uffici_con_dati: 3, variazione: '2' as never, confrontati: 1, uffici_citta: 38 },
+    ], 2, colonne)
+    expect(r.andamento[0].get('colloqui')).toBe(15)
+    expect(r.andamento[1].get('colloqui')).toBe(19)
+    expect(r.andamento[1].get(STAFF)).toBeNull()
+    expect(r.variazioni.get('colloqui')).toEqual({ variazione: 2, confrontati: 1, conDato: 2 })
+    expect(r.ufficiConDati).toBe(3)
+    expect(r.ufficiTotali).toBe(38)
   })
 })
 

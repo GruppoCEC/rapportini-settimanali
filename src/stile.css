@@ -554,6 +554,19 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .delta.giu { background: var(--ko-bg); color: var(--ko-fg); }
 .t-verde { color: var(--ok-fg); } .t-giallo { color: var(--quasi-fg); } .t-rosso { color: var(--ko-fg); }
 
+/* Presentazione mensile: le voci del rapportino mensile su due colonne, senza obiettivi */
+.tabellone-mensile { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 20px; }
+.tabellone-mensile .tabellone { padding: 4px 20px 8px; }
+.tabellone-mensile .tabellone-riga { grid-template-columns: minmax(140px, 1.5fr) minmax(64px, .7fr) minmax(120px, 1fr) minmax(100px, 1fr); gap: 14px; padding: 1px 0; min-width: 0; }
+.tabellone-mensile .tabellone-riga .delta { padding: 3px 10px; }
+.sintesi-compatta .sintesi { padding: 12px 20px; gap: 14px; }
+.sintesi-compatta .sintesi > span { width: 44px; height: 44px; }
+.sintesi-compatta .sintesi > span i { font-size: 24px; }
+.sintesi-compatta .sintesi strong { font-size: 28px; }
+.tabellone-mensile .tabellone-riga .nome { font-size: 16px; }
+.tabellone-mensile .tabellone-riga .valori strong { font-size: 26px; }
+.tabellone-mensile .tabellone-riga.testa { padding: 10px 0 4px; }
+
 .classifiche { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 24px; }
 .p-card h3 { font-size: 28px; color: var(--primario-900); margin-bottom: 12px; }
 .barra-classifica { display: grid; grid-template-columns: 150px minmax(0, 1fr) 96px; align-items: center; gap: 14px; min-height: 32px; }

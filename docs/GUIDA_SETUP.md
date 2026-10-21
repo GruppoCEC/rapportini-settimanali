@@ -244,6 +244,16 @@ Il passo 2 si può rifare quando il file Excel cambia: prima si rigenera il file
 `node scripts/importa-mensile-excel.mjs "Rapportini mensili/BIGOLI C.E.C. ANNO 2026.xlsx"`.
 Attenzione: il passo 2 sostituisce anche la riga "anno prima" del Report mensile scritta a mano, per i mesi del 2025.
 
+## Presentazione mensile con i rapportini mensili (dalla versione 0.10.0)
+
+Nella presentazione mensile ogni ufficio vede anche i totali mensili della sua città. Serve **una volta sola**,
+dopo la 009:
+1. Supabase → il progetto → **SQL Editor** → **New query**.
+2. Copia **tutto** il file `supabase/migrations/010_totali_mensili_citta.sql`, incollalo e premi **Run**
+   ("Success. No rows returned").
+
+Senza questo passo la presentazione mensile funziona lo stesso, ma senza la pagina della città per gli uffici.
+
 ---
 
 ## Provare il sito sul Mac

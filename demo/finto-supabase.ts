@@ -6,7 +6,7 @@
 // =====================================================================
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { aggiungiSettimane, lunediDi, oggiISO, settimanaPredefinita } from '../src/lib/settimane'
-import { aggiungiMesi, inServizio, mesePredefinito } from '../src/lib/mensile'
+import { aggiungiMesi, inServizio, mesePredefinito, riepilogoMensile, STAFF, totaleConStorico, vociDelRapportino } from '../src/lib/mensile'
 import { totaliPerUfficio } from '../src/lib/aggregazioni'
 
 export const configurato = true
@@ -268,6 +268,25 @@ function totaliMiaCitta(inizi: string[], fini: string[]): any[] {
   return righe
 }
 
+// Come totali_mensili_mia_citta (010_totali_mensili_citta.sql): solo per un ufficio, solo le somme della sua città
+function totaliMensiliMiaCitta(mesi: string[]): any[] {
+  const me = io()
+  const mio = me?.ruolo === 'ufficio' ? uffici.find((u) => u.id === me.ufficio_id) : undefined
+  if (!mio) return []
+  const ids = uffici.filter((u) => u.attivo && u.citta_id === mio.citta_id).map((u) => u.id)
+  const colonne = [STAFF, ...vociDelRapportino(voci_mensili as any).map((v) => v.codice)]
+  const perUfficio = ids.map((id) => mesi.map((m) => totaleConStorico(persone.filter((p) => p.ufficio_id === id), valori_mensili.filter((v) => v.ufficio_id === id),
+    m, voci_mensili as any, totali_mensili_storico.filter((s) => s.ufficio_id === id)).totale))
+  return mesi.flatMap((_, i) => {
+    const r = riepilogoMensile(perUfficio.map((u) => u.slice(0, i + 1)), colonne)
+    return colonne.map((voce) => {
+      const v = r.variazioni.get(voce)!
+      return { posizione: i + 1, voce, valore: r.andamento[i].get(voce) ?? null, uffici_con_dato: v.conDato, uffici_con_dati: r.ufficiConDati,
+        variazione: v.variazione, confrontati: v.confrontati, uffici_citta: ids.length }
+    })
+  })
+}
+
 // ---------------------------------------------------------------- finto client
 const attesa = (ms = 120) => new Promise((r) => setTimeout(r, ms))
 let prossimoId = 100
@@ -390,6 +409,7 @@ export const supabase: any = {
     // localStorage.setItem('rapportini.demo.mensileInProva', 'si') e ricaricare
     if (nome === 'mensile_aperto') { try { return { data: localStorage.getItem('rapportini.demo.mensileInProva') !== 'si', error: null } } catch { return { data: true, error: null } } }
     if (nome === 'totali_mia_citta') return { data: totaliMiaCitta(args.p_inizi, args.p_fini), error: null }
+    if (nome === 'totali_mensili_mia_citta') return { data: totaliMensiliMiaCitta(args.p_mesi), error: null }
     return { data: null, error: { message: `funzione ${nome} non disponibile nella demo` } }
   },
   functions: {

@@ -259,6 +259,78 @@ export function sommaTotali(elenco: TotaliMese[]): TotaliMese {
   return somma
 }
 
+// ---------------------------------------------------------------- Presentazione mensile
+
+/** Variazione di una voce sul mese prima, sommata sugli uffici che hanno il dato in entrambi i mesi */
+export interface VariazioneMensile {
+  variazione: number | null
+  confrontati: number         // uffici usati per la variazione
+  conDato: number             // uffici con il dato nel mese presentato
+}
+
+/** Un gruppo di uffici (città, propri uffici, un ufficio) mese per mese, per la presentazione mensile */
+export interface RiepilogoMensile {
+  andamento: TotaliMese[]                     // somma degli uffici mese per mese; l'ultimo è quello presentato
+  variazioni: Map<string, VariazioneMensile>  // ultimo mese sul precedente, voce per voce (staff compreso)
+  ufficiConDati: number                       // uffici con almeno un numero nell'ultimo mese (lo staff non conta)
+  ufficiTotali: number
+}
+
+/**
+ * Riepilogo mensile di un gruppo di uffici. perUfficio[u][m] = totale dell'ufficio u nel mese m
+ * (dal più vecchio), come lo dà totaleConStorico. La variazione conta solo gli uffici che hanno
+ * il dato in entrambi i mesi: chi non ha ancora compilato non sembra un calo. Per lo staff serve
+ * anche il rapportino inserito (lo staff si conta dal personale anche nei mesi non compilati).
+ */
+export function riepilogoMensile(perUfficio: TotaliMese[][], colonne: string[]): RiepilogoMensile {
+  const nMesi = perUfficio[0]?.length ?? 0
+  const andamento = Array.from({ length: nMesi }, (_, m) => sommaTotali(perUfficio.map((u) => u[m])))
+  const haNumeri = (t: TotaliMese | undefined) => !!t && [...t].some(([k, v]) => k !== STAFF && v !== null)
+  const vale = (u: TotaliMese[], m: number, c: string) => u[m]?.get(c) != null && (c !== STAFF || haNumeri(u[m]))
+  const variazioni = new Map<string, VariazioneMensile>()
+  for (const c of colonne) {
+    const conDato = perUfficio.filter((u) => vale(u, nMesi - 1, c))
+    const confrontati = nMesi > 1 ? conDato.filter((u) => vale(u, nMesi - 2, c)) : []
+    variazioni.set(c, {
+      variazione: confrontati.length === 0 ? null : confrontati.reduce((t, u) => t + u[nMesi - 1].get(c)! - u[nMesi - 2].get(c)!, 0),
+      confrontati: confrontati.length,
+      conDato: conDato.length,
+    })
+  }
+  const ufficiConDati = perUfficio.filter((u) => haNumeri(u[nMesi - 1])).length
+  return { andamento, variazioni, ufficiConDati, ufficiTotali: perUfficio.length }
+}
+
+/** Una riga di totali_mensili_mia_citta (supabase/migrations/010_totali_mensili_citta.sql) */
+export interface RigaTotaliMensiliCitta {
+  posizione: number           // da 1, nell'ordine dei mesi richiesti
+  voce: string
+  valore: number | null
+  uffici_con_dato: number
+  uffici_con_dati: number
+  variazione: number | null
+  confrontati: number
+  uffici_citta: number
+}
+
+/** Riepilogo di tutta la città dell'ufficio, dalle somme calcolate dal database */
+export function riepilogoDaRighe(righe: RigaTotaliMensiliCitta[], nMesi: number, colonne: string[]): RiepilogoMensile {
+  const numero = (v: number | string | null) => (v === null ? null : Number(v))   // i bigint possono arrivare come testo
+  const andamento: TotaliMese[] = Array.from({ length: nMesi }, () => new Map(colonne.map((c) => [c, null])))
+  const variazioni = new Map<string, VariazioneMensile>(colonne.map((c) => [c, { variazione: null, confrontati: 0, conDato: 0 }]))
+  let ufficiConDati = 0, ufficiTotali = 0
+  for (const r of righe) {
+    if (!andamento[r.posizione - 1] || !colonne.includes(r.voce)) continue
+    andamento[r.posizione - 1].set(r.voce, numero(r.valore))
+    ufficiTotali = r.uffici_citta
+    if (r.posizione === nMesi) {
+      ufficiConDati = r.uffici_con_dati
+      variazioni.set(r.voce, { variazione: numero(r.variazione), confrontati: r.confrontati, conDato: r.uffici_con_dato })
+    }
+  }
+  return { andamento, variazioni, ufficiConDati, ufficiTotali }
+}
+
 /** Variazione rispetto all'anno prima: 0,125 = +12,5%. Vuota se manca un dato o se l'anno prima era 0 */
 export function variazione(attuale: number | null | undefined, annoPrima: number | null | undefined): number | null {
   if (attuale == null || annoPrima == null || annoPrima === 0) return null

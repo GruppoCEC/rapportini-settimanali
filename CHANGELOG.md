@@ -1,5 +1,20 @@
 # Storia delle versioni
 
+## 0.10.0 — 21 ottobre 2026
+
+**Presentazione mensile con i rapportini mensili** (richiesta di Davide):
+- scegliendo **Mese** nella Riunione (e nella Presentazione di uffici e affiliati), i numeri vengono dai **rapportini mensili**, non più dalla somma delle settimane;
+- per i mesi compilati prima della piattaforma si usa lo storico del file Excel annuale (0.9.0);
+- pagine (scelte da Davide):
+  1. **copertina**: staff, portafoglio immobili vendita, incarichi vendita e vendite effettuate, con il confronto sul mese prima. Indica quanti uffici hanno inserito il rapportino del mese (mosaico verde/giallo/rosso);
+  2. **totali**: tutte le 19 voci del rapportino più lo staff, con il valore del mese, la differenza sul mese prima e il grafichetto degli ultimi 6 mesi. Per gli incarichi scaduti un aumento è in rosso;
+  3. per un **ufficio**: anche **Totali · Tutta Roma/Milano** mensile, solo con le somme della città;
+  4. **classifiche** degli uffici su 6 voci: acquisizioni, appuntamenti vendita, incarichi vendita, proposte vendita, accettazioni vendita, vendite effettuate (servono almeno due uffici);
+- il confronto con il mese prima conta solo gli uffici che hanno la voce in entrambi i mesi. Per lo staff, solo gli uffici che hanno inserito il rapportino in entrambi i mesi;
+- niente obiettivi, quota di mercato né gara a punti nel mese: i rapportini mensili non li hanno;
+- la **Settimana** resta come prima;
+- **da fare una volta in Supabase** (per la pagina della città degli uffici): eseguire `supabase/migrations/010_totali_mensili_citta.sql`, dopo la 009.
+
 ## 0.9.0 — 20 ottobre 2026
 
 **Storico 2026 e confronto 2025 dal file Excel annuale** (richiesta di Davide, file "BIGOLI C.E.C. ANNO 2026"):

@@ -4,6 +4,8 @@ import { PGlite } from '@electric-sql/pglite'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { riepilogoDaRighe, riepilogoMensile, STAFF, totaleConStorico, vociDelRapportino, type RigaTotaliMensiliCitta } from '../src/lib/mensile'
+import type { Persona, StoricoMensile, ValoreMensile, VoceMensile } from '../src/lib/tipi'
 
 const CARTELLA_MIGRAZIONI = join(__dirname, '..', 'supabase', 'migrations')
 
@@ -500,10 +502,62 @@ describe('Storico mensile dal file Excel annuale', () => {
   })
 })
 
+describe('Totali mensili della propria città (presentazione mensile dell\'ufficio)', () => {
+  const MESI = ['2026-01-01', '2026-07-01', '2026-08-01', '2026-09-01']
+  beforeAll(async () => {
+    // Roma C: a luglio e agosto numeri persona per persona; chi esce ad agosto non conta ad agosto;
+    // lo storico di agosto viene ignorato perché ci sono i numeri. Roma B: a luglio solo lo storico.
+    const c1 = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaC}, 'Carla Conti', 'collaboratore', '2021-01-01') returning id`)
+    const c2 = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio, data_fine) values (${romaC}, 'Ciro Costa', 'coordinatrice', '2021-01-01', '2026-08-15') returning id`)
+    await db.exec(`insert into valori_mensili (persona_id, mese, voce, valore) values
+      (${c1}, '2026-07-01', 'colloqui', 5), (${c2}, '2026-07-01', 'colloqui', 2), (${c1}, '2026-07-01', 'kiron', 1),
+      (${c1}, '2026-08-01', 'colloqui', 6), (${c2}, '2026-08-01', 'colloqui', 9),
+      (${c2}, '2026-07-01', 'appuntamenti_vendita_fix', 3);
+      insert into totali_mensili_storico (ufficio_id, mese, voce, valore) values
+      (${romaC}, '2026-08-01', 'colloqui', 99), (${romaB}, '2026-07-01', 'colloqui', 8), (${romaB}, '2026-07-01', 'staff', 6)`)
+  })
+
+  const dalDatabase = async (email: string) =>
+    riepilogoDaRighe(await come<RigaTotaliMensiliCitta>(email, `select * from totali_mensili_mia_citta($1::date[])`, [MESI]), MESI.length, colonne)
+  let colonne: string[] = []
+
+  it('dà gli stessi numeri del Report mensile (stesse regole: persone in servizio, staff, storico)', async () => {
+    const voci = (await db.query<VoceMensile>(`select * from voci_mensili where attiva`)).rows
+    colonne = [STAFF, ...vociDelRapportino(voci).map((v) => v.codice)]
+    const persone = (await db.query<Persona>(`select id::int, ufficio_id::int, nome, ruolo, to_char(data_inizio, 'YYYY-MM-DD') data_inizio, to_char(data_fine, 'YYYY-MM-DD') data_fine from persone`)).rows
+    const valori = (await db.query<ValoreMensile>(`select persona_id::int, ufficio_id::int, to_char(mese, 'YYYY-MM-DD') mese, voce, valore from valori_mensili`)).rows
+    const storico = (await db.query<StoricoMensile>(`select ufficio_id::int, to_char(mese, 'YYYY-MM-DD') mese, voce, valore from totali_mensili_storico`)).rows
+    const roma = [romaA, romaB, romaC]
+    const perUfficio = roma.map((u) => MESI.map((m) => totaleConStorico(
+      persone.filter((p) => p.ufficio_id === u), valori.filter((v) => v.ufficio_id === u), m, voci, storico.filter((s) => s.ufficio_id === u)).totale))
+    const atteso = riepilogoMensile(perUfficio, colonne)
+    const ottenuto = await dalDatabase('a@test.it')
+    expect(ottenuto).toEqual(atteso)
+    // qualche numero a mano: luglio = Roma B dallo storico (8) + Roma C (5 + 2);
+    // agosto: di Roma C conta solo Carla (6), non chi è uscito (9) né lo storico (99)
+    expect(ottenuto.andamento[1].get('colloqui')).toBe(15)
+    const agostoSenzaRomaC = (await db.query<{ n: number }>(`select coalesce(sum(valore), 0)::int n from valori_mensili
+      where mese = '2026-08-01' and voce = 'colloqui' and ufficio_id in (${romaA}, ${romaB})`)).rows[0].n
+    expect(ottenuto.andamento[2].get('colloqui')).toBe(agostoSenzaRomaC + 6)
+    expect(ottenuto.andamento[1].get('appuntamenti_vendita_fix')).toBeUndefined()   // l'indicatore delle coordinatrici è fuori
+    expect(ottenuto.ufficiTotali).toBe(3)
+  })
+
+  it('l\'ufficio di Milano vede solo Milano; gli altri account non ricevono nulla', async () => {
+    const milano = await dalDatabase('m@test.it')
+    const settembreMilano = (await db.query<{ n: number }>(`select sum(v.valore)::int n from valori_mensili v join uffici u on u.id = v.ufficio_id
+      where u.citta_id = 2 and v.mese = '2026-09-01' and v.voce = 'colloqui'`)).rows[0].n
+    expect(milano.andamento[3].get('colloqui')).toBe(settembreMilano)
+    for (const email of ['davide@test.it', 'rapportini+aff@gmail.com', 'estraneo@test.it']) {
+      expect(await come(email, `select * from totali_mensili_mia_citta($1::date[])`, [MESI])).toHaveLength(0)
+    }
+  })
+})
+
 describe('Migrazioni rieseguite', () => {
-  it('006–009 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–010 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

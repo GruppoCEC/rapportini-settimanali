@@ -42,7 +42,8 @@ simile a quella della riunione del lunedì (utile per una riunione interna):
 2. premi **Avvia la presentazione**;
 3. sfoglia con le frecce della tastiera (→ avanti, ← indietro); **Esc** per uscire.
 
-Il mese somma le settimane del mese e si confronta con il mese prima; la settimana con la settimana prima.
+La settimana usa i rapportini settimanali e si confronta con la settimana prima. Il **mese** usa i
+**rapportini mensili**: tutte le voci del rapportino con il confronto sul mese prima e gli ultimi 6 mesi.
 
 Dopo i totali del tuo ufficio trovi la pagina **Totali · Tutta Roma** (o **Tutta Milano**): come va
 l'intera città, con gli stessi numeri della riunione del lunedì. Mostra solo i totali della città,
@@ -54,5 +55,5 @@ Con un account da affiliato vedi solo gli uffici che ti sono stati assegnati, an
 Non puoi modificare nulla. Nel menu trovi:
 - **Andamento uffici**: scegli un ufficio in alto per vedere il grafico delle ultime 12 settimane e il riepilogo mese per mese;
 - **Cruscotto**: la tabella dei tuoi uffici per la settimana o per il mese (pulsanti *Settimana* / *Mese* e frecce ‹ ›), con il totale e i colori dell'obiettivo;
-- **Presentazione**: la presentazione a tutto schermo con i soli tuoi uffici (totali, classifiche, quota di mercato e una pagina per ufficio). Prima di avviarla scegli *Settimana* o *Mese*;
+- **Presentazione**: la presentazione a tutto schermo con i soli tuoi uffici (totali, classifiche, quota di mercato e una pagina per ufficio). Prima di avviarla scegli *Settimana* o *Mese*: il mese usa i rapportini mensili;
 - **Report mensile**: il riepilogo di fine mese, il rapportino di ogni ufficio persona per persona, le liste di collaboratori, coordinatrici e marketer e il riepilogo dell'anno. Ogni pagina si può stampare con **Stampa**.
