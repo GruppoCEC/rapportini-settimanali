@@ -5,6 +5,14 @@ import type { Metrica, Rilevazione, Ufficio } from './tipi'
 
 export type Totali = Map<string, Totale>
 
+/**
+ * Voci che per ora non entrano in classifiche e posizioni (decisione di Davide del 21/10/2026):
+ * si inseriscono e si vedono nei totali e nelle pagine degli uffici, ma non si mettono in ordine.
+ * Per le altre attività più alto = meglio (anche i ribassi: più se ne fanno, meglio è).
+ */
+export const VOCI_SENZA_CLASSIFICA = ['im3', 'piu90']
+export const inClassifica = (codice: string) => !VOCI_SENZA_CLASSIFICA.includes(codice)
+
 /** Totali del periodo per ciascun ufficio */
 export function totaliPerUfficio(rilevazioni: Rilevazione[], metriche: Metrica[]): Map<number, Totali> {
   const perUfficio = new Map<number, Rilevazione[]>()

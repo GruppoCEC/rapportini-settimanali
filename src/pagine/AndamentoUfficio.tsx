@@ -1,6 +1,6 @@
 // "Il mio ufficio" / "Andamento uffici": riepilogo mese per mese e grafici di andamento.
 import { useState } from 'react'
-import { quotaDaTotali, serieQuota, serieSettimanale } from '../lib/aggregazioni'
+import { inClassifica, quotaDaTotali, serieQuota, serieSettimanale } from '../lib/aggregazioni'
 import { OBIETTIVO_QUOTA, totaliPeriodo } from '../lib/calcoli'
 import { MENSILE_ATTIVO, type Contesto, ufficiVisibili } from '../lib/contesto'
 import {
@@ -85,7 +85,7 @@ export default function AndamentoUfficio({ ctx }: { ctx: Contesto }) {
       {ufficio && <RiquadroImbuto key={ufficio.id} ufficio={ufficio} conCitta={ctx.utente.ruolo === 'ufficio'} nomeCitta={ctx.citta.find((c) => c.id === ufficio.citta_id)?.nome ?? ''} />}
       {ufficio && ctx.utente.ruolo === 'ufficio' && (
         <RiquadroPosizione nomeCitta={ctx.citta.find((c) => c.id === ufficio.citta_id)?.nome ?? ''}
-          voci={[...attivita.map((m) => ({ codice: m.codice, nome: m.nome })), { codice: '__quota', nome: 'Quota di mercato' }]} />
+          voci={[...attivita.filter((m) => inClassifica(m.codice)).map((m) => ({ codice: m.codice, nome: m.nome })), { codice: '__quota', nome: 'Quota di mercato' }]} />
       )}
 
       {caricamento || errore || !dati ? <Caricamento errore={errore} /> : (

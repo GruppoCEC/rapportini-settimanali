@@ -6,7 +6,7 @@
 // Si avanza con le frecce della tastiera (o i pulsanti), Esc per uscire.
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
-  classifica, classificaQuota, quotaDaTotali, raggiungimento, sommaTotali, statoCompilazionePeriodo,
+  inClassifica, classifica, classificaQuota, quotaDaTotali, raggiungimento, sommaTotali, statoCompilazionePeriodo,
   totaliPerPeriodi, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali, type TotaliCitta,
 } from '../lib/aggregazioni'
 import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../lib/calcoli'
@@ -425,7 +425,7 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
   if (posizione) {
     out.push(paginaPosizione({
       nomeCitta, posizioni: posizione.voci, prima: periodo.tipo === 'settimana' ? 'della settimana prima' : 'del mese prima',
-      voci: [...attivita.map((m) => ({ codice: m.codice, nome: m.nome })), { codice: '__quota', nome: 'Quota di mercato' }],
+      voci: [...attivita.filter((m) => inClassifica(m.codice)).map((m) => ({ codice: m.codice, nome: m.nome })), { codice: '__quota', nome: 'Quota di mercato' }],
       extra: `Numeri ${parole.delPeriodo}.`,
     }))
   }
@@ -452,7 +452,7 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
 
   // 3. Classifiche, due attività per pagina (solo quelle con almeno un risultato; servono almeno due uffici)
   const compatta = uffici.length > 16
-  const conDati = uffici.length > 1 ? attivita.filter((m) => classifica(uffici, totali, m.codice).length > 0) : []
+  const conDati = uffici.length > 1 ? attivita.filter((m) => inClassifica(m.codice) && classifica(uffici, totali, m.codice).length > 0) : []
   for (let i = 0; i < conDati.length; i += 2) {
     const coppia = conDati.slice(i, i + 2)
     out.push({

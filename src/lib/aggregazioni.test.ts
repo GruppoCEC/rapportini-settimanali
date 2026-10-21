@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  fascia, posizioniDaRighe, classifica, classificaQuota, quotaDaTotali, raggiungimento, semaforo, serieQuota, serieSettimanale, variazioneZona,
+  fascia, inClassifica, posizioniDaRighe, classifica, classificaQuota, quotaDaTotali, raggiungimento, semaforo, serieQuota, serieSettimanale, variazioneZona,
   sommaTotali, statoCompilazione, statoCompilazionePeriodo, totaliCittaDaRighe, totaliPerPeriodi, totaliPerUfficio,
 } from './aggregazioni'
 import type { Metrica, Rilevazione, Ufficio } from './tipi'
@@ -163,5 +163,14 @@ describe('posizione nella città', () => {
     expect(r.ufficiCitta).toBe(31)
     expect(r.voci.get('incarichi')).toEqual({ posizione: 2, su: 29, prima: 5 })
     expect(r.voci.get('__quota')).toEqual({ posizione: 9, su: 28, prima: null })
+  })
+})
+
+describe('voci senza classifica', () => {
+  it('IM3 e +90 per ora non entrano in classifiche e posizioni; i ribassi sì', () => {
+    expect(inClassifica('im3')).toBe(false)
+    expect(inClassifica('piu90')).toBe(false)
+    expect(inClassifica('ribassi')).toBe(true)
+    expect(inClassifica('incarichi')).toBe(true)
   })
 })

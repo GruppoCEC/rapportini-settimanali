@@ -1,5 +1,14 @@
 # Storia delle versioni
 
+## 0.16.1 — 21 ottobre 2026
+
+**IM3 e +90 fuori da classifiche e posizioni** (decisione di Davide: per ora non si considerano):
+- nella **Riunione** settimanale non ci sono più le classifiche di IM3 e +90 (restano 3 pagine di classifiche: App.ti vendita e Proposte, Incarichi e Valutazioni, Vendite e Ribassi);
+- nella pagina **La tua posizione** e nel riquadro di **Il mio ufficio** non compaiono più;
+- si continuano a inserire e si vedono nei totali, nel cruscotto e nelle pagine degli uffici;
+- **Ribassi**: confermato da Davide che più se ne fanno meglio è, quindi resta in classifica dal numero più alto (come prima);
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.16.0 — 21 ottobre 2026
 
 **Scheda del collaboratore e curva dei nuovi** (richiesta di Davide, punti 2.2.6 e 2.2.7 dell'analisi), **solo per gli amministratori** (più avanti forse anche per gli affiliati). Nel **Report mensile** c'è la nuova scheda **Collaboratori**, con due viste:
