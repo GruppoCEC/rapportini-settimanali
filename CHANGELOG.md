@@ -12,6 +12,8 @@
   4. **classifiche** degli uffici su 6 voci: acquisizioni, appuntamenti vendita, incarichi vendita, proposte vendita, accettazioni vendita, vendite effettuate (servono almeno due uffici);
 - il confronto con il mese prima conta solo gli uffici che hanno la voce in entrambi i mesi. Per lo staff, solo gli uffici che hanno inserito il rapportino in entrambi i mesi;
 - niente obiettivi, quota di mercato né gara a punti nel mese: i rapportini mensili non li hanno;
+- premendo **Mese** la presentazione parte dal **mese appena concluso** (a ottobre, settembre), come il Report mensile; con › si passa al mese in corso;
+- le pagine delle classifiche ci sono sempre: se una voce non ha ancora numeri, la pagina lo scrive (prima la pagina spariva e, nel mese in corso senza rapportini, le classifiche non si vedevano);
 - la **Settimana** resta come prima;
 - **da fare una volta in Supabase** (per la pagina della città degli uffici): eseguire `supabase/migrations/010_totali_mensili_citta.sql`, dopo la 009.
 

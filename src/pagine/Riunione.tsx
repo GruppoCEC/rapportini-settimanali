@@ -16,7 +16,7 @@ import {
   caricaNote, caricaPersone, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
 } from '../lib/dati'
 import {
-  formattaNumero, inServizio, meseInCorso as meseAttuale, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
+  formattaNumero, inServizio, meseInCorso as meseAttuale, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
   type RiepilogoMensile, type TotaliMese,
 } from '../lib/mensile'
 import { isAffiliato, isAmministratore } from '../lib/permessi'
@@ -112,8 +112,11 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
   const titolo = areaFiltro === 'tutte' ? nomeGruppo : `${nomeGruppo} · ${nomeArea(ctx, areaFiltro)}`
   const nomePresentazione = amministrazione ? 'Riunione' : 'Presentazione'
 
-  // Il mese usa i rapportini mensili; la settimana i rapportini settimanali
+  // Il mese usa i rapportini mensili; la settimana i rapportini settimanali.
+  // Passando a "Mese" si parte dal mese appena concluso, come nel Report mensile (a ottobre, settembre).
   const mensile = MENSILE_ATTIVO && periodo.tipo === 'mese'
+  const cambiaPeriodo = (p: Periodo) => setPeriodo(MENSILE_ATTIVO && p.tipo === 'mese' && periodo.tipo === 'settimana'
+    ? { tipo: 'mese', settimana: settimaneDelMese(mesePredefinito().slice(0, 7))[0] } : p)
   const mesi = Array.from({ length: STORICO.mese }, (_, i) => `${aggiungiMesi(meseDellaSettimana(periodo.settimana), i - STORICO.mese + 1)}-01`)
   const caricoMese = useDati<DatiMensili | null>(async () => (mensile ? caricaDatiMensili(mesi, uffici, soloUfficio) : null),
     [mensile, mesi.join(','), ids.join(','), soloUfficio])
@@ -188,7 +191,7 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
       <section className="scheda entra entra-1" style={{ gap: 22 }}>
         <h2>Cosa presentare</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignSelf: 'flex-start' }}>
-          <SceltaPeriodo periodo={periodo} onCambia={setPeriodo} />
+          <SceltaPeriodo periodo={periodo} onCambia={cambiaPeriodo} />
           <strong style={{ fontSize: 18 }}>{descriviPeriodo(periodo)}</strong>
           {mensile && <span className="piccolo">Il mese usa i numeri dei rapportini mensili (per i mesi prima della piattaforma, il file Excel annuale).{mesi[mesi.length - 1] >= meseAttuale() ? ' Il mese non è ancora finito.' : ''}</span>}
           {periodo.tipo === 'mese' && !mensile && <span className="piccolo">Il mese somma le settimane che hanno il giovedì nel mese ({correnti.length} settimane).{meseInCorso(correnti) ? ' Il mese non è ancora finito.' : ''}</span>}
@@ -793,13 +796,15 @@ function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nome
     }))
   }
 
-  // 3. Classifiche, due voci per pagina (servono almeno due uffici)
+  // 3. Classifiche, due voci per pagina (servono almeno due uffici). Ci sono sempre: se nessuno ha
+  // ancora inserito una voce, la pagina lo dice invece di sparire.
   const compatta = uffici.length > 16
   const classificaDi = (c: string) => uffici
     .map((u) => ({ ufficio: u.ufficio, valore: u.totali[u.totali.length - 1].get(c) ?? null }))
     .filter((x): x is { ufficio: Ufficio; valore: number } => x.valore !== null)
     .sort((a, b) => b.valore - a.valore || a.ufficio.nome.localeCompare(b.ufficio.nome))
-  const conDati = uffici.length > 1 ? CLASSIFICHE_MENSILI.filter((c) => colonne.includes(c) && classificaDi(c).length > 0) : []
+  const conDati = uffici.length > 1 ? CLASSIFICHE_MENSILI.filter((c) => colonne.includes(c)) : []
+  const nomeMese = descriviPeriodo(periodo).toLowerCase()
   for (let i = 0; i < conDati.length; i += 2) {
     const coppia = conDati.slice(i, i + 2)
     out.push({
@@ -812,6 +817,7 @@ function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nome
             return (
               <div key={c} className="p-card" style={{ gap: compatta ? 2 : 6 }}>
                 <h3>{nomeVoceMensile(voci, c)}</h3>
+                {elenco.length === 0 && <p style={{ fontSize: 18, color: 'var(--testo-3)' }}>Nessun ufficio ha ancora inserito questa voce per {nomeMese}.</p>}
                 {elenco.map((x) => (
                   <div key={x.ufficio.id} className="barra-classifica">
                     <span title={x.ufficio.nome}>{x.ufficio.nome}</span>
