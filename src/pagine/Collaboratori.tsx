@@ -23,12 +23,12 @@ import { Icona } from '../componenti/Interfaccia'
 import { TestataVoci, TitoloStampa, ValoreConIndicatori } from '../componenti/TabellaMensile'
 
 /** "uscita il 01/03/2026" oppure "promosso a responsabile il 01/03/2026" */
-const fine = (p: Persona) => `${p.motivo_fine === 'promozione' ? 'promosso a responsabile' : 'uscita'} il ${dataItaliana(p.data_fine)}`
+const fine = (p: Persona) => `${p.motivo_fine === 'promozione' ? 'promosso a responsabile' : p.motivo_fine === 'trasferimento' ? 'trasferito in un altro ufficio' : 'uscita'} il ${dataItaliana(p.data_fine)}`
 
 /** Quanti mesi mostra la scheda della persona (l'ultimo è quello scelto in alto) */
 const MESI_SCHEDA = 12
 
-const PLURALI: Record<RuoloPersona, string> = { responsabile: 'responsabili', collaboratore: 'collaboratori', coordinatrice: 'coordinatrici', marketer: 'marketer' }
+const PLURALI: Record<RuoloPersona, string> = { responsabile: 'responsabili', collaboratore: 'collaboratori', coordinatrice: 'coordinatrici', marketer: 'marketer', da_definire: 'persone con ruolo da definire' }
 
 interface Dati {
   voci: VoceMensile[]

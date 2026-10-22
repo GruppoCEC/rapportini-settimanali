@@ -158,6 +158,14 @@ describe('storico dal file Excel annuale', () => {
     expect(totale.get(STAFF)).toBe(2)
   })
 
+  it('voce per voce (016): le voci che nessuno ha scritto persona per persona vengono dall\'Excel', () => {
+    const conVendite = [...storico, st('2026-01-01', 'proposte_vendita', 3)]
+    const { totale } = totaleConStorico(persone, [val(1, 'colloqui', 2, '2026-01-01')], '2026-01-01', voci, conVendite)
+    expect(totale.get('colloqui')).toBe(2)                 // scritto persona per persona: vale quello
+    expect(totale.get('proposte_vendita')).toBe(3)         // nessuno l'ha scritto: vale l'Excel
+    expect(totale.get(STAFF)).toBe(2)                      // lo staff resta quello delle persone
+  })
+
   it('senza storico per il mese il totale è quello di sempre', () => {
     expect(totaleConStorico(persone, [], '2026-03-01', voci, storico)).toEqual({ totale: totaleUfficio(persone, [], '2026-03-01', voci), daStorico: false })
   })
@@ -263,6 +271,16 @@ describe('turnover dell\'anno', () => {
     expect(t.tasso).toBe(1 / 3)
     expect(movimentoNelMese(promossa, '2026-05-01')).toBe('promozione')
     expect(inServizio(promossa, '2026-05-01')).toBe(false)     // come chi esce, non conta nel mese della promozione
+  })
+
+  it('chi passa a un altro ufficio (017) non è un\'uscita né un promosso', () => {
+    const trasferita = { ...persona(7, 'collaboratore', '2022-05-03', '2026-03-01'), motivo_fine: 'trasferimento' as const }
+    const t = turnoverAnno([persona(1, 'collaboratore', '2020-03-01', '2026-02-15'), persona(3, 'collaboratore', '2018-01-01'), trasferita], '2026')
+    expect(t.usciti.map((u) => u.persona.id)).toEqual([1])
+    expect(t.promossi).toEqual([])
+    expect(movimentoNelMese(trasferita, '2026-03-01')).toBe('trasferimento')
+    expect(inServizio(trasferita, '2026-02-01')).toBe(true)    // a febbraio è ancora nel vecchio ufficio
+    expect(inServizio(trasferita, '2026-03-01')).toBe(false)
   })
 })
 

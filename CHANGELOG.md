@@ -1,5 +1,14 @@
 # Storia delle versioni
 
+## 0.19.0 — 22 ottobre 2026
+
+**Rapportini mensili degli uffici, persona per persona** (scansioni dei mesi del 2026, decisioni di Davide):
+- **file annuale voce per voce**: quando un ufficio ha i numeri persona per persona, una voce che nessuno ha scritto prende il valore del file annuale. Serve per le **vendite effettuate**, che i fogli degli uffici non hanno. Lo staff resta quello delle persone in servizio;
+- **ruolo da definire**: nel personale c'è il nuovo ruolo *Ruolo da definire*, per le persone del rapportino di cui il foglio non dice il ruolo. Nel rapportino del mese compaiono in un gruppo a parte (solo se ce ne sono), contano nello staff e nei totali, non nella gara a punti. L'ufficio sceglie il ruolo giusto da **Inserisci mese → Personale → Modifica**;
+- **trasferito in un altro ufficio**: nuovo motivo della fine, accanto a *Ha lasciato il gruppo* e *Promosso a responsabile*. Come la promozione **non conta nel turnover**; chi arriva così nel nuovo ufficio non entra nella curva dei nuovi né tra i nuovi entrati;
+- gennaio 2026: file `import/sql/MENSILE_UFFICI_2026-01.sql` (solo sul Mac) con 119 persone nuove (responsabili, coordinatrici, marketer…, col nome come nel foglio e inizio il 1° gennaio 2026), le correzioni dei periodi di Emanuel Stefan, Arianna Sapia e Martina Cogliandro e 866 numeri di 38 uffici. I 7 uffici con differenze nel foglio non sono caricati: per loro resta il file annuale. Provato su una copia del database: 36 uffici su 38 tornano col file annuale voce per voce e nello staff;
+- **da fare una volta in Supabase**, in questo ordine: `supabase/migrations/016_storico_voce_per_voce.sql`, `supabase/migrations/017_ruolo_da_definire_trasferimenti.sql`, poi `import/sql/MENSILE_UFFICI_2026-01.sql`, poi pubblicare (Push).
+
 ## 0.18.0 — 21 ottobre 2026
 
 **Promossi a responsabile: non sono uscite** (segnalato da Davide):

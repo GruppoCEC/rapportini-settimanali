@@ -42,6 +42,17 @@ export function mediaRuolo(persone: Persona[], valori: ValoreMensile[], ruolo: R
   return media(numeri, codici)
 }
 
+/**
+ * La scheda è il seguito di un trasferimento (017)? Cioè la stessa persona (stesso nome) ha un'altra scheda
+ * chiusa con "trasferito in un altro ufficio" nel mese in cui questa inizia. Chi arriva così non è un nuovo
+ * ingresso nel gruppo: resta fuori dalla curva dei nuovi e dall'elenco dei nuovi entrati.
+ */
+export function arrivatoDaTrasferimento(p: Persona, persone: Persona[]): boolean {
+  const nome = p.nome.trim().toLowerCase()
+  return persone.some((q) => q.id !== p.id && q.motivo_fine === 'trasferimento' && q.data_fine?.slice(0, 7) === p.data_inizio.slice(0, 7)
+    && q.nome.trim().toLowerCase() === nome)
+}
+
 /** Mese di servizio (1 = il mese in cui ha iniziato) di una persona in un mese */
 export const meseDiServizio = (p: Persona, mese: string) => mesiDiServizio(p.data_inizio, mese) + 1
 
@@ -54,7 +65,7 @@ export interface PuntoCurva { valore: number | null; persone: number }
 export function curvaCrescita(persone: Persona[], valori: ValoreMensile[], mesi: string[], ruolo: RuoloPersona, voce: string, maxMesi = MESI_CURVA): PuntoCurva[] {
   const perMese: number[][] = Array.from({ length: maxMesi }, () => [])
   const indice = new Map(valori.filter((v) => v.voce === voce && v.valore !== null).map((v) => [`${v.persona_id}|${v.mese}`, v.valore!]))
-  for (const p of persone.filter((x) => x.ruolo === ruolo)) {
+  for (const p of persone.filter((x) => x.ruolo === ruolo && !arrivatoDaTrasferimento(x, persone))) {
     for (const m of mesi) {
       if (!inServizio(p, m)) continue
       const k = meseDiServizio(p, m)
@@ -71,7 +82,7 @@ export function curvaCrescita(persone: Persona[], valori: ValoreMensile[], mesi:
 /** I collaboratori entrati negli ultimi maxMesi mesi (rispetto all'ultimo mese) e ancora in servizio, dal più recente */
 export function nuoviEntrati(persone: Persona[], ruolo: RuoloPersona, ultimoMese: string, maxMesi = MESI_CURVA): Persona[] {
   return persone
-    .filter((p) => p.ruolo === ruolo && inServizio(p, ultimoMese) && meseDiServizio(p, ultimoMese) <= maxMesi)
+    .filter((p) => p.ruolo === ruolo && inServizio(p, ultimoMese) && meseDiServizio(p, ultimoMese) <= maxMesi && !arrivatoDaTrasferimento(p, persone))
     .sort((a, b) => b.data_inizio.localeCompare(a.data_inizio) || a.nome.localeCompare(b.nome))
 }
 

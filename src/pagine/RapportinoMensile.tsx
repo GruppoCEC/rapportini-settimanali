@@ -294,7 +294,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
     const b = inModifica.bozza
     // il motivo si scrive solo se c'è una data di fine (e solo se il database ha già la 015)
     const campi = { nome: b.nome.trim(), ruolo: b.ruolo, data_inizio: b.data_inizio, data_fine: b.data_fine || null,
-      ...(b.data_fine && (b.motivo_fine === 'promozione' || persone.some((x) => 'motivo_fine' in x)) ? { motivo_fine: b.motivo_fine } : {}) }
+      ...(b.data_fine && (b.motivo_fine !== 'uscita' || persone.some((x) => 'motivo_fine' in x)) ? { motivo_fine: b.motivo_fine } : {}) }
     const ok = await esegui(supabase.from('persone').update(campi).eq('id', inModifica.id),
       `Scheda di ${b.nome.trim()} aggiornata.`)
     if (ok) setInModifica(null)
@@ -319,7 +319,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
       <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="users-three" /></span>Personale dell'ufficio</h2>
       <p className="piccolo">
         Il personale si inserisce una volta sola e vale per tutti i mesi, a partire dalla data di inizio.
-        Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong>, indica l'ultimo giorno e il motivo (ha lasciato il gruppo, oppure promosso a responsabile): non conta già dal mese in cui esce (niente riga nel rapportino, totali, staff né gara), ma i suoi numeri dei mesi precedenti restano.
+        Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong>, indica l'ultimo giorno e il motivo (ha lasciato il gruppo, promosso a responsabile oppure trasferito in un altro ufficio: in quel caso crealo anche nel nuovo ufficio): non conta già dal mese in cui esce (niente riga nel rapportino, totali, staff né gara), ma i suoi numeri dei mesi precedenti restano.
       </p>
       {errore && <p className="errore-box" role="alert"><Icona nome="warning-circle" />{errore}</p>}
 
@@ -372,7 +372,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
                     <th scope="row">{p.nome}</th>
                     <td>{NOMI_RUOLO_PERSONA[p.ruolo]}</td>
                     <td>{dataItaliana(p.data_inizio)}</td>
-                    <td>{dataItaliana(p.data_fine)}{p.motivo_fine === 'promozione' && <span className="piccolo" style={{ display: 'block' }}>promosso a responsabile</span>}</td>
+                    <td>{dataItaliana(p.data_fine)}{p.motivo_fine && p.motivo_fine !== 'uscita' && <span className="piccolo" style={{ display: 'block' }}>{NOMI_MOTIVO_FINE[p.motivo_fine].toLowerCase()}</span>}</td>
                     <td>
                       <EtichettaMovimento persona={p} mese={mese} />
                       {!classeMovimento(p, mese) && (

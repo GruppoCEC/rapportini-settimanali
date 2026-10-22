@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { curvaCrescita, daSeguire, media, mediaRuolo, meseDiServizio, nuoviEntrati, numeriPersona, rispettoAllaMedia } from './collaboratori'
+import { arrivatoDaTrasferimento, curvaCrescita, daSeguire, media, mediaRuolo, meseDiServizio, nuoviEntrati, numeriPersona, rispettoAllaMedia } from './collaboratori'
 import type { Persona, ValoreMensile, VoceMensile } from './tipi'
 
 const voci: VoceMensile[] = [
@@ -76,5 +76,17 @@ describe('curva dei nuovi', () => {
     expect(daSeguire(2, 3.75, voci[0])).toBe(false)
     expect(daSeguire(9, 3, voci[1])).toBe(true)          // incarichi scaduti: sopra il doppio della media
     expect(daSeguire(0, 0, voci[0])).toBe(false)
+  })
+
+  it('chi arriva da un altro ufficio con un trasferimento (017) non è un nuovo entrato', () => {
+    const prima: Persona = { ...persona(7, 'collaboratore', '2022-05-03', '2026-08-01'), nome: 'Emanuel Stefan', motivo_fine: 'trasferimento' }
+    const dopo: Persona = { ...persona(8, 'collaboratore', '2026-08-01'), ufficio_id: 2, nome: 'Emanuel Stefan' }
+    const omonimo: Persona = { ...persona(9, 'collaboratore', '2026-08-01'), nome: 'Emanuel Rossi' }
+    const tutti = [...persone, prima, dopo, omonimo]
+    expect(arrivatoDaTrasferimento(dopo, tutti)).toBe(true)
+    expect(arrivatoDaTrasferimento(omonimo, tutti)).toBe(false)
+    expect(nuoviEntrati(tutti, 'collaboratore', '2026-09-01', 12).map((p) => p.id)).toEqual([4, 9, 3, 2, 1])
+    const c = curvaCrescita([...tutti], [...valori, val(8, '2026-08-01', 'incarichi_vendita', 50)], mesi, 'collaboratore', 'incarichi_vendita', 4)
+    expect(c[0]).toEqual({ persone: 4, valore: (1 + 2 + 3 + 9) / 4 })   // i 50 di chi è arrivato col trasferimento non contano
   })
 })

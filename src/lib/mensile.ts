@@ -10,12 +10,13 @@ import type { Persona, RuoloPersona, Scadenza, StoricoMensile, Ufficio, ValoreMe
 /** Chiave dello staff nei totali (non è una colonna da compilare) */
 export const STAFF = 'staff'
 
-export const ORDINE_RUOLI: RuoloPersona[] = ['responsabile', 'collaboratore', 'coordinatrice', 'marketer']
+export const ORDINE_RUOLI: RuoloPersona[] = ['responsabile', 'collaboratore', 'coordinatrice', 'marketer', 'da_definire']
 
 /** Le due tabelle del rapportino dell'ufficio, come nel file Excel */
-export const GRUPPI_PERSONE: { titolo: string; ruoli: RuoloPersona[] }[] = [
+export const GRUPPI_PERSONE: { titolo: string; ruoli: RuoloPersona[]; soloSePieno?: boolean }[] = [
   { titolo: 'Responsabile e collaboratori', ruoli: ['responsabile', 'collaboratore'] },
   { titolo: 'Coordinatrici e marketer', ruoli: ['coordinatrice', 'marketer'] },
+  { titolo: 'Ruolo da definire', ruoli: ['da_definire'], soloSePieno: true },   // si vede solo se c'è qualcuno
 ]
 
 export type TotaliMese = Map<string, number | null>
@@ -79,6 +80,9 @@ export function vociConPunti(voci: VoceMensile[]): VoceMensile[] {
 /** La fine è una promozione a responsabile (non un'uscita dal gruppo)? */
 export const promosso = (p: Persona) => p.motivo_fine === 'promozione'
 
+/** La fine è un passaggio a un altro ufficio del gruppo (017)? Non è un'uscita */
+export const trasferito = (p: Persona) => p.motivo_fine === 'trasferimento'
+
 /**
  * Turnover dell'anno: chi ha lasciato il gruppo nell'anno, con l'anzianità al giorno dell'uscita,
  * e il tasso di uscita = uscite ÷ persone in servizio al 1° gennaio (vuoto se non calcolabile).
@@ -90,7 +94,7 @@ export function turnoverAnno(persone: Persona[], anno: string) {
     .filter((p) => p.data_fine && p.data_fine.startsWith(`${anno}-`))
     .map((p) => ({ persona: p, mesi: mesiTraDate(p.data_inizio, p.data_fine!) }))
     .sort((a, b) => a.persona.data_fine!.localeCompare(b.persona.data_fine!) || a.persona.nome.localeCompare(b.persona.nome))
-  const usciti = finiti.filter((u) => !promosso(u.persona))
+  const usciti = finiti.filter((u) => !promosso(u.persona) && !trasferito(u.persona))
   const promossi = finiti.filter((u) => promosso(u.persona))
   const organicoInizio = persone.filter((p) => p.data_inizio <= inizioAnno && (!p.data_fine || p.data_fine >= inizioAnno)).length
   const anzianitaMedia = usciti.length ? Math.round(usciti.reduce((t, u) => t + u.mesi, 0) / usciti.length) : null
@@ -149,12 +153,12 @@ export function inServizio(p: Persona, mese: string): boolean {
 
 /**
  * Cambi di personale nel mese: "uscita" se la persona ha lasciato l'ufficio in quel mese ("promozione"
- * se è stata promossa a responsabile),
+ * se è stata promossa a responsabile, "trasferimento" se è passata a un altro ufficio),
  * "entrata" se ha iniziato in quel mese (se entrambe, conta l'uscita).
  */
-export function movimentoNelMese(p: Persona, mese: string): 'entrata' | 'uscita' | 'promozione' | null {
+export function movimentoNelMese(p: Persona, mese: string): 'entrata' | 'uscita' | 'promozione' | 'trasferimento' | null {
   const fine = ultimoGiornoDelMese(mese)
-  if (p.data_fine && p.data_fine >= mese && p.data_fine <= fine) return promosso(p) ? 'promozione' : 'uscita'
+  if (p.data_fine && p.data_fine >= mese && p.data_fine <= fine) return promosso(p) ? 'promozione' : trasferito(p) ? 'trasferimento' : 'uscita'
   if (p.data_inizio >= mese && p.data_inizio <= fine) return 'entrata'
   return null
 }
@@ -221,7 +225,8 @@ export function totaleUfficio(persone: Persona[], valori: ValoreMensile[], mese:
 /**
  * Totale dell'ufficio nel mese, tenendo conto dello storico dal file Excel annuale: se l'ufficio non ha
  * numeri persona per persona in quel mese ma c'è il suo totale nello storico, vale quello (staff compreso).
- * Appena l'ufficio inserisce i numeri persona per persona, lo storico di quel mese non conta più.
+ * Se ha numeri persona per persona valgono quelli, ma voce per voce (016): una voce che nessuno ha scritto
+ * prende il valore dello storico (es. le vendite effettuate). Lo staff resta quello delle persone in servizio.
  * `persone`, `valori` e `storico` sono quelli di un solo ufficio.
  */
 export function totaleConStorico(persone: Persona[], valori: ValoreMensile[], mese: string, voci: VoceMensile[], storico: StoricoMensile[]):
@@ -229,7 +234,13 @@ export function totaleConStorico(persone: Persona[], valori: ValoreMensile[], me
   const calcolato = totaleUfficio(persone, valori, mese, voci)
   const delMese = storico.filter((s) => s.mese === mese)
   const haNumeri = [...calcolato].some(([k, v]) => k !== STAFF && v !== null)
-  if (haNumeri || delMese.length === 0) return { totale: calcolato, daStorico: false }
+  if (delMese.length === 0) return { totale: calcolato, daStorico: false }
+  if (haNumeri) {
+    // voce per voce (016): dove nessuno ha scritto la voce persona per persona vale il file annuale
+    // (es. le vendite effettuate, che i rapportini degli uffici non hanno); lo staff resta dalle persone
+    for (const s of delMese) if (s.voce !== STAFF && calcolato.has(s.voce) && calcolato.get(s.voce) === null) calcolato.set(s.voce, s.valore)
+    return { totale: calcolato, daStorico: false }
+  }
   const totale: TotaliMese = new Map(vociDelRapportino(voci).map((v) => [v.codice, null]))
   totale.set(STAFF, null)
   for (const s of delMese) if (totale.has(s.voce)) totale.set(s.voce, s.valore)

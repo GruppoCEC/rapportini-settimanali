@@ -63,7 +63,8 @@ export const NOMI_RUOLO: Record<Ruolo, string> = {
 
 // ---------------------------------------------------------------- Rapportino mensile
 
-export type RuoloPersona = 'responsabile' | 'collaboratore' | 'coordinatrice' | 'marketer'
+/** da_definire (017): persona del rapportino di cui non si conosce ancora il ruolo (conta nello staff e nei totali) */
+export type RuoloPersona = 'responsabile' | 'collaboratore' | 'coordinatrice' | 'marketer' | 'da_definire'
 
 export interface Persona {
   id: number
@@ -75,9 +76,12 @@ export interface Persona {
   motivo_fine?: MotivoFine | null   // perché è finita (015): vuoto = ha lasciato il gruppo
 }
 
-/** Perché una persona non è più nel personale: ha lasciato il gruppo, o è stata promossa a responsabile (non conta nel turnover) */
-export type MotivoFine = 'uscita' | 'promozione'
-export const NOMI_MOTIVO_FINE: Record<MotivoFine, string> = { uscita: 'Ha lasciato il gruppo', promozione: 'Promosso a responsabile' }
+/**
+ * Perché una persona non è più nel personale: ha lasciato il gruppo, è stata promossa a responsabile
+ * o è passata a un altro ufficio del gruppo (017). Promozioni e trasferimenti non contano nel turnover.
+ */
+export type MotivoFine = 'uscita' | 'promozione' | 'trasferimento'
+export const NOMI_MOTIVO_FINE: Record<MotivoFine, string> = { uscita: 'Ha lasciato il gruppo', promozione: 'Promosso a responsabile', trasferimento: 'Trasferito in un altro ufficio' }
 
 /** Una colonna del rapportino mensile (es. gruppo "Proposte", sotto "vendita") */
 export interface VoceMensile {
@@ -107,6 +111,7 @@ export const NOMI_RUOLO_PERSONA: Record<RuoloPersona, string> = {
   collaboratore: 'Collaboratore',
   coordinatrice: 'Coordinatrice',
   marketer: 'Marketer',
+  da_definire: 'Ruolo da definire',
 }
 
 /**

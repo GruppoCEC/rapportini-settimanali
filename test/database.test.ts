@@ -534,7 +534,8 @@ describe('Totali mensili della propria città (presentazione mensile dell\'uffic
       (${c1}, '2026-08-01', 'colloqui', 6), (${c2}, '2026-08-01', 'colloqui', 9),
       (${c2}, '2026-07-01', 'appuntamenti_vendita_fix', 3);
       insert into totali_mensili_storico (ufficio_id, mese, voce, valore) values
-      (${romaC}, '2026-08-01', 'colloqui', 99), (${romaB}, '2026-07-01', 'colloqui', 8), (${romaB}, '2026-07-01', 'staff', 6)`)
+      (${romaC}, '2026-08-01', 'colloqui', 99), (${romaB}, '2026-07-01', 'colloqui', 8), (${romaB}, '2026-07-01', 'staff', 6),
+      (${romaC}, '2026-08-01', 'vendite_effettuate', 4), (${romaC}, '2026-08-01', 'staff', 9)`)
   })
 
   const dalDatabase = async (email: string) =>
@@ -559,6 +560,11 @@ describe('Totali mensili della propria città (presentazione mensile dell\'uffic
     const agostoSenzaRomaC = (await db.query<{ n: number }>(`select coalesce(sum(valore), 0)::int n from valori_mensili
       where mese = '2026-08-01' and voce = 'colloqui' and ufficio_id in (${romaA}, ${romaB})`)).rows[0].n
     expect(ottenuto.andamento[2].get('colloqui')).toBe(agostoSenzaRomaC + 6)
+    // voce per voce (016): ad agosto Roma C ha numeri persona per persona ma non le vendite: valgono quelle dell'Excel;
+    // lo staff resta quello delle persone (Carla), non il 9 dell'Excel
+    const venditeAgostoAltri = (await db.query<{ n: number }>(`select coalesce(sum(valore), 0)::int n from totali_mensili_storico
+      where mese = '2026-08-01' and voce = 'vendite_effettuate' and ufficio_id in (${romaA}, ${romaB})`)).rows[0].n
+    expect(ottenuto.andamento[2].get('vendite_effettuate')).toBe(venditeAgostoAltri + 4)
     expect(ottenuto.andamento[1].get('appuntamenti_vendita_fix')).toBeUndefined()   // l'indicatore delle coordinatrici è fuori
     expect(ottenuto.ufficiTotali).toBe(3)
   })
@@ -718,6 +724,25 @@ describe('Motivo della fine (promossi a responsabile)', () => {
   })
 })
 
+describe('Ruolo da definire e trasferimenti (017)', () => {
+  it('una persona può avere il ruolo da definire, conta nello staff ma non può avere il fix delle coordinatrici', async () => {
+    const p = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaA}, 'Ginevra', 'da_definire', '2026-01-01') returning id`)
+    await come('a@test.it', `insert into valori_mensili (persona_id, ufficio_id, mese, voce, valore) values ($1, ${romaA}, '2026-01-01', 'colloqui', 2)`, [p])
+    await rifiutata('a@test.it', `insert into valori_mensili (persona_id, ufficio_id, mese, voce, valore) values ($1, ${romaA}, '2026-01-01', 'appuntamenti_vendita_fix', 3)`, [p])
+    await rifiutata('a@test.it', `insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaA}, 'Altro', 'segretaria', '2026-01-01')`)
+    const staff = (await db.query<{ valore: number }>(`select valore::int from totale_mensile_ufficio(${romaA}, '2026-01-01') where voce = 'colloqui'`)).rows[0]
+    expect(staff.valore).toBeGreaterThanOrEqual(2)
+    await db.query(`delete from persone where id = $1`, [p])      // non lascia dati agli altri test
+  })
+
+  it('la fine può essere un trasferimento, solo con una data di fine', async () => {
+    const p = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaA}, 'Tina Trasferita', 'collaboratore', '2022-05-03') returning id`)
+    await come('a@test.it', `update persone set data_fine = '2026-03-01', motivo_fine = 'trasferimento' where id = $1`, [p])
+    expect((await db.query<{ motivo_fine: string }>(`select motivo_fine from persone where id = $1`, [p])).rows[0].motivo_fine).toBe('trasferimento')
+    await db.query(`delete from persone where id = $1`, [p])
+  })
+})
+
 describe('Nota della settimana a tre caselle', () => {
   const salva = `insert into note_settimana (ufficio_id, settimana, bene, difficolta, aiuto) values ($1, '2026-10-19', $2, $3, $4)
                  on conflict (ufficio_id, settimana) do update set bene = excluded.bene, difficolta = excluded.difficolta, aiuto = excluded.aiuto`
@@ -748,10 +773,10 @@ describe('Nota della settimana a tre caselle', () => {
 })
 
 describe('Migrazioni rieseguite', () => {
-  it('006–015 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–017 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
     const note = (await db.query(`select * from note_settimana order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql', '016_storico_voce_per_voce.sql', '017_ruolo_da_definire_trasferimenti.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

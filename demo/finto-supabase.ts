@@ -170,6 +170,15 @@ for (const u of uffici) {
     if (chi) chi.data_fine = `${meseDaCompilare.slice(0, 8)}${String(tra(10, 28)).padStart(2, '0')}`
   }
   if (u.id % 5 === 2) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo: 'collaboratore', data_inizio: `${meseDaCompilare.slice(0, 8)}${String(tra(1, 20)).padStart(2, '0')}`, data_fine: null })
+  // qualcuno del rapportino senza ruolo scritto, solo col nome (017)
+  if (u.id % 6 === 1) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: NOMI[tra(0, NOMI.length - 1)], ruolo: 'da_definire', data_inizio: dataTra(2020, 2025), data_fine: null })
+}
+// un collaboratore passato da un ufficio all'altro due mesi fa (017): non è un'uscita né un nuovo ingresso
+{
+  const da = persone.find((p) => p.ufficio_id === uffici[0].id && p.ruolo === 'collaboratore' && !p.data_fine)
+  const quando = aggiungiMesi(meseDaCompilare, -2)
+  da.data_fine = quando; da.motivo_fine = 'trasferimento'
+  persone.push({ id: prossimoIdPersona++, ufficio_id: uffici[1].id, nome: da.nome, ruolo: 'collaboratore', data_inizio: quando, data_fine: null })
 }
 // Collaboratori entrati negli ultimi mesi (per la scheda "Collaboratori" e la curva dei nuovi)
 for (const u of uffici) {

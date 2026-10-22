@@ -595,7 +595,7 @@ function perMese<T extends { persona: Persona }>(usciti: T[]): { mese: string; u
 /** "Settembre 2026" → "Settembre" */
 const nomeMeseSolo = (mese: string) => titoloMese(mese).split(' ')[0]
 
-const PLURALI_RUOLO: Record<RuoloPersona, string> = { responsabile: 'Responsabili', collaboratore: 'Collaboratori', coordinatrice: 'Coordinatrici', marketer: 'Marketer' }
+const PLURALI_RUOLO: Record<RuoloPersona, string> = { responsabile: 'Responsabili', collaboratore: 'Collaboratori', coordinatrice: 'Coordinatrici', marketer: 'Marketer', da_definire: 'Ruolo da definire' }
 
 function SchedaUscite({ uffici, annoIniziale }: { uffici: DatiUfficio[]; annoIniziale: string }) {
   const [anno, setAnno] = useState(annoIniziale)

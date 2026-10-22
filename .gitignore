@@ -13,3 +13,7 @@ Rapportini mensili/
 
 # Fogli attività dei collaboratori (nomi, date, importi): restano solo sul Mac
 fogli attività/
+
+# Rapportini mensili degli uffici (numeri persona per persona): restano solo sul Mac
+rapportini mensili uffici/
+/*.pdf

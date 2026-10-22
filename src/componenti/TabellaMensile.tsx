@@ -121,12 +121,13 @@ export function EtichettaMovimento({ persona, mese }: { persona: Persona; mese: 
   if (m === 'entrata') return <span className="tag tag-ok tag-movimento">Nuovo ingresso dal {dataItaliana(persona.data_inizio)}</span>
   if (m === 'uscita') return <span className="tag tag-ko tag-movimento">Ha lasciato il {dataItaliana(persona.data_fine)}</span>
   if (m === 'promozione') return <span className="tag tag-accento tag-movimento">Promosso a responsabile il {dataItaliana(persona.data_fine)}</span>
+  if (m === 'trasferimento') return <span className="tag tag-accento tag-movimento">Trasferito in un altro ufficio il {dataItaliana(persona.data_fine)}</span>
   return null
 }
 
-// chi è promosso esce dalla riga come chi lascia (non conta nel mese), ma senza il rosso
+// chi è promosso o trasferito esce dalla riga come chi lascia (non conta nel mese), ma senza il rosso
 export const classeMovimento = (persona: Persona, mese: string) =>
-  ({ entrata: 'riga-entrata', uscita: 'riga-uscita', promozione: '', nessuno: '' })[movimentoNelMese(persona, mese) ?? 'nessuno']
+  ({ entrata: 'riga-entrata', uscita: 'riga-uscita', promozione: '', trasferimento: '', nessuno: '' })[movimentoNelMese(persona, mese) ?? 'nessuno']
 
 /** Spiega i colori delle righe, solo quelli presenti nelle persone mostrate */
 export function LegendaMovimenti({ persone, mese }: { persone: Persona[]; mese: string }) {
@@ -190,6 +191,7 @@ export function TabellaRapportino({ voci, mese, righe, totale, testo, modificabi
           <tbody>
             {GRUPPI_PERSONE.map((g) => {
               const persone = righe.filter((p) => g.ruoli.includes(p.ruolo))
+              if (g.soloSePieno && persone.length === 0) return []
               return [
                 <tr key={g.titolo} className="separatore"><th className="ufficio-fisso" colSpan={1}>{g.titolo}</th><td colSpan={colonne.length} /></tr>,
                 persone.length === 0
