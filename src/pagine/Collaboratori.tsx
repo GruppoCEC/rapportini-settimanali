@@ -158,7 +158,8 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
   return (
     <>
       {scelte}
-      <section className="scheda scheda-stampa">
+      {/* con tanti mesi in stampa la tabella si rimpicciolisce un poco, così il grafico resta sulla stessa pagina */}
+      <section className={`scheda scheda-stampa ${righe.length > 8 ? 'scheda-persona-lunga' : ''}`}>
         <div className="scheda-persona non-stampa">
           <span className="iniziali">{p.nome.split(' ').map((x) => x[0]).slice(0, 2).join('')}</span>
           <div>
@@ -173,7 +174,7 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
           <p className="piccolo">Nessun numero inserito per questa persona negli ultimi {MESI_SCHEDA} mesi.</p>
         ) : (
           <div className="tabella-scorrevole">
-            <table className="tabella tabella-mensile tabella-report">
+            <table className="tabella tabella-mensile tabella-report tabella-scheda-persona">
               <TestataVoci voci={colonne} prime={['Mese']} ultime={gara ? ['Punteggio'] : []}
                 titoloStampa={<TitoloStampa titolo={`Scheda di ${p.nome}`}
                   sottotitolo={`${NOMI_RUOLO_PERSONA[p.ruolo]} · ${ufficio.nome} · dal ${dataItaliana(p.data_inizio)}${p.data_fine ? ` · ${fine(p)}` : ''}`}
@@ -228,15 +229,16 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
       </section>
 
       {compilati.length > 0 && (
-        <section className="scheda">
+        // in stampa sta sulla stessa pagina della tabella (stile.css, .grafico-scheda-persona)
+        <section className="scheda grafico-scheda-persona">
           <div className="scheda-titolo">
-            <h2>Andamento mese per mese</h2>
-            <select value={voceScelta.codice} onChange={(e) => setVoceGrafico(e.target.value)} aria-label="Voce del grafico">
+            <h2>Andamento mese per mese<span className="solo-stampa"> · {nomeVoce(voceScelta).toLowerCase()}</span></h2>
+            <select className="non-stampa" value={voceScelta.codice} onChange={(e) => setVoceGrafico(e.target.value)} aria-label="Voce del grafico">
               {colonne.map((v) => <option key={v.codice} value={v.codice}>{nomeVoce(v)}</option>)}
             </select>
           </div>
           <LegendaGrafico nomi={[p.nome, `media ${plurale}`]} />
-          <GraficoAndamento etichette={righe.map((r) => nomeMeseBreve(r.mese.slice(0, 7)))} nomeSerie={p.nome} prefisso="" nomeLinea={`Media ${plurale}`}
+          <GraficoAndamento basso etichette={righe.map((r) => nomeMeseBreve(r.mese.slice(0, 7)))} nomeSerie={p.nome} prefisso="" nomeLinea={`Media ${plurale}`}
             risultati={righe.map((r) => r.numeri.get(voceScelta.codice) ?? null)}
             obiettivi={righe.map((r) => { const v = r.mediaGruppo.get(voceScelta.codice); return v == null ? null : Math.round(v * 10) / 10 })} />
         </section>

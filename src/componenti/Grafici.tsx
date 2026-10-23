@@ -16,6 +16,7 @@ interface Props {
   t?: number                      // avanzamento dell'animazione (0–1)
   nomeLinea?: string              // nome della linea tratteggiata nel suggerimento (predefinito "Obiettivo")
   prefisso?: string               // prima dell'etichetta nel suggerimento (predefinito "Settimana del")
+  basso?: boolean                 // formato normale ma più basso e largo (scheda della persona: sta sotto la tabella anche in stampa)
 }
 
 function massimoTondo(m: number): number {
@@ -27,12 +28,12 @@ function massimoTondo(m: number): number {
 
 const pct1 = (v: number) => `${(v * 100).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 
-export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 'Risultato', percentuale, rigaRiferimento, compatto, spark, t = 1, nomeLinea = 'Obiettivo', prefisso = 'Settimana del' }: Props) {
+export function GraficoAndamento({ etichette, risultati, obiettivi, nomeSerie = 'Risultato', percentuale, rigaRiferimento, compatto, spark, t = 1, nomeLinea = 'Obiettivo', prefisso = 'Settimana del', basso }: Props) {
   const id = useId().replace(/:/g, '')
   const [evidenziato, setEvidenziato] = useState<number | null>(null)
   const piccolo = compatto || spark
   const W = spark ? 170 : compatto ? 260 : 860
-  const H = spark ? 46 : compatto ? 150 : 260
+  const H = spark ? 46 : compatto ? 150 : basso ? 150 : 260
   const sx = spark ? 5 : compatto ? 14 : 46, dx = spark ? 5 : 14
   const su = spark ? 6 : compatto ? 24 : 16, giu = spark ? 6 : compatto ? 22 : 30
 

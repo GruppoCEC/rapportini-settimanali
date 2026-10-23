@@ -781,6 +781,20 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .tabella-report td, .tabella-report tbody th, .tabella-report tbody th.ufficio-fisso { font-size: 9.5pt; }
   .tabella-report td, .tabella-report tbody th { padding-top: 1px !important; padding-bottom: 1px !important; }
   .tabella-report .tag { padding: 0; background: none !important; font-size: 9pt; }
+
+  /* Scheda della persona (Collaboratori): tabella e grafico sulla stessa pagina, anche con 12 mesi */
+  /* in una colonna flex Chrome manda il grafico alla pagina dopo anche se c'è spazio: qui la pagina è un blocco normale */
+  .pagina:has(.tabella-scheda-persona) { display: block; }
+  .tabella-scheda-persona tbody th .piccolo { display: inline; margin-left: 6px; }
+  .tabella-scheda-persona td, .tabella-scheda-persona tbody th { font-size: 9pt !important; line-height: 1.1; padding-top: 0 !important; padding-bottom: 0 !important; }
+  .scheda-stampa:has(.tabella-scheda-persona) > p.piccolo { font-size: 8pt; line-height: 1.3; margin: 1mm 0 0; }
+  .grafico-scheda-persona { display: block; break-inside: avoid; margin-top: 2mm; }
+  .grafico-scheda-persona .scheda-titolo { display: inline-flex; margin-right: 8mm; }
+  .grafico-scheda-persona .scheda-titolo h2 { font-size: 11pt; }
+  .grafico-scheda-persona .solo-stampa { display: inline; font-weight: 600; color: var(--testo-2); }
+  .grafico-scheda-persona .grafico-legenda { display: inline-flex; font-size: 8.5pt; }
+  .grafico-scheda-persona .grafico svg { height: 32mm; }
+  .scheda-persona-lunga { zoom: .88; }
   .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 2.6em; font-size: 9.5pt; box-shadow: none !important; text-align: right; }
   .tabella-mensile tbody tr.riga-variazione th, .tabella-mensile tbody tr.riga-anno-prima th { white-space: normal; }
   .tabella tr.separatore-blocco td { height: 8px; border-left: 0 !important; border-right: 0 !important; background: #fff; }

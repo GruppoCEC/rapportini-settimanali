@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.19.2 — 23 ottobre 2026
+
+**Stampa della scheda della persona su una pagina** (segnalato da Davide: il grafico finiva tagliato sulla pagina dopo):
+- in **Report mensile → Collaboratori → Scheda della persona**, la stampa mette **tabella e grafico sulla stessa pagina**, anche con 12 mesi: il grafico è più basso e largo, le righe della tabella sono più strette e, oltre gli 8 mesi, la tabella si rimpicciolisce un poco;
+- in stampa al posto del menu della voce c'è il suo nome nel titolo del grafico ("Andamento mese per mese · incarichi vendita");
+- provato stampando in PDF con Chrome dalla demo, con 6 e con 12 mesi; le altre stampe non cambiano;
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.19.1 — 23 ottobre 2026
 
 **Scheda della persona: anche il fix delle coordinatrici** (richiesta di Davide):
