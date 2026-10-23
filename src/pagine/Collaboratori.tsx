@@ -6,7 +6,7 @@
 // Usa solo i numeri inseriti persona per persona sulla piattaforma (src/lib/collaboratori.ts).
 import { useMemo, useState } from 'react'
 import {
-  curvaCrescita, daSeguire, formattaMedia, haNumeri, media, mediaRuolo, MESI_CURVA, meseDiServizio, MINIMO_PERSONE, nuoviEntrati,
+  curvaCrescita, daSeguire, formattaMedia, haNumeri, media, mediaIndicatoreRuolo, mediaRuolo, MESI_CURVA, meseDiServizio, MINIMO_PERSONE, nuoviEntrati,
   numeriPersona, rispettoAllaMedia, SOGLIA_DA_SEGUIRE,
 } from '../lib/collaboratori'
 import { caricaPersone, caricaPunti, caricaValoriMesi, caricaVociMensili } from '../lib/dati'
@@ -114,6 +114,7 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
   const gara = p.ruolo === RUOLO_GARA && dati.punti.size > 0
   const plurale = PLURALI[p.ruolo]
   const mesiPersona = mesi.filter((m) => inServizio(p, m))
+  const indicatoriRuolo = colonne.flatMap((v) => indicatoriAccanto(dati.voci, v.codice, p.ruolo))
   const tutteLeRighe = mesiPersona.map((m) => {
     const numeri = numeriPersona(dati.valori, p.id, m, dati.voci)
     const valoriMese = dati.valori.filter((v) => v.mese === m)
@@ -123,6 +124,8 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
     return {
       mese: m, numeri, migliore,
       mediaGruppo: mediaRuolo(dati.persone, dati.valori, p.ruolo, m, dati.voci) as TotaliMese,
+      // indicatori del ruolo (es. App. vendita fix delle coordinatrici): media dei colleghi nel mese
+      mediaIndicatori: new Map(indicatoriRuolo.map((a) => [a.codice, mediaIndicatoreRuolo(dati.persone, dati.valori, p.ruolo, m, a.codice)])),
       punti: gara ? punteggio(valoriMese.filter((v) => v.persona_id === p.id), dati.punti) : null,
       valoreDi: (voce: string) => valoriMese.find((v) => v.persona_id === p.id && v.voce === voce)?.valore ?? null,
     }
@@ -139,6 +142,12 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
   }))
   const mediaPersona = media(compilati.map((r) => r.numeri), codici)
   const mediaColleghi = media(compilati.map((r) => r.mediaGruppo), codici)
+  // indicatori (il numero piccolo in alto, es. il fix): somma, media della persona e media dei colleghi negli stessi mesi
+  const mediaDi = (elenco: (number | null)[]) => { const x = elenco.filter((v): v is number => v !== null); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null }
+  const indicatoriDi = (codice: string) => indicatoriAccanto(dati.voci, codice, p.ruolo)
+  const totaleIndicatore = (a: VoceMensile) => { const x = compilati.map((r) => r.valoreDi(a.codice)).filter((v): v is number => v !== null); return x.length ? x.reduce((s, v) => s + v, 0) : null }
+  const mediaIndicatore = (a: VoceMensile) => mediaDi(compilati.map((r) => r.valoreDi(a.codice)))
+  const mediaIndicatoreColleghi = (a: VoceMensile) => mediaDi(compilati.map((r) => r.mediaIndicatori.get(a.codice) ?? null))
   const voceScelta = colonne.find((v) => v.codice === voceGrafico) ?? colonne[0]
   const nomeVoce = (v: VoceMensile) => `${v.gruppo}${v.sotto ? ` ${v.sotto}` : ''}`
   const classe = (c: string) => {
@@ -187,17 +196,23 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
                 ))}
                 <tr className="riga-totale">
                   <th scope="row" className="ufficio-fisso">Totale <span className="piccolo">{compilati.length} {compilati.length === 1 ? 'mese' : 'mesi'}</span></th>
-                  {colonne.map((v) => <td key={v.codice} className="destra">{formattaNumero(totale.get(v.codice))}</td>)}
+                  {colonne.map((v) => <td key={v.codice} className="destra">
+                    <ValoreConIndicatori valore={totale.get(v.codice) ?? null} tra={indicatoriDi(v.codice).map(totaleIndicatore)} />
+                  </td>)}
                   {gara && <td className="destra">{formattaPunti(compilati.reduce((s, r) => s + (r.punti ?? 0), 0))}</td>}
                 </tr>
                 <tr className="riga-media">
                   <th scope="row" className="ufficio-fisso">Media al mese</th>
-                  {colonne.map((v) => <td key={v.codice} className={`destra ${classe(v.codice)}`}>{formattaMedia(mediaPersona.get(v.codice))}</td>)}
+                  {colonne.map((v) => <td key={v.codice} className={`destra ${classe(v.codice)}`}>
+                    <ValoreConIndicatori valore={mediaPersona.get(v.codice) ?? null} tra={indicatoriDi(v.codice).map(mediaIndicatore)} formato={formattaMedia} />
+                  </td>)}
                   {gara && <td />}
                 </tr>
                 <tr className="riga-media">
                   <th scope="row" className="ufficio-fisso">Media {plurale} <span className="piccolo">stessi mesi</span></th>
-                  {colonne.map((v) => <td key={v.codice} className="destra">{formattaMedia(mediaColleghi.get(v.codice))}</td>)}
+                  {colonne.map((v) => <td key={v.codice} className="destra">
+                    <ValoreConIndicatori valore={mediaColleghi.get(v.codice) ?? null} tra={indicatoriDi(v.codice).map(mediaIndicatoreColleghi)} formato={formattaMedia} />
+                  </td>)}
                   {gara && <td />}
                 </tr>
               </tbody>
@@ -208,6 +223,7 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
           Media al mese: in <span className="t-verde">verde</span> se è almeno come la media degli altri {plurale} negli stessi mesi,
           in <span className="t-rosso">rosso</span> se è sotto (per gli incarichi scaduti al contrario).
           Nel totale, staff e portafoglio sono quelli dell'ultimo mese inserito.{gara && ' Punteggio in giallo: il più alto del mese tra tutti i collaboratori.'}
+          {indicatoriRuolo.map((a) => ` Il numero piccolo in alto (${a.gruppo.toLowerCase()}) nel totale è la somma dei mesi, nelle medie è la media al mese.`).join('')}
         </p>
       </section>
 

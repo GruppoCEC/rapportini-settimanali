@@ -97,9 +97,10 @@ export function annotazioniIndicatori(voci: VoceMensile[], persone: Persona[]) {
   return { usati, annotazioni: new Map(usati.map((v) => [v.accanto_a!, breve(v)])) }
 }
 
-/** Numero con gli indicatori della stessa colonna scritti come esponente (es. 9⁷: 9 appuntamenti, 7 fix) */
-export function ValoreConIndicatori({ valore, tra }: { valore: number | null; tra: (number | null)[] }) {
-  return <>{formattaNumero(valore)}{tra.map((x, i) => x !== null && <sup key={i} className="valore-fix">{formattaNumero(x)}</sup>)}</>
+/** Numero con gli indicatori della stessa colonna scritti come esponente (es. 9⁷: 9 appuntamenti, 7 fix).
+ *  formato: per le medie, che hanno i decimali (es. 12,5⁸·³) */
+export function ValoreConIndicatori({ valore, tra, formato = formattaNumero }: { valore: number | null; tra: (number | null)[]; formato?: (n: number | null) => string }) {
+  return <>{formato(valore)}{tra.map((x, i) => x !== null && <sup key={i} className="valore-fix">{formato(x)}</sup>)}</>
 }
 
 /** Spiega i numeri a esponente */

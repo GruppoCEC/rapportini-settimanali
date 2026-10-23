@@ -59,6 +59,16 @@ export const meseDiServizio = (p: Persona, mese: string) => mesiDiServizio(p.dat
 export interface PuntoCurva { valore: number | null; persone: number }
 
 /**
+ * Media di un indicatore (es. "App. vendita fix" delle coordinatrici) tra i colleghi con lo stesso ruolo in un mese:
+ * tra chi era in servizio e l'ha scritto. Gli indicatori non sono colonne del rapportino, quindi mediaRuolo non li ha.
+ */
+export function mediaIndicatoreRuolo(persone: Persona[], valori: ValoreMensile[], ruolo: RuoloPersona, mese: string, codice: string): number | null {
+  const ids = new Set(persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese)).map((p) => p.id))
+  const presenti = valori.filter((v) => v.mese === mese && v.voce === codice && v.valore !== null && ids.has(v.persona_id)).map((v) => v.valore!)
+  return presenti.length === 0 ? null : presenti.reduce((s, v) => s + v, 0) / presenti.length
+}
+
+/**
  * Curva di crescita: per il 1°, 2°… mese di servizio, la media di una voce tra le persone del ruolo
  * che in quel mese di servizio hanno il numero inserito. Con meno di MINIMO_PERSONE il punto resta vuoto.
  */

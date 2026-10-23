@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrivatoDaTrasferimento, curvaCrescita, daSeguire, media, mediaRuolo, meseDiServizio, nuoviEntrati, numeriPersona, rispettoAllaMedia } from './collaboratori'
+import { arrivatoDaTrasferimento, curvaCrescita, daSeguire, media, mediaIndicatoreRuolo, mediaRuolo, meseDiServizio, nuoviEntrati, numeriPersona, rispettoAllaMedia } from './collaboratori'
 import type { Persona, ValoreMensile, VoceMensile } from './tipi'
 
 const voci: VoceMensile[] = [
@@ -33,6 +33,14 @@ describe('scheda del collaboratore', () => {
     expect(m.get('incarichi_vendita')).toBe(3)          // (4 + 2) ÷ 2: né chi è uscito né la coordinatrice
     expect(m.get('incarichi_scaduti')).toBe(1)
     expect(media([], ['incarichi_vendita']).get('incarichi_vendita')).toBeNull()
+  })
+
+  it('media del fix tra le coordinatrici in servizio che l\'hanno scritto', () => {
+    const coord = [...persone, persona(5, 'coordinatrice', '2021-01-01'), persona(6, 'coordinatrice', '2021-01-01'), persona(7, 'coordinatrice', '2021-01-01', '2026-08-10')]
+    const fix = [val(4, '2026-08-01', 'appuntamenti_vendita_fix', 10), val(5, '2026-08-01', 'appuntamenti_vendita_fix', 20),
+      val(6, '2026-08-01', 'appuntamenti_vendita_fix', null), val(7, '2026-08-01', 'appuntamenti_vendita_fix', 90), val(1, '2026-08-01', 'appuntamenti_vendita_fix', 70)]
+    expect(mediaIndicatoreRuolo(coord, fix, 'coordinatrice', '2026-08-01', 'appuntamenti_vendita_fix')).toBe(15)   // (10 + 20) ÷ 2
+    expect(mediaIndicatoreRuolo(coord, fix, 'coordinatrice', '2026-07-01', 'appuntamenti_vendita_fix')).toBeNull()
   })
 
   it('confronta con la media, al contrario per le voci "meglio se scende"', () => {

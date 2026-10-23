@@ -1,5 +1,11 @@
 # Storia delle versioni
 
+## 0.19.1 — 23 ottobre 2026
+
+**Scheda della persona: anche il fix delle coordinatrici** (richiesta di Davide):
+- in **Report mensile → Collaboratori → Scheda della persona**, per le coordinatrici il numero piccolo in alto negli appuntamenti vendita (il fix) compare anche nelle righe in fondo: nel **Totale** è la somma dei mesi, in **Media al mese** e in **Media coordinatrici** è la media al mese (per i colleghi: tra le coordinatrici in servizio che l'hanno scritto, negli stessi mesi);
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.19.0 — 22 ottobre 2026
 
 **Rapportini mensili degli uffici, persona per persona** (scansioni dei mesi del 2026, decisioni di Davide):
