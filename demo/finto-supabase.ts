@@ -239,8 +239,10 @@ for (let mese = `${meseDaCompilare.slice(0, 4)}-01-01`; mese < mesiDemo[0]; mese
   }
 }
 
-// Scadenza di esempio per il mese da compilare: il 5 del mese dopo alle 23:59, senza blocco
-const scadenze_mensili: any[] = [{ mese: meseDaCompilare, scadenza: new Date(`${aggiungiMesi(meseDaCompilare, 1).slice(0, 8)}05T23:59:00`).toISOString(), blocca: false }]
+// Scadenza di esempio per il mese da compilare: fra una settimana alle 10, con il blocco (come la riunione di fine mese),
+// così la demo mostra sempre "Da compilare entro il …" (utile anche per il video tutorial, docs/GUIDA_VIDEO_RAPPORTINO_MENSILE.md)
+const fraUnaSettimana = new Date(Date.now() + 7 * 86400000); fraUnaSettimana.setHours(10, 0, 0, 0)
+const scadenze_mensili: any[] = [{ mese: meseDaCompilare, scadenza: fraUnaSettimana.toISOString(), blocca: true }]
 // il mese prima è già chiuso con il blocco: gli uffici vedono il report del gruppo (018)
 scadenze_mensili.push({ mese: aggiungiMesi(meseDaCompilare, -1), scadenza: new Date(Date.now() - 2 * 86400000).toISOString(), blocca: true })
 

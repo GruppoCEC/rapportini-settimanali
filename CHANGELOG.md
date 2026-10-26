@@ -6,6 +6,8 @@
 - **causa**: non è un errore di calcolo. Un passaggio si calcola solo con almeno 5 casi nella fase di partenza, e nelle ultime 4 settimane (28/9–25/10) **solo 5 uffici su 47** avevano almeno 5 proposte; per gli altri compariva "—", con accanto il valore di Roma;
 - **ora**, con meno di 5 casi, al posto del "—" si vedono **i numeri veri**: *"2 su 3 · pochi casi"* (nell'imbuto grande: *"2 vendite su 3 proposte (pochi casi)"*), in grigio e **senza** il confronto verde/arancio con Roma, perché un rapporto su 2–3 casi sarebbe casuale. Da 5 casi in su resta *"1 vendita ogni N proposte"*, colorato. Vale nella presentazione (settimana e mese), nella tabella ufficio per ufficio del mese e in Il mio ufficio;
 - la presentazione del **mese** calcola già l'imbuto sugli **ultimi 3 mesi** (il mese presentato e i due prima);
+- nel riquadro **Personale dell'ufficio** (Inserisci mese) la spiegazione di *Ha lasciato* diceva ancora la regola vecchia ("non conta già dal mese in cui esce"): ora dice quella in vigore dalla 0.21.0 (nel mese in cui esce resta con la riga rossa, i numeri contano nel totale ma non nello staff né nella gara);
+- nuova guida per il video tutorial del rapportino mensile degli uffici: `docs/GUIDA_VIDEO_RAPPORTINO_MENSILE.md`. Nella demo la scadenza del mese da compilare è ora fra una settimana, con la chiusura;
 - nessuna modifica al database: basta pubblicare (Push).
 
 ## 0.23.0 — 26 ottobre 2026

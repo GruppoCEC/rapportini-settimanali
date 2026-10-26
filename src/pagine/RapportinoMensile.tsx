@@ -323,7 +323,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
       <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="users-three" /></span>Personale dell'ufficio</h2>
       <p className="piccolo">
         Il personale si inserisce una volta sola e vale per tutti i mesi, a partire dalla data di inizio.
-        Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong>, indica l'ultimo giorno e il motivo (ha lasciato il gruppo, promosso a responsabile oppure trasferito in un altro ufficio: in quel caso crealo anche nel nuovo ufficio): non conta già dal mese in cui esce (niente riga nel rapportino, totali, staff né gara), ma i suoi numeri dei mesi precedenti restano.
+        Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong>, indica l'ultimo giorno e il motivo (ha lasciato il gruppo, promosso a responsabile oppure trasferito in un altro ufficio: in quel caso crealo anche nel nuovo ufficio). Nel mese in cui esce resta nel rapportino con la riga rossa: i suoi numeri di quel mese contano nel totale dell'ufficio, ma non nello staff né nella gara a punti. Dal mese dopo non compare più; i suoi numeri dei mesi precedenti restano.
       </p>
       {errore && <p className="errore-box" role="alert"><Icona nome="warning-circle" />{errore}</p>}
 
