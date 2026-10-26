@@ -14,7 +14,8 @@
 //
 // Variabili richieste: SUPABASE_URL, SUPABASE_SERVICE_KEY, GMAIL_UTENTE,
 // GMAIL_PASSWORD_APP, SITO_URL. Facoltative: TIPO (forza sabato | lunedi |
-// mensile_3giorni | mensile_vigilia | mensile_riepilogo), MESE (AAAA-MM, per i tipi
+// mensile_3giorni | mensile_vigilia | mensile_riepilogo; "automatico" = come l'orario
+// programmato: è quello che manda l'orologio di Supabase, supabase/PROMEMORIA_PUNTUALI.sql), MESE (AAAA-MM, per i tipi
 // mensili forzati; se manca, il mese appena concluso), EMAIL_PROVA (manda tutto solo
 // a questo indirizzo, senza registrare l'invio).
 // =====================================================================
@@ -33,7 +34,8 @@ const env = (nome, obbligatoria = true) => {
 
 const adesso = inItalia(new Date())
 const oggi = adesso.data
-const tipoForzato = env('TIPO', false)
+// "automatico" (avvio dall'orologio di Supabase) vale come l'esecuzione programmata: decide l'orario
+const tipoForzato = env('TIPO', false) === 'automatico' ? null : env('TIPO', false)
 if (tipoForzato && ![...TIPI_SETTIMANALI, ...TIPI_MENSILI].includes(tipoForzato)) throw new Error(`TIPO non valido: ${tipoForzato}`)
 
 // Finché i segreti non sono inseriti su GitHub (passo 8 di docs/GUIDA_SETUP.md), le esecuzioni

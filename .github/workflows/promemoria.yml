@@ -6,6 +6,9 @@
 # settimanale, e il mensile 3 giorni prima, il giorno prima e il giorno dopo la scadenza.
 # Il lunedì alle 9:30 l'ultimo settimanale: lo script lo manda solo fino alle 11:30,
 # prima delle riunioni (Milano alle 12, Roma alle 13).
+# GitHub però può partire con ore di ritardo: per questo l'orologio di Supabase
+# (supabase/PROMEMORIA_PUNTUALI.sql) avvia lo stesso workflow agli stessi orari con
+# tipo "automatico", che parte subito. Gli orari qui sotto restano come riserva.
 name: Promemoria
 
 on:
@@ -19,7 +22,7 @@ on:
         required: true
         default: sabato
         type: choice
-        options: [sabato, lunedi, mensile_3giorni, mensile_vigilia, mensile_riepilogo]
+        options: [sabato, lunedi, mensile_3giorni, mensile_vigilia, mensile_riepilogo, automatico]
       mese:
         description: 'Solo per i promemoria mensili: il mese, es. 2026-09 (vuoto = il mese appena concluso)'
         required: false

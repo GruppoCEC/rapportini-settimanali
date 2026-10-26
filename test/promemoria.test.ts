@@ -17,6 +17,11 @@ describe('promemoria settimanali', () => {
     expect(tipoSettimanale(inItalia('2026-10-17T10:00:00Z'))).toBe('sabato')
     expect(tipoSettimanale(inItalia('2026-11-21T10:00:00Z'))).toBe('sabato')
   })
+  it('il sabato fino alle 15, quando gli uffici chiudono', () => {
+    expect(tipoSettimanale(inItalia('2026-10-24T12:32:00Z'))).toBe('sabato')    // 14:32 con l'ora legale (GitHub in ritardo)
+    expect(tipoSettimanale(inItalia('2026-11-21T13:59:00Z'))).toBe('sabato')    // 14:59 con l'ora solare
+    expect(tipoSettimanale(inItalia('2026-11-21T14:00:00Z'))).toBe(null)        // 15:00: troppo tardi
+  })
   it('lunedì alle 9:30 italiane, giorno della riunione', () => {
     expect(tipoSettimanale(inItalia('2026-10-19T07:30:00Z'))).toBe('lunedi')    // ora legale: 9:30
     expect(tipoSettimanale(inItalia('2026-11-23T07:30:00Z'))).toBe(null)        // ora solare: 8:30, troppo presto

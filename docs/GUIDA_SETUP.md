@@ -126,7 +126,7 @@ li creerai dalla pagina **Amministrazione** della piattaforma.
 I promemoria partono da GitHub:
 
 - **rapportino settimanale**, agli uffici che non hanno inserito nulla:
-  - il sabato alle 10, per la settimana in corso;
+  - il sabato alle 10, per la settimana in corso (al massimo fino alle 15, quando gli uffici chiudono);
   - il lunedì della riunione alle 9:30, per la settimana appena chiusa. Se GitHub è in ritardo, questa
     email parte al massimo fino alle 11:30, così arriva prima delle riunioni (Milano alle 12, Roma alle 13);
 - **rapportino mensile**: alle 10, 3 giorni prima e il giorno prima della scadenza, agli uffici che non hanno
@@ -158,6 +158,35 @@ I promemoria partono da GitHub:
    mese non ha una scadenza, si usa la proposta: il 5 del mese dopo alle 23:59.
 7. Quando le prove vanno bene, chiedi a Claude di mettere `PROMEMORIA_ATTIVI = true`: il sito
    comincerà ad annunciare i promemoria agli uffici.
+
+### Orologio di Supabase: promemoria puntuali
+
+GitHub fa partire le azioni programmate anche con **ore di ritardo** (sabato 24/10/2026 alle 14:32 invece
+che alle 10). Per questo è l'orologio di Supabase ad avviare i promemoria all'ora giusta: chiede a GitHub di
+partire **subito**, come il pulsante *Run workflow*. Serve una chiave di GitHub che può solo avviare le azioni.
+
+1. Su GitHub: foto in alto a destra → **Settings** → in fondo a sinistra **Developer settings** →
+   **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
+2. Compila così:
+   - *Token name*: `Promemoria rapportini (Supabase)`;
+   - *Resource owner*: **GruppoCEC**;
+   - *Expiration*: la durata più lunga che GitHub permette (segnati la data: alla scadenza va rifatta);
+   - *Repository access*: **Only select repositories** → `rapportini-settimanali`;
+   - *Permissions* → **Repository permissions** → **Actions**: **Read and write** (il resto lascialo com'è).
+3. **Generate token** e copia la chiave (comincia con `github_pat_`). ⚠️ È segreta: va **solo** nel punto 5.
+4. Se GitHub dice che la chiave aspetta l'approvazione dell'organizzazione: pagina di **GruppoCEC** →
+   **Settings** → **Personal access tokens** → **Pending requests** → **Approve**.
+5. In Supabase → **SQL Editor** → **New query**, scrivi questa riga mettendo la chiave al posto di
+   `LA_CHIAVE` (tra gli apici) e premi **Run**:
+   `select vault.create_secret('LA_CHIAVE', 'github_promemoria');`
+   Per cambiarla quando scade: `select vault.update_secret((select id from vault.secrets where name = 'github_promemoria'), 'LA_CHIAVE_NUOVA');`
+6. Sempre nel SQL Editor esegui `supabase/PROMEMORIA_PUNTUALI.sql` (si può rieseguire senza danni).
+7. **Prova**: esegui `select avvia_promemoria();`, aspetta 10 secondi ed esegui
+   `select status_code, content from net._http_response order by id desc limit 1;`.
+   **204** = tutto a posto: su GitHub, in **Actions → Promemoria**, compare un'esecuzione appena partita
+   (se non è l'ora di un promemoria, lo script non invia niente). **401** = chiave sbagliata o scaduta;
+   **403/404** = la chiave non ha il permesso *Actions* o non è approvata; **422** = sul sito non è ancora
+   pubblicata la versione 0.20.0 (fai prima il Push).
 
 > **Se Google blocca il Gmail dei rapportini** ("Non è stato possibile verificare la tua identità",
 > succede con gli account creati da pochi giorni): usa intanto un Gmail più vecchio, ripetendo i punti

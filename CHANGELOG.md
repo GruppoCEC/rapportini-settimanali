@@ -1,5 +1,14 @@
 # Storia delle versioni
 
+## 0.20.0 — 26 ottobre 2026
+
+**Promemoria puntuali** (segnalato da Davide: questa settimana non erano arrivati):
+- **causa**: GitHub fa partire le azioni programmate anche con ore di ritardo. Sabato 24/10 il promemoria è partito alle 14:32, fuori dall'orario, e lo script non ha inviato niente; dal 18/10 arrivava una sola esecuzione al giorno, verso le 14–15. Lunedì 26/10 Davide l'ha mandato a mano alle 9:02 (27 email);
+- **orologio di Supabase**: da ora è il database (pg_cron) ad avviare i promemoria agli orari giusti, chiedendo a GitHub di partire subito, come il pulsante *Run workflow*: ogni giorno alle 10 (più un tentativo alle 11) e il lunedì alle 9:30 (più un tentativo alle 10:15). Lo script decide se in quel momento tocca un promemoria e ogni email parte una volta sola. Gli orari di GitHub restano come riserva;
+- nel workflow c'è il nuovo tipo **automatico** (quello usato da Supabase); a mano si continua a scegliere `sabato`, `lunedi`, ecc.;
+- **il sabato** il promemoria può partire fino alle **15:00** (prima fino alle 13): gli uffici chiudono verso quell'ora (Davide);
+- **da fare una volta**, in quest'ordine: pubblicare (Push); creare la chiave di GitHub e metterla nel Vault di Supabase; eseguire `supabase/PROMEMORIA_PUNTUALI.sql`; provarla. Passo per passo in `docs/GUIDA_SETUP.md`, Passo 8 → *Orologio di Supabase*.
+
 ## 0.19.2 — 23 ottobre 2026
 
 **Stampa della scheda della persona su una pagina** (segnalato da Davide: il grafico finiva tagliato sulla pagina dopo):

@@ -17,10 +17,11 @@ export const FINESTRA_ORE = 3
 /**
  * Promemoria settimanali: giorno e orari italiani in cui possono partire ('HH:MM', dalle … fino a prima delle …).
  * Il lunedì la finestra si chiude alle 11:30, così l'email arriva prima delle riunioni
- * (Milano alle 12, Roma alle 13) anche se GitHub parte in ritardo.
+ * (Milano alle 12, Roma alle 13) anche se GitHub parte in ritardo. Il sabato alle 15:
+ * gli uffici chiudono verso quell'ora, dopo è inutile (Davide, 26/10/2026).
  */
 export const PROMEMORIA_SETTIMANALI = {
-  sabato: { giorno: 'Sat', da: '10:00', a: '13:00' },
+  sabato: { giorno: 'Sat', da: '10:00', a: '15:00' },
   lunedi: { giorno: 'Mon', da: '09:30', a: '11:30' },
 }
 
