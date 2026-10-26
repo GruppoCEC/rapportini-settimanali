@@ -174,6 +174,9 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
         <SceltaMese mese={mese} onCambia={(m) => conPermesso(() => setMese(m))} />
       </div>
 
+      {/* dopo la scadenza con il blocco l'ufficio vede e stampa il report di tutto il gruppo, in cima alla pagina (018) */}
+      {scadenza?.blocca && scadenzaPassata(scadenza) && <ReportGruppoUfficio key={mese} mese={mese} ufficioId={ufficioId} voci={voci} />}
+
       <section className="scheda entra entra-1">
         <h2 className="titolo-icona"><span className="icona-quadrata icona-blu"><Icona nome="calendar-check" /></span>Numeri di {titoloMese(mese).toLowerCase()}</h2>
         <p className="piccolo">
@@ -196,9 +199,6 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
           testo={(pid, voce) => caselle[chiave(pid, voce)] ?? ''}
           onCambia={(pid, voce, valore) => { setCaselle((c) => ({ ...c, [chiave(pid, voce)]: valore })); setMessaggio(null) }} />
       </section>
-
-      {/* dopo la scadenza con il blocco l'ufficio vede e stampa il report di tutto il gruppo (018) */}
-      {scadenza?.blocca && scadenzaPassata(scadenza) && <ReportGruppoUfficio key={mese} mese={mese} ufficioId={ufficioId} voci={voci} />}
 
       <Personale persone={persone} ufficioId={ufficioId} mese={mese} onCambiato={ricaricaPersone} chiedi={chiedi} mostraToast={mostraToast} bloccato={inProva} />
 

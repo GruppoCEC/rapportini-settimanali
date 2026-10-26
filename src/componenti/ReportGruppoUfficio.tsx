@@ -31,7 +31,7 @@ export default function ReportGruppoUfficio({ mese, ufficioId, voci }: { mese: s
   const riga = (id: number, nome: string, t: TotaliMese) => (
     <tr key={id} className={id === ufficioId ? 'riga-migliore' : ''}>
       <th scope="row" className="ufficio-fisso">
-        {nome}{id === ufficioId && <span className="tag tag-migliore tag-movimento">Il vostro ufficio</span>}
+        {nome}
       </th>
       {codici.map((c) => <td key={c} className={`destra ${t.get(c) == null ? 'cella-vuota' : ''}`}>{formattaNumero(t.get(c))}</td>)}
     </tr>
