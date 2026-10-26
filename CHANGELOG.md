@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.23.0 — 26 ottobre 2026
+
+**La riunione settimanale che salta per la riunione di fine mese** (richiesta di Davide: martedì 3 novembre c'è la riunione di fine mese, quindi lunedì 2 novembre non c'è quella settimanale):
+- in **Report mensile → Panoramica**, accanto alla scadenza, c'è la casella **"Salta la riunione settimanale di lunedì …"**. Si spunta mese per mese, quando la riunione di fine mese è troppo vicina al lunedì. Il lunedì è quello più vicino al giorno della scadenza: quello della stessa settimana se la riunione è da lunedì a giovedì, quello dopo se è da venerdì a domenica (la data si legge accanto alla casella);
+- con la casella spuntata, **quel lunedì non parte il promemoria settimanale** ("Oggi c'è la riunione…"); **il sabato prima** l'email parte lo stesso, ma dice *"Lunedì … non c'è la riunione settimanale, ma vi chiediamo di inserirli comunque appena possibile"*. I dati della settimana si inseriscono come sempre;
+- i promemoria del mensile e l'ultima chiamata non cambiano; mandato a mano (Run workflow → `lunedi`), il promemoria del lunedì parte comunque;
+- **da fare una volta in Supabase**: eseguire `supabase/migrations/019_salta_riunione_settimanale.sql`, poi pubblicare (Push), poi spuntare la casella per ottobre. Provato con le prove automatiche (196) e nella demo.
+
 ## 0.22.0 — 26 ottobre 2026
 
 **Ultima chiamata del rapportino mensile** (richiesta di Davide):

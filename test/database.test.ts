@@ -824,11 +824,21 @@ describe('Chi esce nel mese, report di gruppo per gli uffici, locazioni effettua
   })
 })
 
+describe('Riunione settimanale che salta (019)', () => {
+  it('la casella vale "no" se non la spunta nessuno e la cambia solo l\'amministratore generale', async () => {
+    await db.exec(`insert into scadenze_mensili (mese, scadenza) values ('2026-07-01', now() + interval '1 day') on conflict (mese) do nothing`)
+    expect((await come<{ salta_lunedi: boolean }>('a@test.it', `select salta_lunedi from scadenze_mensili where mese = '2026-07-01'`))[0].salta_lunedi).toBe(false)
+    expect(await come('adminmi@test.it', `update scadenze_mensili set salta_lunedi = true where mese = '2026-07-01' returning *`)).toHaveLength(0)
+    expect(await come('davide@test.it', `update scadenze_mensili set salta_lunedi = true where mese = '2026-07-01' returning *`)).toHaveLength(1)
+    await db.exec(`delete from scadenze_mensili where mese = '2026-07-01'`)
+  })
+})
+
 describe('Migrazioni rieseguite', () => {
-  it('006–018 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–019 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
     const note = (await db.query(`select * from note_settimana order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql', '016_storico_voce_per_voce.sql', '017_ruolo_da_definire_trasferimenti.sql', '018_uscite_nel_mese_report_uffici_locazioni.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql', '016_storico_voce_per_voce.sql', '017_ruolo_da_definire_trasferimenti.sql', '018_uscite_nel_mese_report_uffici_locazioni.sql', '019_salta_riunione_settimanale.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

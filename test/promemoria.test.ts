@@ -2,9 +2,9 @@
 // quando parte ogni email e quali uffici risultano senza rapportino mensile.
 import { describe, expect, it } from 'vitest'
 import {
-  chiaveMensile, dalAl, inItalia, oraMensile, promemoriaMensiliDiOggi, ultimaChiamataAdesso, TIPI_MENSILI, settimanaDelPromemoria, statoMensile as statoScript, tipoSettimanale,
+  chiaveMensile, dalAl, inItalia, lunediDelPromemoria, lunediSaltati, lunediVicino as lunediScript, oraMensile, promemoriaMensiliDiOggi, ultimaChiamataAdesso, TIPI_MENSILI, settimanaDelPromemoria, statoMensile as statoScript, tipoSettimanale,
 } from '../scripts/promemoria-calendario.mjs'
-import { statoMensile as statoSito, inServizio } from '../src/lib/mensile'
+import { statoMensile as statoSito, inServizio, lunediVicino as lunediSito } from '../src/lib/mensile'
 import type { Persona, ValoreMensile, VoceMensile } from '../src/lib/tipi'
 
 // Orari di GitHub (UTC) → ora italiana, con e senza ora legale
@@ -128,5 +128,32 @@ describe('ultima chiamata del mensile (30 minuti prima della scadenza con il blo
   })
   it('si può anche mandare a mano dal workflow', () => {
     expect(TIPI_MENSILI).toContain('mensile_ultima_chiamata')
+  })
+})
+
+describe('riunione settimanale che salta per la riunione di fine mese (019)', () => {
+  it('il lunedì che salta è il più vicino alla riunione di fine mese', () => {
+    expect(lunediScript('2026-11-03')).toBe('2026-11-02')   // martedì → il lunedì prima
+    expect(lunediScript('2026-11-02')).toBe('2026-11-02')   // lunedì → quello stesso
+    expect(lunediScript('2026-11-05')).toBe('2026-11-02')   // giovedì → il lunedì prima
+    expect(lunediScript('2026-10-30')).toBe('2026-11-02')   // venerdì → il lunedì dopo
+    expect(lunediScript('2026-11-01')).toBe('2026-11-02')   // domenica → il lunedì dopo
+  })
+  it('sito e promemoria usano la stessa regola', () => {
+    for (let g = 1; g <= 30; g++) {
+      const giorno = `2026-11-${String(g).padStart(2, '0')}`
+      expect(lunediSito(giorno)).toBe(lunediScript(giorno))
+    }
+  })
+  it('salta solo con la casella spuntata; il sabato prima riguarda lo stesso lunedì', () => {
+    const ottobre = { mese: '2026-10-01', scadenza: '2026-11-03T09:00:00Z', blocca: true }   // martedì 3 novembre alle 10
+    expect([...lunediSaltati([ottobre])]).toEqual([])
+    expect([...lunediSaltati([{ ...ottobre, salta_lunedi: true }])]).toEqual(['2026-11-02'])
+    expect(lunediDelPromemoria('lunedi', '2026-11-02')).toBe('2026-11-02')
+    expect(lunediDelPromemoria('sabato', '2026-10-31')).toBe('2026-11-02')
+  })
+  it('una scadenza a mezzanotte conta nel giorno italiano', () => {
+    // 5 ottobre alle 23:59 italiane = 21:59 UTC (lunedì): salta il 5 ottobre
+    expect([...lunediSaltati([{ mese: '2026-09-01', scadenza: '2026-10-05T21:59:00Z', blocca: false, salta_lunedi: true }])]).toEqual(['2026-10-05'])
   })
 })

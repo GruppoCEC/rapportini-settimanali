@@ -9,7 +9,7 @@ import { AvvisoProva } from './RapportinoMensile'
 import Collaboratori from './Collaboratori'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
-  punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, dataOra, scadenzaPassata, scadenzaProposta, ultimoRitardo,
+  punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, dataOra, lunediVicino, scadenzaPassata, scadenzaProposta, ultimoRitardo,
   indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleConStorico, variazione,
   presenteNelMese, vociDelRapportino, vociRiservate, type TotaliMese,
 } from '../lib/mensile'
@@ -260,19 +260,26 @@ function perCasella(iso: string): string {
   return `${d.getFullYear()}-${due(d.getMonth() + 1)}-${due(d.getDate())}T${due(d.getHours())}:${due(d.getMinutes())}`
 }
 
+/** Es. "lunedì 2 novembre" */
+const giornoLungo = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
+
 function GestioneScadenza({ dati, mese, modificabile, onSalvato }: { dati: DatiMese; mese: string; modificabile: boolean; onSalvato: () => void }) {
   const s = dati.scadenza
   const [quando, setQuando] = useState(s ? perCasella(s.scadenza) : scadenzaProposta(mese))
   const [blocca, setBlocca] = useState(s?.blocca ?? false)
+  const [saltaLunedi, setSaltaLunedi] = useState(s?.salta_lunedi ?? false)
   const [stato, setStato] = useState<'pronto' | 'salvataggio'>('pronto')
   const [errore, setErrore] = useState<string | null>(null)
   const [toast, mostraToast] = useToast()
-  useEffect(() => { setQuando(s ? perCasella(s.scadenza) : scadenzaProposta(mese)); setBlocca(s?.blocca ?? false) }, [s, mese])
+  useEffect(() => { setQuando(s ? perCasella(s.scadenza) : scadenzaProposta(mese)); setBlocca(s?.blocca ?? false); setSaltaLunedi(s?.salta_lunedi ?? false) }, [s, mese])
 
   const passata = scadenzaPassata(s)
   const inRitardo = dati.uffici.filter((u) => u.ritardo).sort((a, b) => a.ritardo!.localeCompare(b.ritardo!))
   const mancanti = dati.uffici.filter((u) => u.stato === 'mancante')
-  const modificata = !s || perCasella(s.scadenza) !== quando || s.blocca !== blocca
+  const modificata = !s || perCasella(s.scadenza) !== quando || s.blocca !== blocca || (s.salta_lunedi ?? false) !== saltaLunedi
+  // lunedì della riunione settimanale che può saltare per la riunione di fine mese (019): quello più vicino alla scadenza
+  const lunedi = quando ? lunediVicino(quando.slice(0, 10)) : null
+  const lunediSalvato = s?.salta_lunedi ? lunediVicino(perCasella(s.scadenza).slice(0, 10)) : null
 
   async function esegui(promessa: PromiseLike<{ error: { message: string } | null }>, testo: string) {
     setStato('salvataggio')
@@ -296,13 +303,19 @@ function GestioneScadenza({ dati, mese, modificabile, onSalvato }: { dati: DatiM
       {s && PROMEMORIA_ATTIVI && (
         <p className="piccolo">Promemoria email agli uffici che non hanno inserito nulla: 3 giorni prima e il giorno prima della scadenza, alle 10{s.blocca ? ', e 30 minuti prima della scadenza ("ultimi 30 minuti, poi l\'inserimento sarà bloccato")' : ''}. Il giorno dopo l'amministratore generale riceve il riepilogo.</p>
       )}
+      {lunediSalvato && (
+        <p className="piccolo"><strong>{giornoLungo(lunediSalvato).replace(/^./, (c) => c.toUpperCase())} la riunione settimanale salta</strong> per la riunione di fine mese{PROMEMORIA_ATTIVI ? ': quel lunedì non parte il promemoria settimanale; quello del sabato prima avvisa che la riunione non c\'è e chiede di inserire i dati comunque' : ''}.</p>
+      )}
       {modificabile && (
         <div className="riga-modulo">
           <label className="campo"><span className="etichetta">Data e ora di scadenza</span>
             <input type="datetime-local" value={quando} onChange={(e) => setQuando(e.target.value)} /></label>
           <label className="casella-spunta"><input type="checkbox" checked={blocca} onChange={(e) => setBlocca(e.target.checked)} />Dopo la scadenza blocca l'inserimento agli uffici</label>
+          {lunedi && <label className="casella-spunta"><input type="checkbox" checked={saltaLunedi} onChange={(e) => setSaltaLunedi(e.target.checked)} />Salta la riunione settimanale di {giornoLungo(lunedi)}</label>}
           <button className="btn btn-primario" disabled={!quando || !modificata || stato !== 'pronto'}
-            onClick={() => esegui(supabase.from('scadenze_mensili').upsert({ mese, scadenza: new Date(quando).toISOString(), blocca }, { onConflict: 'mese' }), 'Scadenza salvata.')}>
+            onClick={() => esegui(supabase.from('scadenze_mensili').upsert({ mese, scadenza: new Date(quando).toISOString(), blocca,
+              // salta_lunedi solo se la colonna c'è (019) o se è spuntata: senza la 019 il salvataggio non si ferma
+              ...(saltaLunedi || s?.salta_lunedi !== undefined ? { salta_lunedi: saltaLunedi } : {}) }, { onConflict: 'mese' }), 'Scadenza salvata.')}>
             <Icona nome="floppy-disk" />{s ? 'Aggiorna scadenza' : 'Fissa la scadenza'}
           </button>
           {s && <button className="btn btn-fantasma btn-pericolo" disabled={stato !== 'pronto'} onClick={() => esegui(supabase.from('scadenze_mensili').delete().eq('mese', mese), 'Scadenza tolta.')}>Togli la scadenza</button>}

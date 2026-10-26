@@ -4,7 +4,7 @@
 // - Totale di gruppo = somma di tutti gli uffici (nell'Excel la formula dimenticava Villa Lais).
 // - Variazione = (mese − stesso mese dell'anno prima) ÷ anno prima; vuota se non calcolabile (mai #DIV/0!).
 import type { StatoCompilazione } from './aggregazioni'
-import { aggiungiGiorni, nomeMese, oggiISO } from './settimane'
+import { aggiungiGiorni, lunediDi, nomeMese, oggiISO } from './settimane'
 import type { Persona, RuoloPersona, Scadenza, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
 
 /** Chiave dello staff nei totali (non è una colonna da compilare) */
@@ -424,6 +424,16 @@ export function ultimoRitardo(valori: ValoreMensile[], s: Scadenza | null): stri
 export function dataOra(iso: string): string {
   const d = new Date(iso)
   return `${d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })} alle ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+/**
+ * Lunedì della riunione settimanale che salta per la riunione di fine mese (019): il lunedì più vicino al giorno della
+ * scadenza, quello della stessa settimana se la riunione è da lunedì a giovedì, altrimenti quello dopo.
+ * Stessa regola dei promemoria (lunediVicino in scripts/promemoria-calendario.mjs). giorno: 'AAAA-MM-GG'.
+ */
+export function lunediVicino(giorno: string): string {
+  const giornoSettimana = (new Date(`${giorno}T00:00:00Z`).getUTCDay() + 6) % 7   // 0 = lunedì … 6 = domenica
+  return giornoSettimana <= 3 ? lunediDi(giorno) : aggiungiGiorni(lunediDi(giorno), 7)
 }
 
 /** Scadenza proposta per un mese: il 5 del mese dopo alle 23:59 (formato della casella data e ora) */

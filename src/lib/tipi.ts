@@ -131,4 +131,5 @@ export interface Scadenza {
   mese: string                // 'AAAA-MM-01'
   scadenza: string            // data e ora (ISO)
   blocca: boolean             // dopo la scadenza gli uffici non possono più scrivere
+  salta_lunedi?: boolean      // la riunione settimanale del lunedì più vicino non c'è (019; manca prima della 019)
 }

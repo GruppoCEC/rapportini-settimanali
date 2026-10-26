@@ -3,6 +3,8 @@
 // Rapportino settimanale:
 //   sabato 10:00  → email agli uffici che non hanno ancora inserito nulla della settimana in corso
 //   lunedì 9:30   → ultimo promemoria, il giorno della riunione, a chi manca ancora la settimana appena chiusa
+//   (se per la riunione di fine mese la riunione del lunedì salta, quel lunedì niente promemoria e il sabato
+//   prima l'email non la nomina: casella "salta la riunione settimanale" accanto alla scadenza del mensile, 019)
 // Rapportino mensile (solo se il mensile è aperto agli uffici e il mese ha una scadenza
 // fissata in Report mensile → Panoramica), ogni volta alle 10:00:
 //   3 giorni prima della scadenza → email agli uffici che non hanno inserito nulla
@@ -23,7 +25,7 @@
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import {
-  aggiungiGiorni, aggiungiMesi, chiaveMensile, dalAl, inItalia, inServizio, oraMensile,
+  aggiungiGiorni, aggiungiMesi, chiaveMensile, dalAl, inItalia, inServizio, lunediDelPromemoria, lunediSaltati, oraMensile,
   promemoriaMensiliDiOggi, settimanaDelPromemoria, statoMensile, tipoSettimanale, ultimaChiamataAdesso, ultimoRitardo, TIPI_MENSILI, TIPI_SETTIMANALI,
   ULTIMA_CHIAMATA_MINUTI,
 } from './promemoria-calendario.mjs'
@@ -149,7 +151,8 @@ const pagina = (contenuto) => `<div style="font-family:Arial,Helvetica,sans-seri
 
 const TESTI = {
   // Settimanale: sabato alle 10 (primo) e lunedì alle 9:30, giorno della riunione (ultimo)
-  settimanale: ({ tipo, ufficio, settimana }) => {
+  // Con saltaLunedi (la data del lunedì) la riunione di quel lunedì non c'è: il sabato si chiede di inserirli comunque
+  settimanale: ({ tipo, ufficio, settimana, saltaLunedi }) => {
     const ultimo = tipo === 'lunedi'
     return {
       oggetto: `${ultimo ? 'Ultimo promemoria' : 'Promemoria'}: dati della settimana ${settimana}`,
@@ -158,6 +161,8 @@ const TESTI = {
         <p>per l'ufficio <strong>${ufficio}</strong> non risultano ancora inseriti i dati della settimana <strong>${settimana}</strong>.</p>
         <p>${ultimo
           ? 'Oggi c\'è la riunione: vi chiediamo di inserirli <strong>subito, prima che inizi</strong>.'
+          : saltaLunedi
+          ? `Lunedì ${formattaData(saltaLunedi)} non c'è la riunione settimanale, ma vi chiediamo di inserirli comunque <strong>appena possibile</strong>.`
           : 'Vi chiediamo di inserirli <strong>entro domenica sera</strong>, così saranno pronti per la riunione di lunedì.'}</p>
         ${pulsante('Inserisci i dati della settimana')}${aiuto}`),
     }
@@ -209,7 +214,8 @@ async function scrittiDagliUffici(settimana) {
   }
 }
 
-async function settimanale(tipo) {
+/** saltaLunedi: data del lunedì senza riunione a cui servirebbe questo promemoria (null se la riunione c'è) */
+async function settimanale(tipo, saltaLunedi = null) {
   const settimana = settimanaDelPromemoria(tipo, oggi)
   const intervallo = dalAl(settimana, aggiungiGiorni(settimana, 6))
   const conDati = new Set((await scrittiDagliUffici(settimana)).map((r) => r.ufficio_id))
@@ -217,7 +223,7 @@ async function settimanale(tipo) {
   for (const u of mancanti) {
     const dest = emailUfficio(u)
     if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
-    const { oggetto, html } = TESTI.settimanale({ tipo, ufficio: u.nome, settimana: intervallo })
+    const { oggetto, html } = TESTI.settimanale({ tipo, ufficio: u.nome, settimana: intervallo, saltaLunedi })
     if (await inviaUnaVolta({ tipo, settimana }, perUfficio(u), dest, oggetto, html)) console.log(`✓ ${u.nome} → ${dest.join(', ')}`)
   }
   console.log(`Settimana ${intervallo}: uffici mancanti ${mancanti.length}`)
@@ -315,8 +321,20 @@ async function scadenzaPerProva(mese) {
 
 // ---------- Cosa tocca adesso ----------
 const daFare = []
+// si guardano i mesi vicini: la scadenza di solito è all'inizio del mese dopo.
+// Tutte le colonne: salta_lunedi c'è solo dopo la 019 (prima vale "la riunione del lunedì c'è sempre")
+const meseOggi = `${oggi.slice(0, 7)}-01`
+const scadenzeVicine = () => tutte('scadenze_mensili', '*',
+  (q) => q.gte('mese', aggiungiMesi(meseOggi, -3)).lte('mese', meseOggi))
+/** Il promemoria settimanale di oggi, tranne il lunedì in cui la riunione salta per quella di fine mese (a mano parte lo stesso) */
+function promemoriaSettimanale(tipo, scadenze, forzato = false) {
+  const lunedi = lunediDelPromemoria(tipo, oggi)
+  const salta = lunediSaltati(scadenze).has(lunedi)
+  if (salta && tipo === 'lunedi' && !forzato) console.log(`Oggi la riunione settimanale non c'è (riunione di fine mese): nessun promemoria settimanale.`)
+  else daFare.push(() => settimanale(tipo, salta ? lunedi : null))
+}
 if (tipoForzato) {
-  if (TIPI_SETTIMANALI.includes(tipoForzato)) daFare.push(() => settimanale(tipoForzato))
+  if (TIPI_SETTIMANALI.includes(tipoForzato)) promemoriaSettimanale(tipoForzato, await scadenzeVicine(), true)
   else {
     const mese = env('MESE', false) ? `${env('MESE', false).slice(0, 7)}-01` : aggiungiMesi(`${oggi.slice(0, 7)}-01`, -1)
     if (!/^\d{4}-\d{2}-01$/.test(mese)) throw new Error(`MESE non valido: ${env('MESE', false)} (scrivi AAAA-MM, es. 2026-09)`)
@@ -327,12 +345,8 @@ if (tipoForzato) {
   }
 } else {
   const tipo = tipoSettimanale(adesso)
-  if (tipo) daFare.push(() => settimanale(tipo))
-  // si guardano i mesi vicini: la scadenza di solito è all'inizio del mese dopo
-  const meseOggi = `${oggi.slice(0, 7)}-01`
-  const scadenzeVicine = () => tutte('scadenze_mensili', 'mese, scadenza, blocca',
-    (q) => q.gte('mese', aggiungiMesi(meseOggi, -3)).lte('mese', meseOggi))
   const scadenze = await scadenzeVicine()
+  if (tipo) promemoriaSettimanale(tipo, scadenze)
   const ultimaChiamata = ultimaChiamataAdesso(Date.now(), scadenze)
   if (oraMensile(adesso) || ultimaChiamata.length) {
     if (await mensileAperto()) {

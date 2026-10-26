@@ -2,7 +2,9 @@
 // CALENDARIO DEI PROMEMORIA — regole pure (senza database né email),
 // usate da scripts/promemoria.mjs e verificate dai test automatici.
 //   Settimanale: sabato 10:00 (settimana in corso) e lunedì 9:30, giorno della riunione
-//                (settimana appena chiusa), agli uffici che non hanno inserito nulla.
+//                (settimana appena chiusa), agli uffici che non hanno inserito nulla. Se la riunione
+//                di fine mese è troppo vicina al lunedì e l'amministratore spunta "salta la riunione
+//                settimanale", quel lunedì niente promemoria e il sabato prima non lo nomina (Davide 26/10/2026).
 //   Mensile:     3 giorni prima e il giorno prima della scadenza (alle 10:00) agli uffici
 //                che non hanno inserito nulla; se la scadenza ha il blocco, anche 30 minuti prima
 //                ("ultima chiamata", Davide 26/10/2026); il giorno dopo la scadenza il riepilogo
@@ -87,12 +89,30 @@ export function settimanaDelPromemoria(tipo, oggi) {
   return tipo === 'lunedi' ? aggiungiGiorni(lunediDi(oggi), -7) : lunediDi(oggi)
 }
 
+/**
+ * Lunedì della riunione settimanale che salta per la riunione di fine mese (giorno della scadenza): il lunedì
+ * più vicino, quello della stessa settimana se la riunione è da lunedì a giovedì, altrimenti quello dopo.
+ * Stessa regola del sito (lunediVicino in src/lib/mensile.ts).
+ */
+export function lunediVicino(giorno) {
+  const giornoSettimana = (new Date(`${giorno}T00:00:00Z`).getUTCDay() + 6) % 7   // 0 = lunedì … 6 = domenica
+  return giornoSettimana <= 3 ? lunediDi(giorno) : aggiungiGiorni(lunediDi(giorno), 7)
+}
+
+/** I lunedì senza riunione settimanale: quelli delle scadenze con salta_lunedi (019) */
+export function lunediSaltati(scadenze) {
+  return new Set(scadenze.filter((s) => s.salta_lunedi).map((s) => lunediVicino(inItalia(s.scadenza).data)))
+}
+
+/** Lunedì della riunione a cui serve il promemoria settimanale di oggi (il sabato quello dopo, il lunedì oggi) */
+export const lunediDelPromemoria = (tipo, oggi) => (tipo === 'lunedi' ? oggi : aggiungiGiorni(oggi, 2))
+
 /** È l'ora dei promemoria mensili (ogni giorno alle 10)? */
 export const oraMensile = ({ ora }) => ora >= ORA_GIORNALIERA && ora < ORA_GIORNALIERA + FINESTRA_ORE
 
 /**
  * Promemoria mensili che toccano oggi.
- * scadenze: righe di scadenze_mensili ({ mese, scadenza, blocca }).
+ * scadenze: righe di scadenze_mensili ({ mese, scadenza, blocca, salta_lunedi }).
  * Ritorna [{ tipo, mese, scadenza }] dove scadenza ha anche giorno e orario italiani.
  */
 export function promemoriaMensiliDiOggi(oggi, scadenze) {

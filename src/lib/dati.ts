@@ -280,7 +280,8 @@ export async function mensileAperto(): Promise<boolean> {
 
 /** Scadenza di inserimento del mese, se l'amministratore l'ha fissata */
 export async function caricaScadenza(mese: string): Promise<Scadenza | null> {
-  const { data, error } = await supabase.from('scadenze_mensili').select('mese, scadenza, blocca').eq('mese', mese).maybeSingle()
+  // tutte le colonne: salta_lunedi c'è solo dopo la 019
+  const { data, error } = await supabase.from('scadenze_mensili').select('*').eq('mese', mese).maybeSingle()
   if (error) throw new Error(error.message)
   return data as Scadenza | null
 }
