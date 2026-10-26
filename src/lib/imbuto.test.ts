@@ -16,11 +16,20 @@ describe('imbuto della vendita', () => {
     expect(i.passaggi[4]).toMatchObject({ valore: '1 ogni 1,5', numero: '1 vendita ogni 1,5', testo: 'accettazioni' })
   })
 
-  it('con meno di 5 casi o un dato mancante il passaggio non si calcola, e mai #DIV/0!', () => {
+  it('con meno di 5 casi si mostrano i numeri veri, senza rapporto; con un dato mancante niente; mai #DIV/0!', () => {
     const i = calcolaImbuto(IMBUTO_SETTIMANALE, valori({ valutazioni: 4, incarichi: 1, app_vendita: 0, proposte: 0, vendite: null }))
-    expect(i.passaggi[0]).toMatchObject({ rapporto: null, valore: '—', testo: 'valutazioni (pochi casi)', motivo: 'pochi' })
-    expect(i.passaggi[2]).toMatchObject({ rapporto: null, motivo: 'pochi' })       // 0 appuntamenti: niente divisione per zero
+    expect(i.passaggi[0]).toMatchObject({ rapporto: null, valore: '1 su 4', numero: '1 incarico', testo: 'su 4 valutazioni (pochi casi)', motivo: 'pochi' })
+    expect(i.passaggi[2]).toMatchObject({ rapporto: null, valore: '0 su 0', motivo: 'pochi' })       // 0 appuntamenti: niente divisione per zero
     expect(i.passaggi[3]).toMatchObject({ rapporto: null, motivo: 'mancante' })
+  })
+
+  it('pochi casi: le vendite su 3 proposte, al singolare quando serve', () => {
+    expect(calcolaImbuto(IMBUTO_SETTIMANALE, valori({ proposte: 3, vendite: 2 })).passaggi[3])
+      .toMatchObject({ rapporto: null, valore: '2 su 3', numero: '2 vendite', testo: 'su 3 proposte (pochi casi)' })
+    expect(calcolaImbuto(IMBUTO_SETTIMANALE, valori({ proposte: 1, vendite: 1 })).passaggi[3])
+      .toMatchObject({ valore: '1 su 1', numero: '1 vendita', testo: 'su 1 proposta (pochi casi)' })
+    expect(confrontaPassaggio(calcolaImbuto(IMBUTO_SETTIMANALE, valori({ proposte: 3, vendite: 3 })).passaggi[3],
+      calcolaImbuto(IMBUTO_SETTIMANALE, valori({ proposte: 100, vendite: 60 })).passaggi[3])).toBeNull()   // nessun colore
   })
 
   it('nessuna proposta su tanti appuntamenti', () => {

@@ -834,7 +834,7 @@ function pagineImbuto({ def, nomeGruppo, gruppo, perUfficio, citta, nomeCitta, p
               </div>
             ))}
           </div>
-          <NotaImbuto periodo={`${periodo}. In verde i passaggi almeno come il totale ${nomeGruppo}, in arancio quelli sotto, "—" con meno di 5 casi`} />
+          <NotaImbuto periodo={`${periodo}. In verde i passaggi almeno come il totale ${nomeGruppo}, in arancio quelli sotto, in grigio i numeri con meno di 5 casi ("2 su 3")`} />
         </div>
       ),
     })

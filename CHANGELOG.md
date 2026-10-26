@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.23.1 — 26 ottobre 2026
+
+**Imbuto della vendita con pochi casi** (segnalato da Davide: nelle pagine dei singoli uffici della presentazione, il passaggio proposte → vendite era quasi sempre vuoto e si vedeva solo quello di Roma):
+- **causa**: non è un errore di calcolo. Un passaggio si calcola solo con almeno 5 casi nella fase di partenza, e nelle ultime 4 settimane (28/9–25/10) **solo 5 uffici su 47** avevano almeno 5 proposte; per gli altri compariva "—", con accanto il valore di Roma;
+- **ora**, con meno di 5 casi, al posto del "—" si vedono **i numeri veri**: *"2 su 3 · pochi casi"* (nell'imbuto grande: *"2 vendite su 3 proposte (pochi casi)"*), in grigio e **senza** il confronto verde/arancio con Roma, perché un rapporto su 2–3 casi sarebbe casuale. Da 5 casi in su resta *"1 vendita ogni N proposte"*, colorato. Vale nella presentazione (settimana e mese), nella tabella ufficio per ufficio del mese e in Il mio ufficio;
+- la presentazione del **mese** calcola già l'imbuto sugli **ultimi 3 mesi** (il mese presentato e i due prima);
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.23.0 — 26 ottobre 2026
 
 **La riunione settimanale che salta per la riunione di fine mese** (richiesta di Davide: martedì 3 novembre c'è la riunione di fine mese, quindi lunedì 2 novembre non c'è quella settimanale):

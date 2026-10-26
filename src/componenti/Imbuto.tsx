@@ -61,7 +61,7 @@ export function ImbutoInRiga({ imbuto, riferimento, nomeRiferimento }: { imbuto:
             <div className="imbuto-riga-fase"><span>{f.nome}</span><strong>{f.valore === null ? '—' : f.valore.toLocaleString('it-IT')}</strong></div>
             {i < imbuto.fasi.length - 1 && (
               <div className={`imbuto-riga-passaggio ${p ? confronto ?? '' : 'vuoto'}`}>
-                {p ? <><strong>{p.valore}</strong>{rif && rif.rapporto !== null && <span>{nomeRiferimento}: {rif.valore}</span>}</> : <Icona nome="caret-right" />}
+                {p ? <><strong>{p.valore}</strong>{p.motivo === 'pochi' && <span>pochi casi</span>}{rif && rif.rapporto !== null && <span>{nomeRiferimento}: {rif.valore}</span>}</> : <Icona nome="caret-right" />}
               </div>
             )}
           </div>
@@ -117,7 +117,8 @@ export function NotaImbuto({ periodo }: { periodo: string }) {
   return (
     <p className="piccolo">
       {periodo}. Le fasi sono contate nello stesso periodo: un'accettazione di oggi può diventare vendita più avanti,
-      per questo si guardano più settimane o mesi insieme. Un passaggio si calcola solo con almeno {MINIMO_CASI} casi nella fase di partenza.
+      per questo si guardano più settimane o mesi insieme. Con meno di {MINIMO_CASI} casi nella fase di partenza si mostrano i numeri
+      (es. "2 su 3"), senza confronto: un rapporto sarebbe casuale.
     </p>
   )
 }

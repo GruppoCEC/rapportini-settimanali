@@ -53,16 +53,19 @@ export const IMBUTO_MENSILE: DefinizioneImbuto = {
 export const SETTIMANE_IMBUTO = 4
 export const MESI_IMBUTO = 3
 
-/** Sotto questo numero di casi nella fase di partenza il passaggio non si mostra: sarebbe casuale */
+/**
+ * Sotto questo numero di casi nella fase di partenza il rapporto "1 ogni N" non si calcola, sarebbe casuale:
+ * si mostrano i numeri veri ("2 su 3"), senza confronto con la città (Davide, 26/10/2026)
+ */
 export const MINIMO_CASI = 5
 
 export interface FaseCalcolata { codice: string; nome: string; valore: number | null }
 
 export interface PassaggioCalcolato {
   rapporto: number | null      // fase dopo ÷ fase prima (più alto = meglio); null se non calcolabile
-  valore: string               // per le tabelle: "1 ogni 6,5", "0 su 12" oppure "—"
-  numero: string               // per l'imbuto, in grassetto: "1 proposta ogni 6,5"
-  testo: string                // per l'imbuto, dopo il numero: "appuntamenti"
+  valore: string               // per le tabelle: "1 ogni 6,5", "0 su 12", "2 su 3" (pochi casi) oppure "—"
+  numero: string               // per l'imbuto, in grassetto: "1 proposta ogni 6,5" o "2 vendite"
+  testo: string                // per l'imbuto, dopo il numero: "appuntamenti" o "su 3 proposte (pochi casi)"
   motivo?: 'mancante' | 'pochi'
 }
 
@@ -81,7 +84,10 @@ export function calcolaImbuto(def: DefinizioneImbuto, valori: Map<string, number
     const da = fasi[i].valore, a = fasi[i + 1].valore
     const vuoto = { rapporto: null, valore: '—', numero: `1 ${p.uno} ogni …`, testo: p.basePlurale }
     if (da === null || a === null) return { ...vuoto, motivo: 'mancante' }
-    if (da < MINIMO_CASI) return { ...vuoto, testo: `${p.basePlurale} (pochi casi)`, motivo: 'pochi' }
+    if (da < MINIMO_CASI) return {
+      rapporto: null, valore: `${unDecimale(a)} su ${unDecimale(da)}`, motivo: 'pochi',
+      numero: `${unDecimale(a)} ${a === 1 ? p.uno : p.unoPlurale}`, testo: `su ${unDecimale(da)} ${da === 1 ? p.base : p.basePlurale} (pochi casi)`,
+    }
     const rapporto = a / da
     if (a === 0) return { rapporto, valore: `0 su ${unDecimale(da)}`, numero: `0 ${p.unoPlurale}`, testo: `su ${unDecimale(da)} ${p.basePlurale}` }
     const ogni = da / a
