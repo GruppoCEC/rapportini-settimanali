@@ -10,6 +10,8 @@
 -- Orari (pg_cron ragiona in ora UTC, come GitHub: due orari per l'ora legale e quella solare):
 --   ogni giorno alle 10:00 italiane, più un secondo tentativo alle 11:00 (sabato e mensili)
 --   il lunedì alle 9:30 italiane, più un secondo tentativo alle 10:15
+--   mensile, "ultima chiamata": 30 minuti prima di una scadenza con il blocco (controllo ogni 5 minuti,
+--   ma GitHub parte solo in quei minuti: due avvii, a -30 e a -25 minuti; ogni email parte una volta sola)
 --
 -- PRIMA di eseguire questo file serve la chiave di GitHub nel Vault di Supabase (vedi
 -- CHANGELOG 0.20.0). Non si trova in questo file e non va mai scritta nel progetto.
@@ -46,11 +48,26 @@ end $$;
 -- solo il database (pg_cron) e l'amministratore dall'editor SQL possono usarla
 revoke all on function avvia_promemoria() from public, anon, authenticated;
 
+-- Ultima chiamata del mensile (Davide, 26/10/2026): avvia i promemoria solo se tra 21 e 31 minuti scade
+-- un mese con il blocco e il mensile è aperto agli uffici. Lo script manda l'email "ultimi 30 minuti".
+create or replace function avvia_ultima_chiamata() returns bigint
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if mensile_aperto() and exists (select 1 from scadenze_mensili s
+       where s.blocca and now() >= s.scadenza - interval '31 minutes' and now() < s.scadenza - interval '21 minutes') then
+    return avvia_promemoria();
+  end if;
+  return null;
+end $$;
+revoke all on function avvia_ultima_chiamata() from public, anon, authenticated;
+
 -- orari: si tolgono quelli vecchi (se il file viene rieseguito) e si rimettono
 select cron.unschedule(jobid) from cron.job where jobname like 'promemoria-%';
 select cron.schedule('promemoria-giornaliero', '0 8,9,10 * * *', 'select avvia_promemoria()');   -- 10:00 (+ 11:00) italiane
 select cron.schedule('promemoria-lunedi',      '30 7,8 * * 1',   'select avvia_promemoria()');   -- lunedì 9:30 italiane
 select cron.schedule('promemoria-lunedi-bis',  '15 9 * * 1',     'select avvia_promemoria()');   -- lunedì 10:15 (ora legale: 11:15)
+select cron.schedule('promemoria-ultima-chiamata', '*/5 * * * *', 'select avvia_ultima_chiamata()'); -- parte solo 30 minuti prima di una scadenza con blocco
 
 -- Controllo: gli orari registrati
 select jobname, schedule from cron.job where jobname like 'promemoria-%' order by jobname;

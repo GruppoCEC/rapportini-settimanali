@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.22.0 — 26 ottobre 2026
+
+**Ultima chiamata del rapportino mensile** (richiesta di Davide):
+- **30 minuti prima della scadenza**, se la scadenza ha il **blocco**, gli uffici che non hanno ancora inserito nulla ricevono l'email *"Ultimi 30 minuti: rapportino di …"*: "inseritelo entro le …, dopo l'inserimento dei dati sarà bloccato". Fissando la scadenza alle 10:00 del giorno della riunione, l'email arriva alle 9:30;
+- la avvia l'orologio di Supabase: controlla ogni 5 minuti e chiede a GitHub di partire solo mezz'ora prima di una scadenza con il blocco (file `supabase/PROMEMORIA_PUNTUALI.sql`, aggiornato: non ancora eseguito, va bene così);
+- si può anche mandare a mano: Actions → Promemoria → Run workflow → `mensile_ultima_chiamata`;
+- le voci riservate (Locazioni effettuate, 0.21.0) non contano per dire se un rapportino è completo;
+- in Report mensile → Panoramica, sotto la scadenza, il testo dei promemoria lo dice;
+- nessuna modifica al database oltre a `PROMEMORIA_PUNTUALI.sql`; i promemoria mensili partono solo con il mensile aperto agli uffici.
+
 ## 0.21.0 — 26 ottobre 2026
 
 **Report mensile pronto per ottobre** (richieste di Davide):

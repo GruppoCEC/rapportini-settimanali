@@ -22,7 +22,7 @@ on:
         required: true
         default: sabato
         type: choice
-        options: [sabato, lunedi, mensile_3giorni, mensile_vigilia, mensile_riepilogo, automatico]
+        options: [sabato, lunedi, mensile_3giorni, mensile_vigilia, mensile_ultima_chiamata, mensile_riepilogo, automatico]
       mese:
         description: 'Solo per i promemoria mensili: il mese, es. 2026-09 (vuoto = il mese appena concluso)'
         required: false

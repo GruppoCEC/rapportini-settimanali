@@ -7,6 +7,7 @@
 // fissata in Report mensile → Panoramica), ogni volta alle 10:00:
 //   3 giorni prima della scadenza → email agli uffici che non hanno inserito nulla
 //   il giorno prima               → ultimo promemoria agli uffici ancora mancanti
+//   30 minuti prima della scadenza → "ultima chiamata", solo se la scadenza ha il blocco (Davide, 26/10/2026)
 //   il giorno dopo                → all'amministratore generale, chi manca, chi è incompleto e chi è in ritardo
 // Le regole del calendario sono in scripts/promemoria-calendario.mjs.
 // Le email partono dal Gmail indicato in GMAIL_UTENTE. Ogni email viene inviata una volta
@@ -14,7 +15,7 @@
 //
 // Variabili richieste: SUPABASE_URL, SUPABASE_SERVICE_KEY, GMAIL_UTENTE,
 // GMAIL_PASSWORD_APP, SITO_URL. Facoltative: TIPO (forza sabato | lunedi |
-// mensile_3giorni | mensile_vigilia | mensile_riepilogo; "automatico" = come l'orario
+// mensile_3giorni | mensile_vigilia | mensile_ultima_chiamata | mensile_riepilogo; "automatico" = come l'orario
 // programmato: è quello che manda l'orologio di Supabase, supabase/PROMEMORIA_PUNTUALI.sql), MESE (AAAA-MM, per i tipi
 // mensili forzati; se manca, il mese appena concluso), EMAIL_PROVA (manda tutto solo
 // a questo indirizzo, senza registrare l'invio).
@@ -23,7 +24,8 @@ import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import {
   aggiungiGiorni, aggiungiMesi, chiaveMensile, dalAl, inItalia, inServizio, oraMensile,
-  promemoriaMensiliDiOggi, settimanaDelPromemoria, statoMensile, tipoSettimanale, ultimoRitardo, TIPI_MENSILI, TIPI_SETTIMANALI,
+  promemoriaMensiliDiOggi, settimanaDelPromemoria, statoMensile, tipoSettimanale, ultimaChiamataAdesso, ultimoRitardo, TIPI_MENSILI, TIPI_SETTIMANALI,
+  ULTIMA_CHIAMATA_MINUTI,
 } from './promemoria-calendario.mjs'
 
 const env = (nome, obbligatoria = true) => {
@@ -173,6 +175,17 @@ const TESTI = {
       ${pulsante('Inserisci il rapportino del mese')}${aiuto}`),
   }),
 
+  // Mensile: mezz'ora prima della scadenza con il blocco, l'ultima chiamata (Davide, 26/10/2026)
+  mensileUltimaChiamata: ({ ufficio, mese, orario }) => ({
+    oggetto: `Ultimi ${ULTIMA_CHIAMATA_MINUTI} minuti: rapportino di ${mese}`,
+    html: pagina(`
+      <p>Buongiorno,</p>
+      <p>per l'ufficio <strong>${ufficio}</strong> non risulta ancora inserito il <strong>rapportino mensile di ${mese}</strong>.</p>
+      <p>Avete ancora <strong>${ULTIMA_CHIAMATA_MINUTI} minuti</strong>: inseritelo <strong>entro le ${orario}</strong>. Dopo, l'inserimento dei dati sarà bloccato.</p>
+      <p>Lo trovate nel menu <strong>Inserisci mese</strong>.</p>
+      ${pulsante('Inserisci il rapportino del mese')}${aiuto}`),
+  }),
+
   // Mensile: il giorno dopo la scadenza, solo all'amministratore generale
   mensileRiepilogo: ({ mese, entro, blocca, mancanti, perCitta }) => ({
     oggetto: `Rapportino di ${mese}: ${mancanti === 0 ? 'tutti gli uffici hanno inserito' : mancanti === 1 ? '1 ufficio senza dati' : `${mancanti} uffici senza dati`}`,
@@ -220,7 +233,8 @@ async function mensileAperto() {
 /** Stato di ogni ufficio nel mese: mancante | parziale | completo, più l'eventuale ritardo */
 async function statiDelMese(mese, scadenza) {
   const [voci, persone, valori] = await Promise.all([
-    tutte('voci_mensili', 'codice, solo_ruolo', (q) => q.eq('attiva', true)),
+    tutte('voci_mensili', 'codice, solo_ruolo, riservata', (q) => q.eq('attiva', true))
+      .catch(() => tutte('voci_mensili', 'codice, solo_ruolo', (q) => q.eq('attiva', true))),   // 018 non ancora eseguita
     tutte('persone', 'id, ufficio_id, data_inizio, data_fine'),
     tutte('valori_mensili', 'persona_id, ufficio_id, voce, valore, aggiornato_il', (q) => q.eq('mese', mese)),
   ])
@@ -246,7 +260,9 @@ async function mensile({ tipo, mese, scadenza }) {
     for (const u of mancanti) {
       const dest = emailUfficio(u)
       if (dest.length === 0) { console.log(`· ${u.nome}: nessuna email per i promemoria, saltato`); continue }
-      const { oggetto, html } = TESTI.mensileUfficio({ vigilia, ufficio: u.nome, mese: titolo, giorno: conGiorno(scadenza.giorno), entro, blocca: scadenza.blocca })
+      const { oggetto, html } = tipo === 'mensile_ultima_chiamata'
+        ? TESTI.mensileUltimaChiamata({ ufficio: u.nome, mese: titolo, orario: scadenza.orario })
+        : TESTI.mensileUfficio({ vigilia, ufficio: u.nome, mese: titolo, giorno: conGiorno(scadenza.giorno), entro, blocca: scadenza.blocca })
       if (await inviaUnaVolta(chiave, perUfficio(u), dest, oggetto, html)) console.log(`✓ ${u.nome} → ${dest.join(', ')}`)
     }
     console.log(`Mensile ${titolo} (${tipo}): uffici mancanti ${mancanti.length}`)
@@ -312,13 +328,16 @@ if (tipoForzato) {
 } else {
   const tipo = tipoSettimanale(adesso)
   if (tipo) daFare.push(() => settimanale(tipo))
-  if (oraMensile(adesso)) {
+  // si guardano i mesi vicini: la scadenza di solito è all'inizio del mese dopo
+  const meseOggi = `${oggi.slice(0, 7)}-01`
+  const scadenzeVicine = () => tutte('scadenze_mensili', 'mese, scadenza, blocca',
+    (q) => q.gte('mese', aggiungiMesi(meseOggi, -3)).lte('mese', meseOggi))
+  const scadenze = await scadenzeVicine()
+  const ultimaChiamata = ultimaChiamataAdesso(Date.now(), scadenze)
+  if (oraMensile(adesso) || ultimaChiamata.length) {
     if (await mensileAperto()) {
-      // si guardano i mesi vicini: la scadenza di solito è all'inizio del mese dopo
-      const meseOggi = `${oggi.slice(0, 7)}-01`
-      const scadenze = await tutte('scadenze_mensili', 'mese, scadenza, blocca',
-        (q) => q.gte('mese', aggiungiMesi(meseOggi, -3)).lte('mese', meseOggi))
-      for (const p of promemoriaMensiliDiOggi(oggi, scadenze)) daFare.push(() => mensile(p))
+      if (oraMensile(adesso)) for (const p of promemoriaMensiliDiOggi(oggi, scadenze)) daFare.push(() => mensile(p))
+      for (const p of ultimaChiamata) daFare.push(() => mensile(p))      // mezz'ora prima della scadenza con il blocco
     } else console.log('Rapportino mensile non ancora aperto agli uffici: nessun promemoria mensile.')
   }
 }

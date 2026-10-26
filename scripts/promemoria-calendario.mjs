@@ -4,7 +4,8 @@
 //   Settimanale: sabato 10:00 (settimana in corso) e lunedì 9:30, giorno della riunione
 //                (settimana appena chiusa), agli uffici che non hanno inserito nulla.
 //   Mensile:     3 giorni prima e il giorno prima della scadenza (alle 10:00) agli uffici
-//                che non hanno inserito nulla; il giorno dopo la scadenza il riepilogo
+//                che non hanno inserito nulla; se la scadenza ha il blocco, anche 30 minuti prima
+//                ("ultima chiamata", Davide 26/10/2026); il giorno dopo la scadenza il riepilogo
 //                all'amministratore generale. Vale solo per i mesi con una scadenza
 //                fissata in Report mensile → Panoramica.
 // Tutte le date sono 'AAAA-MM-GG' e le ore sono quelle italiane.
@@ -27,8 +28,17 @@ export const PROMEMORIA_SETTIMANALI = {
 
 /** Promemoria mensili: giorni rispetto al giorno della scadenza */
 export const FASI_MENSILI = { mensile_3giorni: -3, mensile_vigilia: -1, mensile_riepilogo: 1 }
+
+/**
+ * Ultima chiamata: mezz'ora prima della scadenza, solo se dopo l'inserimento si blocca. La avvia l'orologio di
+ * Supabase (supabase/PROMEMORIA_PUNTUALI.sql, ogni 5 minuti vicino alla scadenza); qui si accetta da 35 minuti
+ * prima fino alla scadenza, così anche un avvio con un minuto di ritardo va bene.
+ */
+export const ULTIMA_CHIAMATA_MINUTI = 30
+const ULTIMA_CHIAMATA_DA_MINUTI = 35
+
 export const TIPI_SETTIMANALI = Object.keys(PROMEMORIA_SETTIMANALI)
-export const TIPI_MENSILI = Object.keys(FASI_MENSILI)
+export const TIPI_MENSILI = [...Object.keys(FASI_MENSILI), 'mensile_ultima_chiamata']
 
 /** Data, giorno della settimana e ora in Italia di un istante */
 export function inItalia(istante) {
@@ -97,6 +107,20 @@ export function promemoriaMensiliDiOggi(oggi, scadenze) {
 }
 
 /**
+ * Ultima chiamata che tocca adesso (istante in millisecondi): per ogni scadenza con il blocco,
+ * da 35 minuti prima fino alla scadenza. Ritorna [{ tipo, mese, scadenza }] come promemoriaMensiliDiOggi.
+ */
+export function ultimaChiamataAdesso(adesso, scadenze) {
+  return scadenze.filter((s) => {
+    const limite = new Date(s.scadenza).getTime()
+    return s.blocca && adesso >= limite - ULTIMA_CHIAMATA_DA_MINUTI * 60000 && adesso < limite
+  }).map((s) => {
+    const { data: giorno, orario } = inItalia(s.scadenza)
+    return { tipo: 'mensile_ultima_chiamata', mese: s.mese, scadenza: { ...s, giorno, orario } }
+  })
+}
+
+/**
  * Chiave per non inviare due volte lo stesso promemoria (tabella promemoria_inviati).
  * Per il mensile la data è il giorno della scadenza: se l'amministratore la sposta,
  * i promemoria ripartono per la nuova data.
@@ -127,7 +151,7 @@ export function statoMensile(persone, valori, voci, mese) {
   const ids = new Set(presenti.map((p) => p.id))
   const pieni = new Set(valori.filter((v) => v.valore !== null && ids.has(v.persona_id)).map((v) => `${v.persona_id}|${v.voce}`))
   if (pieni.size === 0) return 'mancante'
-  const colonne = voci.filter((v) => !v.solo_ruolo)
+  const colonne = voci.filter((v) => !v.solo_ruolo && !v.riservata)   // le voci riservate (018) le scrive l'amministrazione
   const completo = presenti.length > 0 && presenti.every((p) => colonne.every((v) => pieni.has(`${p.id}|${v.codice}`)))
   return completo ? 'completo' : 'parziale'
 }

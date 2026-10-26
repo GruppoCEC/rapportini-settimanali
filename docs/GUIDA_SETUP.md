@@ -130,7 +130,8 @@ I promemoria partono da GitHub:
   - il lunedì della riunione alle 9:30, per la settimana appena chiusa. Se GitHub è in ritardo, questa
     email parte al massimo fino alle 11:30, così arriva prima delle riunioni (Milano alle 12, Roma alle 13);
 - **rapportino mensile**: alle 10, 3 giorni prima e il giorno prima della scadenza, agli uffici che non hanno
-  inserito nulla. Il giorno dopo la scadenza l'amministratore generale riceve il riepilogo: chi manca, chi
+  inserito nulla; se la scadenza ha il blocco, anche **30 minuti prima** ("ultimi 30 minuti, poi l'inserimento
+  sarà bloccato": fissando la scadenza alle 10 del giorno della riunione, arriva alle 9:30). Il giorno dopo la scadenza l'amministratore generale riceve il riepilogo: chi manca, chi
   è incompleto e chi ha inserito in ritardo. Partono solo se:
   - il mensile è aperto agli uffici (`mensile_aperto = 'si'`);
   - per quel mese è fissata una scadenza in **Report mensile → Panoramica**.

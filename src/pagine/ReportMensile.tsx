@@ -294,7 +294,7 @@ function GestioneScadenza({ dati, mese, modificabile, onSalvato }: { dati: DatiM
         </p>
       ) : <p className="piccolo">Nessuna scadenza per questo mese: gli uffici possono compilare quando vogliono e nessuno viene segnalato in ritardo.{PROMEMORIA_ATTIVI && ' Senza scadenza non partono nemmeno i promemoria email.'}</p>}
       {s && PROMEMORIA_ATTIVI && (
-        <p className="piccolo">Promemoria email agli uffici che non hanno inserito nulla: 3 giorni prima e il giorno prima della scadenza, alle 10. Il giorno dopo l'amministratore generale riceve il riepilogo.</p>
+        <p className="piccolo">Promemoria email agli uffici che non hanno inserito nulla: 3 giorni prima e il giorno prima della scadenza, alle 10{s.blocca ? ', e 30 minuti prima della scadenza ("ultimi 30 minuti, poi l\'inserimento sarà bloccato")' : ''}. Il giorno dopo l'amministratore generale riceve il riepilogo.</p>
       )}
       {modificabile && (
         <div className="riga-modulo">

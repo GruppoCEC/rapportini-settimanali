@@ -2,7 +2,7 @@
 // quando parte ogni email e quali uffici risultano senza rapportino mensile.
 import { describe, expect, it } from 'vitest'
 import {
-  chiaveMensile, dalAl, inItalia, oraMensile, promemoriaMensiliDiOggi, settimanaDelPromemoria, statoMensile as statoScript, tipoSettimanale,
+  chiaveMensile, dalAl, inItalia, oraMensile, promemoriaMensiliDiOggi, ultimaChiamataAdesso, TIPI_MENSILI, settimanaDelPromemoria, statoMensile as statoScript, tipoSettimanale,
 } from '../scripts/promemoria-calendario.mjs'
 import { statoMensile as statoSito, inServizio } from '../src/lib/mensile'
 import type { Persona, ValoreMensile, VoceMensile } from '../src/lib/tipi'
@@ -110,5 +110,23 @@ describe('stato del rapportino mensile: stessa regola del sito', () => {
   it('i casi coprono tutti e tre gli stati', () => {
     const stati = new Set(casi.map(([, p, v]) => statoScript(p, v, voci, mese)))
     expect([...stati].sort()).toEqual(['completo', 'mancante', 'parziale'])
+  })
+})
+
+describe('ultima chiamata del mensile (30 minuti prima della scadenza con il blocco)', () => {
+  const scadenze = [
+    { mese: '2026-10-01', scadenza: '2026-11-02T09:00:00Z', blocca: true },    // lunedì 2 novembre alle 10:00 italiane
+    { mese: '2026-09-01', scadenza: '2026-11-02T09:00:00Z', blocca: false },   // senza blocco: niente ultima chiamata
+  ]
+  const alle = (iso: string) => new Date(iso).getTime()
+  it('parte da mezz\'ora prima (con un po\' di margine) fino alla scadenza, solo con il blocco', () => {
+    expect(ultimaChiamataAdesso(alle('2026-11-02T08:30:00Z'), scadenze).map((p) => [p.tipo, p.mese, p.scadenza.orario]))
+      .toEqual([['mensile_ultima_chiamata', '2026-10-01', '10:00']])                               // 9:30
+    expect(ultimaChiamataAdesso(alle('2026-11-02T08:26:00Z'), scadenze)).toHaveLength(1)          // 9:26: un avvio in anticipo va bene
+    expect(ultimaChiamataAdesso(alle('2026-11-02T08:20:00Z'), scadenze)).toHaveLength(0)          // 9:20: troppo presto
+    expect(ultimaChiamataAdesso(alle('2026-11-02T09:00:00Z'), scadenze)).toHaveLength(0)          // 10:00: è già chiuso
+  })
+  it('si può anche mandare a mano dal workflow', () => {
+    expect(TIPI_MENSILI).toContain('mensile_ultima_chiamata')
   })
 })
