@@ -3,7 +3,7 @@
 // modificabile (pagina dell'ufficio) o in sola lettura (report dell'amministratore).
 import type { KeyboardEvent, ReactNode } from 'react'
 import {
-  dataItaliana, formattaAnzianita, formattaNumero, GRUPPI_PERSONE, indicatori, indicatoriAccanto, mesiDiServizio, movimentoNelMese, STAFF,
+  dataItaliana, formattaAnzianita, formattaNumero, GRUPPI_PERSONE, indicatori, indicatoriAccanto, mesiDiServizio, movimentoNelMese, presenteNelMese, STAFF,
   vociDelRapportino, type TotaliMese,
 } from '../lib/mensile'
 import { NOMI_RUOLO_PERSONA, type Persona, type VoceMensile } from '../lib/tipi'
@@ -126,7 +126,8 @@ export function EtichettaMovimento({ persona, mese }: { persona: Persona; mese: 
   return null
 }
 
-// chi è promosso o trasferito esce dalla riga come chi lascia (non conta nel mese), ma senza il rosso
+// chi lascia l'ufficio nel mese resta nel rapportino con la riga rossa (i suoi numeri contano nel totale);
+// chi è promosso o trasferito resta come lui, ma senza il rosso
 export const classeMovimento = (persona: Persona, mese: string) =>
   ({ entrata: 'riga-entrata', uscita: 'riga-uscita', promozione: '', trasferimento: '', nessuno: '' })[movimentoNelMese(persona, mese) ?? 'nessuno']
 
@@ -138,14 +139,14 @@ export function LegendaMovimenti({ persone, mese }: { persone: Persona[]; mese: 
   return (
     <p className="legenda legenda-movimenti">
       {entrate && <span><span className="quadratino riga-entrata" />verde = nuovo ingresso nel mese</span>}
-      {uscite && <span><span className="quadratino riga-uscita" />rosso = ha lasciato l'ufficio nel mese (non conta in questo mese)</span>}
+      {uscite && <span><span className="quadratino riga-uscita" />rosso = ha lasciato l'ufficio nel mese (i numeri contano nel totale, non nello staff né nella gara)</span>}
     </p>
   )
 }
 
-/** Chi ha lasciato l'ufficio nel mese: non compare nel rapportino né nei totali, lo si segnala a parte */
+/** Chi ha lasciato l'ufficio durante il mese: resta nel rapportino (riga rossa), lo si spiega sopra la tabella */
 export function AvvisoUscite({ persone, mese }: { persone: Persona[]; mese: string }) {
-  const usciti = persone.filter((p) => movimentoNelMese(p, mese) === 'uscita')
+  const usciti = persone.filter((p) => movimentoNelMese(p, mese) === 'uscita' && presenteNelMese(p, mese))
   if (usciti.length === 0) return null
   return (
     <p className="avviso avviso-uscite non-stampa">
@@ -153,7 +154,7 @@ export function AvvisoUscite({ persone, mese }: { persone: Persona[]; mese: stri
       <span>
         <strong>{usciti.length === 1 ? 'Ha lasciato l\'ufficio' : 'Hanno lasciato l\'ufficio'} nel mese:</strong>{' '}
         {usciti.map((p) => `${p.nome} (${NOMI_RUOLO_PERSONA[p.ruolo].toLowerCase()}, il ${dataItaliana(p.data_fine)})`).join(' · ')}.
-        {' '}Non {usciti.length === 1 ? 'conta' : 'contano'} in questo mese: niente rapportino, totali, staff né gara.
+        {' '}{usciti.length === 1 ? 'La sua riga è' : 'Le loro righe sono'} in rosso: i numeri del mese contano nel totale dell'ufficio, ma non nello staff né nella gara a punti.
       </span>
     </p>
   )

@@ -130,11 +130,15 @@ const voci_mensili = [
   con_punti: codice !== 'gestione_incarichi', meglio_se_scende: codice === 'incarichi_scaduti' }))
 // Indicatore di qualità delle coordinatrici, fuori dai totali
 voci_mensili.push({ codice: 'appuntamenti_vendita_fix', gruppo: 'App. vendita fix', sotto: null, ordine: 50, solo_ruolo: 'coordinatrice', accanto_a: 'appuntamenti_vendita', attiva: true, con_punti: false } as any)
+// Locazioni effettuate (018): voce riservata all'amministratore generale, solo per la gara a punti
+voci_mensili.push({ codice: 'locazioni_effettuate', gruppo: 'Locazioni effettuate', sotto: null, ordine: 60, solo_ruolo: null, attiva: true, con_punti: true, riservata: true } as any)
+const valori_riservati: any[] = []
 // Punti di ESEMPIO per la gara dei collaboratori (quelli veri li decide Davide in Report mensile → Personale)
 const punti_mensili: any[] = Object.entries({
   portafoglio_vendita: 1, portafoglio_locazione: 0.5, acquisizioni: 3, appuntamenti_vendita: 1, appuntamenti_locazione: 0.5,
   incarichi_vendita: 5, incarichi_locazione: 2, ribassi: 1, kiron: 2, colloqui: 1, proposte_vendita: 4, proposte_locazione: 2,
   accettazioni_vendita: 6, accettazioni_locazione: 3, vendite_effettuate: 10, richieste_vendita: 0.5, richieste_locazione: 0.5, incarichi_scaduti: -3,
+  locazioni_effettuate: 4,
 }).map(([voce, punti]) => ({ voce, punti }))
 // Valori tipici di un mese per un collaboratore [min, max]
 const TIPICI: Record<string, [number, number]> = {
@@ -237,8 +241,10 @@ for (let mese = `${meseDaCompilare.slice(0, 4)}-01-01`; mese < mesiDemo[0]; mese
 
 // Scadenza di esempio per il mese da compilare: il 5 del mese dopo alle 23:59, senza blocco
 const scadenze_mensili: any[] = [{ mese: meseDaCompilare, scadenza: new Date(`${aggiungiMesi(meseDaCompilare, 1).slice(0, 8)}05T23:59:00`).toISOString(), blocca: false }]
+// il mese prima è già chiuso con il blocco: gli uffici vedono il report del gruppo (018)
+scadenze_mensili.push({ mese: aggiungiMesi(meseDaCompilare, -1), scadenza: new Date(Date.now() - 2 * 86400000).toISOString(), blocca: true })
 
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico }
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati }
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
 const CHIAVE = 'rapportini.demo.utente'
@@ -268,6 +274,7 @@ function visibile(tabella: string, riga: any): boolean {
     case 'rilevazioni': case 'note_settimana': case 'persone': case 'valori_mensili': case 'totali_mensili_storico': return ufficiLeggibili().has(riga.ufficio_id)
     case 'confronto_anno_prima': return me.ruolo === 'admin_generale'
     case 'punti_mensili': return me.ruolo === 'admin_generale' || me.ruolo === 'admin_citta'
+    case 'valori_riservati': return gestisce(uffici.find((u) => u.id === riga.ufficio_id)?.citta_id ?? -1)
     default: return true
   }
 }
@@ -317,6 +324,17 @@ function totaliMensiliMiaCitta(mesi: string[]): any[] {
       return { posizione: i + 1, voce, valore: r.andamento[i].get(voce) ?? null, uffici_con_dato: v.conDato, uffici_con_dati: r.ufficiConDati,
         variazione: v.variazione, confrontati: v.confrontati, uffici_citta: ids.length }
     })
+  })
+}
+
+// Come report_gruppo_mensile (018): tutto il gruppo, per chiunque, ma solo dopo la scadenza con il blocco
+function reportGruppoMensile(mese: string): any[] {
+  const s = scadenze_mensili.find((x) => x.mese === mese)
+  if (!io() || !s || !s.blocca || Date.now() <= new Date(s.scadenza).getTime()) return []
+  return uffici.filter((u) => u.attivo).flatMap((u) => {
+    const { totale } = totaleConStorico(persone.filter((p) => p.ufficio_id === u.id), valori_mensili.filter((v) => v.ufficio_id === u.id),
+      mese, voci_mensili as any, totali_mensili_storico.filter((x) => x.ufficio_id === u.id))
+    return [...totale].map(([voce, valore]) => ({ ufficio_id: u.id, nome: u.nome, citta_id: u.citta_id, blocco_mensile: u.blocco_mensile, ordine_mensile: u.ordine_mensile, voce, valore }))
   })
 }
 
@@ -419,7 +437,8 @@ class Interrogazione {
             const s = scadenze_mensili.find((x) => x.mese === r.mese)
             if (s && s.blocca && Date.now() > new Date(s.scadenza).getTime()) return { data: null, error: { message: 'Inserimento chiuso: la scadenza per questo mese è passata. Per correzioni contatta l\'amministratore' } }
           }
-          if (['confronto_anno_prima', 'punti_mensili', 'scadenze_mensili'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
+          if (this.tabella === 'valori_riservati') r.ufficio_id = persone.find((p) => p.id === r.persona_id)?.ufficio_id   // come il trigger (018)
+          if (['confronto_anno_prima', 'punti_mensili', 'scadenze_mensili', 'valori_riservati'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
           if (['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella)) {
             if (!ufficiLeggibili().has(r.ufficio_id) || me.ruolo === 'responsabile' && r.ufficio_id !== me.ufficio_id) {
               return { data: null, error: { message: 'new row violates row-level security policy' } }
@@ -485,6 +504,7 @@ export const supabase: any = {
     if (nome === 'totali_mensili_mia_citta') return { data: totaliMensiliMiaCitta(args.p_mesi), error: null }
     if (nome === 'posizione_mia_citta') return { data: posizioneMiaCitta(args.p_inizi, args.p_fini), error: null }
     if (nome === 'posizione_mensile_mia_citta') return { data: posizioneMensileMiaCitta(args.p_mesi), error: null }
+    if (nome === 'report_gruppo_mensile') return { data: reportGruppoMensile(args.p_mese), error: null }
     return { data: null, error: { message: `funzione ${nome} non disponibile nella demo` } }
   },
   functions: {

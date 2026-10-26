@@ -367,7 +367,8 @@ describe('Rapportino mensile', () => {
   })
 
   it('tutti vedono le 19 colonne del rapportino più l\'indicatore, nessuno estraneo', async () => {
-    expect(await come('a@test.it', `select * from voci_mensili where solo_ruolo is null`)).toHaveLength(19)
+    expect(await come('a@test.it', `select * from voci_mensili where solo_ruolo is null and not riservata`)).toHaveLength(19)
+    expect(await come('a@test.it', `select * from voci_mensili where riservata`)).toHaveLength(1)   // Locazioni effettuate (018)
     expect(await come('a@test.it', `select * from voci_mensili where solo_ruolo = 'coordinatrice'`)).toHaveLength(1)
     expect(await come('estraneo@test.it', `select * from voci_mensili`)).toHaveLength(0)
     expect(await come('estraneo@test.it', `select * from persone`)).toHaveLength(0)
@@ -555,11 +556,11 @@ describe('Totali mensili della propria città (presentazione mensile dell\'uffic
     const ottenuto = await dalDatabase('a@test.it')
     expect(ottenuto).toEqual(atteso)
     // qualche numero a mano: luglio = Roma B dallo storico (8) + Roma C (5 + 2);
-    // agosto: di Roma C conta solo Carla (6), non chi è uscito (9) né lo storico (99)
+    // agosto: di Roma C contano Carla (6) e Ciro, uscito a metà mese (9) (018), non lo storico (99)
     expect(ottenuto.andamento[1].get('colloqui')).toBe(15)
     const agostoSenzaRomaC = (await db.query<{ n: number }>(`select coalesce(sum(valore), 0)::int n from valori_mensili
       where mese = '2026-08-01' and voce = 'colloqui' and ufficio_id in (${romaA}, ${romaB})`)).rows[0].n
-    expect(ottenuto.andamento[2].get('colloqui')).toBe(agostoSenzaRomaC + 6)
+    expect(ottenuto.andamento[2].get('colloqui')).toBe(agostoSenzaRomaC + 6 + 9)
     // voce per voce (016): ad agosto Roma C ha numeri persona per persona ma non le vendite: valgono quelle dell'Excel;
     // lo staff resta quello delle persone (Carla), non il 9 dell'Excel
     const venditeAgostoAltri = (await db.query<{ n: number }>(`select coalesce(sum(valore), 0)::int n from totali_mensili_storico
@@ -772,11 +773,62 @@ describe('Nota della settimana a tre caselle', () => {
   })
 })
 
+describe('Chi esce nel mese, report di gruppo per gli uffici, locazioni effettuate (018)', () => {
+  const report = async (email: string, mese = '2026-08-01') =>
+    come<{ ufficio_id: number; nome: string; voce: string | null; valore: number | null }>(email,
+      `select ufficio_id::int, nome, voce, valore::int from report_gruppo_mensile($1::date)`, [mese])
+  const scadenza = (quando: string, blocca: boolean) => db.exec(`insert into scadenze_mensili (mese, scadenza, blocca)
+    values ('2026-08-01', ${quando}, ${blocca}) on conflict (mese) do update set scadenza = excluded.scadenza, blocca = excluded.blocca`)
+
+  it('i numeri di chi esce durante il mese restano nel totale dell\'ufficio', async () => {
+    // Roma C ad agosto: Carla 6 colloqui, Ciro (uscito il 15/08) 9
+    const r = (await db.query<{ valore: number }>(`select valore::int from totale_mensile_ufficio($1, '2026-08-01') where voce = 'colloqui'`, [romaC])).rows
+    expect(r[0].valore).toBe(15)
+  })
+
+  it('il report del gruppo arriva agli uffici solo dopo la scadenza con il blocco', async () => {
+    expect(await report('a@test.it')).toHaveLength(0)                       // nessuna scadenza
+    await scadenza(`now() + interval '1 day'`, true)
+    expect(await report('a@test.it')).toHaveLength(0)                       // scadenza non ancora passata
+    await scadenza(`now() - interval '1 hour'`, false)
+    expect(await report('a@test.it')).toHaveLength(0)                       // passata ma senza blocco
+    await scadenza(`now() - interval '1 hour'`, true)
+    const righe = await report('a@test.it')
+    const uffici = new Set(righe.map((r) => r.ufficio_id))
+    for (const u of [romaA, romaB, romaC, milanoA]) expect(uffici.has(u)).toBe(true)   // tutto il gruppo, anche Milano
+    const di = (u: number, v: string) => righe.find((r) => r.ufficio_id === u && r.voce === v)?.valore ?? null
+    expect(di(romaC, 'colloqui')).toBe(15)
+    const inServizio = (await db.query<{ n: number }>(`select count(*)::int n from persone where ufficio_id = $1
+      and data_inizio <= '2026-08-31' and (data_fine is null or data_fine > '2026-08-31')`, [romaC])).rows[0].n
+    expect(di(romaC, 'staff')).toBe(inServizio)                              // Ciro, uscito a metà mese, non è nello staff
+    expect(di(romaC, 'locazioni_effettuate')).toBeNull()
+    expect(await report('m@test.it')).toHaveLength(righe.length)            // anche l'ufficio di Milano vede tutto il gruppo
+    expect(await report('estraneo@test.it')).toHaveLength(0)
+  })
+
+  it('Locazioni effettuate: le scrive solo l\'amministratore generale, le leggono solo gli amministratori', async () => {
+    const carla = (await db.query<{ id: number }>(`select id::int from persone where nome = 'Carla Conti'`)).rows[0].id
+    const scrivi = `insert into valori_riservati (persona_id, ufficio_id, mese, voce, valore) values ($1, $2, '2026-09-01', 'locazioni_effettuate', 2)`
+    await rifiutata('a@test.it', scrivi, [carla, romaC])
+    await rifiutata('adminmi@test.it', scrivi, [carla, romaC])
+    await come('davide@test.it', scrivi, [carla, romaC])
+    expect(await come('davide@test.it', `select * from valori_riservati`)).toHaveLength(1)
+    expect(await come('a@test.it', `select * from valori_riservati`)).toHaveLength(0)
+    expect(await come('adminmi@test.it', `select * from valori_riservati`)).toHaveLength(0)   // Roma non è la sua città
+    // non si possono scrivere nel rapportino degli uffici, e non entrano nei totali
+    await rifiutata('davide@test.it', `insert into valori_mensili (persona_id, mese, voce, valore) values ($1, '2026-09-01', 'locazioni_effettuate', 1)`, [carla])
+    const totale = (await db.query<{ voce: string }>(`select voce from totale_mensile_ufficio($1, '2026-09-01')`, [romaC])).rows
+    expect(totale.map((t) => t.voce)).not.toContain('locazioni_effettuate')
+    // e valgono punti nella gara come le altre voci
+    await come('davide@test.it', `insert into punti_mensili (voce, punti) values ('locazioni_effettuate', 3)`)
+  })
+})
+
 describe('Migrazioni rieseguite', () => {
-  it('006–017 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–018 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
     const note = (await db.query(`select * from note_settimana order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql', '016_storico_voce_per_voce.sql', '017_ruolo_da_definire_trasferimenti.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql', '016_storico_voce_per_voce.sql', '017_ruolo_da_definire_trasferimenti.sql', '018_uscite_nel_mese_report_uffici_locazioni.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)

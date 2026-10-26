@@ -64,7 +64,12 @@ export function dataItaliana(iso: string | null): string {
 
 /** Le colonne del rapportino vero e proprio: entrano nei totali e nel report di gruppo */
 export function vociDelRapportino(voci: VoceMensile[]): VoceMensile[] {
-  return voci.filter((v) => !v.solo_ruolo)
+  return voci.filter((v) => !v.solo_ruolo && !v.riservata)
+}
+
+/** Voci riservate all'amministrazione, solo per la gara a punti (018: Locazioni effettuate) */
+export function vociRiservate(voci: VoceMensile[]): VoceMensile[] {
+  return voci.filter((v) => v.riservata)
 }
 
 /** Gli indicatori riservati a un ruolo (es. App. vendita fix delle coordinatrici): fuori dai totali */
@@ -146,6 +151,16 @@ export function indicatoriAccanto(voci: VoceMensile[], colonna: string, ruolo: R
  * l'ufficio durante il mese: chi esce non conta da nessuna parte nel mese in cui esce
  * (rapportino, totali, staff, liste, gara), decisione di Davide del 14/10/2026.
  */
+/**
+ * Presente nel mese: ha lavorato almeno una parte del mese (anche chi è uscito durante il mese).
+ * Chi finisce il 1° del mese non c'è. Decisione di Davide (26/10/2026): i numeri di chi lascia
+ * nel mese restano nel totale dell'ufficio, ma lo staff e la gara contano solo chi è in servizio.
+ */
+export function presenteNelMese(p: Persona, mese: string): boolean {
+  return p.data_inizio <= ultimoGiornoDelMese(mese) && (!p.data_fine || p.data_fine > mese)
+}
+
+/** In servizio nel mese: c'è ancora a fine mese (staff, gara a punti, completezza del rapportino) */
 export function inServizio(p: Persona, mese: string): boolean {
   const fine = ultimoGiornoDelMese(mese)
   return p.data_inizio <= fine && (!p.data_fine || p.data_fine > fine)
@@ -169,9 +184,9 @@ export function ordinaPersone(a: Persona, b: Persona): number {
     || a.data_inizio.localeCompare(b.data_inizio) || a.nome.localeCompare(b.nome)
 }
 
-/** Le righe del rapportino di un mese: solo le persone in servizio (chi è uscito nel mese non compare) */
+/** Le righe del rapportino di un mese: chi è presente nel mese, anche chi è uscito (riga rossa) */
 export function righeDelMese(persone: Persona[], mese: string): Persona[] {
-  return persone.filter((p) => inServizio(p, mese)).sort(ordinaPersone)
+  return persone.filter((p) => presenteNelMese(p, mese)).sort(ordinaPersone)
 }
 
 /** Mesi interi di servizio dalla data di inizio alla fine del mese indicato */
@@ -215,9 +230,10 @@ export function sommaValori(valori: ValoreMensile[], voci: VoceMensile[]): Total
  * `persone` e `valori` sono quelli di un solo ufficio.
  */
 export function totaleUfficio(persone: Persona[], valori: ValoreMensile[], mese: string, voci: VoceMensile[]): TotaliMese {
-  const inUfficio = new Set(persone.filter((p) => inServizio(p, mese)).map((p) => p.id))   // i numeri di chi è uscito nel mese non contano
-  const totali = sommaValori(valori.filter((v) => v.mese === mese && inUfficio.has(v.persona_id)), voci)
-  const staff = inUfficio.size
+  // i numeri di chi è uscito durante il mese contano; lo staff è chi c'è a fine mese
+  const presenti = new Set(persone.filter((p) => presenteNelMese(p, mese)).map((p) => p.id))
+  const totali = sommaValori(valori.filter((v) => v.mese === mese && presenti.has(v.persona_id)), voci)
+  const staff = persone.filter((p) => inServizio(p, mese)).length
   totali.set(STAFF, staff > 0 ? staff : null)
   return totali
 }

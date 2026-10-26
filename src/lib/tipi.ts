@@ -93,6 +93,7 @@ export interface VoceMensile {
   accanto_a?: string | null          // colonna in cui l'indicatore si mostra come esponente (es. appuntamenti_vendita)
   con_punti?: boolean                // conta nella gara a punti dei collaboratori (non Gestione incarichi)
   meglio_se_scende?: boolean         // nel report un aumento è negativo (es. Incarichi scaduti)
+  riservata?: boolean                // solo amministrazione, solo per la gara (018: Locazioni effettuate): non è una colonna del rapportino
 }
 
 export interface ValoreMensile {

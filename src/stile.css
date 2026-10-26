@@ -628,6 +628,9 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabella tr.riga-totale-mese th, .tabella tr.riga-totale-mese td { background: var(--primario-100); font-weight: 800; border-top: 2px solid var(--primario-700); }
 .tabella tr.riga-totale-mese th.ufficio-fisso { background: var(--primario-100); }
 .riga-anno-prima input { width: 42px; min-height: 32px; padding: 3px 4px; text-align: right; font-size: 13px; }
+/* Locazioni effettuate (018): colonna che vede e compila solo l'amministratore generale */
+.tabella-mensile td.cella-riservata { background: #FFF8E6; }
+.cella-riservata input { width: 52px; min-height: 32px; padding: 3px 4px; text-align: right; font-size: 13px; }
 .tabella tr.riga-variazione td.positivo { color: var(--ok-fg); font-weight: 700; }
 .tabella tr.riga-variazione td.negativo { color: var(--ko-fg); font-weight: 700; }
 .tabella tr.separatore-blocco td { height: 14px; padding: 0; background: var(--sfondo); border: 0; }
@@ -795,6 +798,10 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .grafico-scheda-persona .grafico-legenda { display: inline-flex; font-size: 8.5pt; }
   .grafico-scheda-persona .grafico svg { height: 32mm; }
   .scheda-persona-lunga { zoom: .88; }
+  .cella-riservata .solo-stampa { display: inline; }
+  /* report del gruppo per gli uffici (Inserisci mese): si stampa da solo, col suo pulsante */
+  body:not(.stampa-report-gruppo) .report-gruppo-ufficio { display: none !important; }
+  body.stampa-report-gruppo .pagina > :not(.report-gruppo-ufficio) { display: none !important; }
   .riga-anno-prima input { border: 0 !important; background: none !important; padding: 0 !important; min-height: 0 !important; width: 2.6em; font-size: 9.5pt; box-shadow: none !important; text-align: right; }
   .tabella-mensile tbody tr.riga-variazione th, .tabella-mensile tbody tr.riga-anno-prima th { white-space: normal; }
   .tabella tr.separatore-blocco td { height: 8px; border-left: 0 !important; border-right: 0 !important; background: #fff; }

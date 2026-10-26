@@ -9,9 +9,9 @@ import {
   curvaCrescita, daSeguire, formattaMedia, haNumeri, media, mediaIndicatoreRuolo, mediaRuolo, MESI_CURVA, meseDiServizio, MINIMO_PERSONE, nuoviEntrati,
   numeriPersona, rispettoAllaMedia, SOGLIA_DA_SEGUIRE,
 } from '../lib/collaboratori'
-import { caricaPersone, caricaPunti, caricaValoriMesi, caricaVociMensili } from '../lib/dati'
+import { caricaPersone, caricaPunti, caricaValoriMesi, caricaValoriRiservati, caricaVociMensili } from '../lib/dati'
 import {
-  aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, indicatoriAccanto, inServizio, mesiDiServizio, ordinaPersone,
+  aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, indicatoriAccanto, inServizio, mesiDiServizio, ordinaPersone, presenteNelMese,
   punteggio, RUOLO_GARA, titoloMese, VOCI_CONSISTENZA, vociDelRapportino, type TotaliMese,
 } from '../lib/mensile'
 import { nomeMeseBreve } from '../lib/settimane'
@@ -42,8 +42,10 @@ export default function Collaboratori({ uffici, mese }: { uffici: Ufficio[]; mes
   const mesi = Array.from({ length: MESI_SCHEDA }, (_, i) => aggiungiMesi(mese, i - MESI_SCHEDA + 1))
   const ids = uffici.map((u) => u.id)
   const { dati, errore } = useDati<Dati>(async () => {
-    const [voci, persone, valori, punti] = await Promise.all([caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids), caricaPunti()])
-    return { voci, persone, valori, punti }
+    const [voci, persone, valori, punti, riservati] = await Promise.all([
+      caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids), caricaPunti(), caricaValoriRiservati(mesi, ids)])
+    // i numeri riservati (018: Locazioni effettuate) contano solo nel punteggio: non sono colonne del rapportino
+    return { voci, persone, valori: [...valori, ...riservati], punti }
   }, [mese, ids.join(',')])
 
   return (
@@ -113,7 +115,7 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
   const codici = colonne.map((v) => v.codice)
   const gara = p.ruolo === RUOLO_GARA && dati.punti.size > 0
   const plurale = PLURALI[p.ruolo]
-  const mesiPersona = mesi.filter((m) => inServizio(p, m))
+  const mesiPersona = mesi.filter((m) => presenteNelMese(p, m))   // anche il mese in cui ha lasciato l'ufficio
   const indicatoriRuolo = colonne.flatMap((v) => indicatoriAccanto(dati.voci, v.codice, p.ruolo))
   const tutteLeRighe = mesiPersona.map((m) => {
     const numeri = numeriPersona(dati.valori, p.id, m, dati.voci)
@@ -126,7 +128,8 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
       mediaGruppo: mediaRuolo(dati.persone, dati.valori, p.ruolo, m, dati.voci) as TotaliMese,
       // indicatori del ruolo (es. App. vendita fix delle coordinatrici): media dei colleghi nel mese
       mediaIndicatori: new Map(indicatoriRuolo.map((a) => [a.codice, mediaIndicatoreRuolo(dati.persone, dati.valori, p.ruolo, m, a.codice)])),
-      punti: gara ? punteggio(valoriMese.filter((v) => v.persona_id === p.id), dati.punti) : null,
+      // nel mese in cui lascia l'ufficio non partecipa alla gara (Davide, 26/10/2026)
+      punti: gara && inServizio(p, m) ? punteggio(valoriMese.filter((v) => v.persona_id === p.id), dati.punti) : null,
       valoreDi: (voce: string) => valoriMese.find((v) => v.persona_id === p.id && v.voce === voce)?.valore ?? null,
     }
   })

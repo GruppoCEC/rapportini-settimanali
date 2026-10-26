@@ -16,6 +16,7 @@ import { Caricamento } from '../componenti/Celle'
 import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
 import { AvvisoUscite, classeMovimento, EtichettaMovimento, TabellaRapportino } from '../componenti/TabellaMensile'
+import ReportGruppoUfficio from '../componenti/ReportGruppoUfficio'
 
 interface Props {
   uffici: Ufficio[]                     // uffici che l'utente può compilare (di solito uno solo)
@@ -195,6 +196,9 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
           testo={(pid, voce) => caselle[chiave(pid, voce)] ?? ''}
           onCambia={(pid, voce, valore) => { setCaselle((c) => ({ ...c, [chiave(pid, voce)]: valore })); setMessaggio(null) }} />
       </section>
+
+      {/* dopo la scadenza con il blocco l'ufficio vede e stampa il report di tutto il gruppo (018) */}
+      {scadenza?.blocca && scadenzaPassata(scadenza) && <ReportGruppoUfficio key={mese} mese={mese} ufficioId={ufficioId} voci={voci} />}
 
       <Personale persone={persone} ufficioId={ufficioId} mese={mese} onCambiato={ricaricaPersone} chiedi={chiedi} mostraToast={mostraToast} bloccato={inProva} />
 

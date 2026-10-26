@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   aggiungiMesi, formattaAnzianita, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
-  righeDelMese, riepilogoDaRighe, riepilogoMensile, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione,
+  presenteNelMese, righeDelMese, riepilogoDaRighe, riepilogoMensile, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione, vociRiservate,
 } from './mensile'
 import type { Persona, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
 
@@ -32,7 +32,7 @@ describe('persone', () => {
     persona(3, 'marketer', '2026-09-30'),               // inizia l'ultimo giorno del mese: conta
     persona(4, 'collaboratore', '2019-01-01', '2026-08-31'), // uscita ad agosto: a settembre non c'è
     persona(5, 'coordinatrice', '2026-10-01'),          // inizia a ottobre
-    persona(6, 'collaboratore', '2019-01-01', '2026-09-15'), // uscita a settembre: a settembre non conta già più
+    persona(6, 'collaboratore', '2019-01-01', '2026-09-15'), // uscita a settembre: c'è nel rapportino (riga rossa), non nello staff
     persona(7, 'marketer', '2019-01-01', '2026-10-01'), // uscita il 1° ottobre: settembre lo ha fatto tutto
   ]
 
@@ -40,8 +40,15 @@ describe('persone', () => {
     expect(persone.filter((p) => inServizio(p, '2026-09-01')).map((p) => p.id)).toEqual([1, 2, 3, 7])
   })
 
-  it('mette le righe in ordine di ruolo e non mostra chi è uscito nel mese', () => {
-    expect(righeDelMese(persone, '2026-09-01').map((p) => p.id)).toEqual([2, 1, 7, 3])   // marketer dal più anziano
+  it('mette le righe in ordine di ruolo e mostra anche chi è uscito durante il mese (018)', () => {
+    expect(righeDelMese(persone, '2026-09-01').map((p) => p.id)).toEqual([2, 6, 1, 7, 3])   // per anzianità; marketer dal più anziano
+  })
+
+  it('presente nel mese: anche chi esce durante il mese, non chi esce il 1° o prima', () => {
+    expect(persone.filter((p) => presenteNelMese(p, '2026-09-01')).map((p) => p.id)).toEqual([1, 2, 3, 6, 7])
+    expect(presenteNelMese(persona(8, 'collaboratore', '2019-01-01', '2026-09-01'), '2026-09-01')).toBe(false)
+    expect(presenteNelMese(persona(8, 'collaboratore', '2019-01-01', '2026-09-02'), '2026-09-01')).toBe(true)
+    expect(inServizio(persona(8, 'collaboratore', '2019-01-01', '2026-09-02'), '2026-09-01')).toBe(false)
   })
 
   it('calcola l\'anzianità a fine mese', () => {
@@ -89,11 +96,18 @@ describe('totali', () => {
     expect(t.get(STAFF)).toBe(2)
   })
 
-  it('chi è uscito nel mese non conta nel totale né nello staff, anche se aveva dei numeri', () => {
-    const conUscita = [...persone, persona(9, 'collaboratore', '2020-01-01', '2026-09-20')]
-    const t = totaleUfficio(conUscita, [val(1, 'colloqui', 3), val(9, 'colloqui', 50)], '2026-09-01', voci)
-    expect(t.get('colloqui')).toBe(3)
+  it('chi è uscito durante il mese conta nel totale con i suoi numeri, ma non nello staff (018)', () => {
+    const conUscita = [...persone, persona(9, 'collaboratore', '2020-01-01', '2026-09-20'), persona(10, 'collaboratore', '2020-01-01', '2026-09-01')]
+    const t = totaleUfficio(conUscita, [val(1, 'colloqui', 3), val(9, 'colloqui', 50), val(10, 'colloqui', 7)], '2026-09-01', voci)
+    expect(t.get('colloqui')).toBe(53)          // 3 + 50; chi è uscito il 1° settembre (7) no
     expect(t.get(STAFF)).toBe(2)
+  })
+
+  it('le voci riservate (Locazioni effettuate) non sono colonne del rapportino né dei totali', () => {
+    const conRiservata = [...voci, { codice: 'locazioni_effettuate', gruppo: 'Locazioni effettuate', sotto: null, ordine: 60, riservata: true }]
+    expect(vociDelRapportino(conRiservata).map((v) => v.codice)).not.toContain('locazioni_effettuate')
+    expect(vociRiservate(conRiservata).map((v) => v.codice)).toEqual(['locazioni_effettuate'])
+    expect(totaleUfficio(persone, [val(1, 'locazioni_effettuate', 4)], '2026-09-01', conRiservata).has('locazioni_effettuate')).toBe(false)
   })
 
   it('una colonna che nessuno ha scritto resta vuota, non zero', () => {
@@ -125,15 +139,15 @@ describe('riepilogo dell\'anno', () => {
     const persone = [persona(1, 'collaboratore', '2020-01-01'), persona(2, 'collaboratore', '2020-01-01', '2026-02-20'), persona(3, 'marketer', '2026-03-01')]
     const valori = [
       val(1, 'colloqui', 3, '2026-01-01'), val(2, 'colloqui', 4, '2026-01-01'),
-      val(1, 'colloqui', 5, '2026-02-01'), val(2, 'colloqui', 9, '2026-02-01'),   // la persona 2 esce a febbraio: i suoi 9 non contano
+      val(1, 'colloqui', 5, '2026-02-01'), val(2, 'colloqui', 9, '2026-02-01'),   // la persona 2 esce a febbraio: i suoi 9 contano (018)
       val(1, 'colloqui', 1, '2026-03-01'), val(3, 'colloqui', 2, '2026-03-01'),
     ]
     const { totale, mesiCompilati, perMese } = totaleAnnoUfficio(persone, valori, mesiDellAnno('2026', '2026-03-01'), voci)
-    expect(totale.get('colloqui')).toBe(3 + 4 + 5 + 1 + 2)
+    expect(totale.get('colloqui')).toBe(3 + 4 + 5 + 9 + 1 + 2)
     expect(totale.get('proposte_vendita')).toBeNull()
     expect(totale.get(STAFF)).toBe(2)                 // a marzo: persone 1 e 3
     expect(mesiCompilati).toBe(3)
-    expect(perMese[1].get(STAFF)).toBe(1)             // a febbraio la persona 2 non conta già più
+    expect(perMese[1].get(STAFF)).toBe(1)             // a febbraio la persona 2 non è nello staff
   })
 })
 

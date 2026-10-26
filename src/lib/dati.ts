@@ -2,8 +2,8 @@
 // automaticamente: ognuno riceve solo le righe che può vedere.
 import { supabase } from './supabase'
 import { posizioniDaRighe, totaliCittaDaRighe, type Posizione, type RigaPosizione, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
-import { riepilogoDaRighe, type RiepilogoMensile, type RigaTotaliMensiliCitta } from './mensile'
-import type { Metrica, Persona, Rilevazione, Scadenza, StoricoMensile, Utente, ValoreMensile, VoceMensile } from './tipi'
+import { riepilogoDaRighe, type RiepilogoMensile, type RigaTotaliMensiliCitta, type TotaliMese } from './mensile'
+import type { Metrica, Persona, Rilevazione, Scadenza, StoricoMensile, Ufficio, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
 
@@ -171,7 +171,10 @@ async function aPagine<T>(richiesta: (da: number, a: number) => PromiseLike<{ da
 
 /** Le colonne del rapportino mensile, nell'ordine del file Excel */
 export async function caricaVociMensili(): Promise<VoceMensile[]> {
-  const { data, error } = await supabase.from('voci_mensili').select('codice, gruppo, sotto, ordine, solo_ruolo, accanto_a, con_punti, meglio_se_scende').eq('attiva', true).order('ordine')
+  const colonne = 'codice, gruppo, sotto, ordine, solo_ruolo, accanto_a, con_punti, meglio_se_scende'
+  const nuova = await supabase.from('voci_mensili').select(`${colonne}, riservata`).eq('attiva', true).order('ordine')
+  if (!nuova.error) return nuova.data as VoceMensile[]
+  const { data, error } = await supabase.from('voci_mensili').select(colonne).eq('attiva', true).order('ordine')   // 018 non ancora eseguita
   if (error) throw new Error(error.message)
   return data as VoceMensile[]
 }
@@ -195,6 +198,39 @@ export async function caricaValoriMensili(mese: string, ufficiIds: number[]): Pr
     .select('persona_id, ufficio_id, mese, voce, valore, aggiornato_da, aggiornato_il')
     .eq('mese', mese).in('ufficio_id', ufficiIds)
     .order('ufficio_id').order('persona_id').order('voce').range(da, a))
+}
+
+/**
+ * Numeri riservati all'amministrazione (018: Locazioni effettuate, per la gara a punti), dei mesi indicati.
+ * Li leggono solo gli amministratori: per gli altri, o se la 018 non è ancora eseguita, è vuoto.
+ */
+export async function caricaValoriRiservati(mesi: string[], ufficiIds: number[]): Promise<ValoreMensile[]> {
+  if (ufficiIds.length === 0 || mesi.length === 0) return []
+  try {
+    return await aPagine<ValoreMensile>((da, a) => supabase.from('valori_riservati')
+      .select('persona_id, ufficio_id, mese, voce, valore').in('mese', mesi).in('ufficio_id', ufficiIds)
+      .order('ufficio_id').order('persona_id').order('voce').range(da, a))
+  } catch { return [] }
+}
+
+/**
+ * Report del gruppo di un mese per gli uffici (018): i totali di tutti gli uffici, che il database dà solo dopo
+ * la scadenza con il blocco. Vuoto prima del blocco, o se la 018 non è ancora eseguita.
+ */
+export async function caricaReportGruppo(mese: string): Promise<{ ufficio: Ufficio; totale: TotaliMese }[]> {
+  const { data, error } = await supabase.rpc('report_gruppo_mensile', { p_mese: mese })
+  if (error || !data) return []
+  type Riga = { ufficio_id: number; nome: string; citta_id: number; blocco_mensile: number | null; ordine_mensile: number | null; voce: string | null; valore: number | null }
+  const perUfficio = new Map<number, { ufficio: Ufficio; totale: TotaliMese }>()
+  for (const r of data as Riga[]) {
+    const id = Number(r.ufficio_id)
+    if (!perUfficio.has(id)) perUfficio.set(id, {
+      ufficio: { id, nome: r.nome, citta_id: r.citta_id, area_id: null, attivo: true, blocco_mensile: r.blocco_mensile ?? 1, ordine_mensile: r.ordine_mensile },
+      totale: new Map(),
+    })
+    if (r.voce) perUfficio.get(id)!.totale.set(r.voce, r.valore === null ? null : Number(r.valore))
+  }
+  return [...perUfficio.values()]
 }
 
 /** I numeri di più mesi (es. un anno intero), caricati in parallelo mese per mese */

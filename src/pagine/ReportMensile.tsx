@@ -4,14 +4,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PROMEMORIA_ATTIVI, type Contesto } from '../lib/contesto'
 import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
-import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaStorico, caricaValoriMensili, caricaValoriMesi, caricaVociMensili, mensileAperto } from '../lib/dati'
+import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaStorico, caricaValoriMensili, caricaValoriMesi, caricaValoriRiservati, caricaVociMensili, mensileAperto } from '../lib/dati'
 import { AvvisoProva } from './RapportinoMensile'
 import Collaboratori from './Collaboratori'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
   punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, dataOra, scadenzaPassata, scadenzaProposta, ultimoRitardo,
   indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleConStorico, variazione,
-  vociDelRapportino, type TotaliMese,
+  presenteNelMese, vociDelRapportino, vociRiservate, type TotaliMese,
 } from '../lib/mensile'
 import { supabase } from '../lib/supabase'
 import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
@@ -47,6 +47,7 @@ interface DatiMese {
   confronto: Map<string, number | null>
   punti: Map<string, number>          // gara dei collaboratori: punti per unità di ogni voce
   scadenza: Scadenza | null
+  riservati: ValoreMensile[]          // numeri solo per la gara, scritti dall'amministratore generale (018: Locazioni effettuate)
 }
 
 export default function ReportMensile({ ctx }: { ctx: Contesto }) {
@@ -62,18 +63,20 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
   const ids = uffici.map((u) => u.id)
 
   const dati = useDati<DatiMese>(async () => {
-    const [voci, persone, valori, confronto, punti, scadenza, storico] = await Promise.all([
+    const [voci, persone, valori, confronto, punti, scadenza, storico, riservati] = await Promise.all([
       caricaVociMensili(), caricaPersone(ids), caricaValoriMensili(mese, ids),
       generale ? caricaConfronto(aggiungiMesi(mese, -12)) : Promise.resolve(new Map<string, number | null>()),
       affiliato ? Promise.resolve(new Map<string, number>()) : caricaPunti(),   // la gara a punti è riservata agli amministratori
       caricaScadenza(mese),
       caricaStorico([mese], ids),
+      affiliato ? Promise.resolve([]) : caricaValoriRiservati([mese], ids),
     ])
     return {
       voci,
       confronto,
       punti,
       scadenza,
+      riservati,
       uffici: uffici.map((ufficio) => {
         const suePersone = persone.filter((p) => p.ufficio_id === ufficio.id)
         const suoiValori = valori.filter((v) => v.ufficio_id === ufficio.id)
@@ -482,17 +485,25 @@ function ListePersonale({ dati, mese, generale, affiliato, ctx, onSalvato }: {
   const uffici = dati.uffici.filter((u) => citta === 'tutte' || u.ufficio.citta_id === citta)
   const ordineUfficio = new Map(dati.uffici.map((u, i) => [u.ufficio.id, i]))
   const conPunti = dati.punti.size > 0
+  // Punteggio della gara: i numeri del rapportino più quelli riservati all'amministrazione (Locazioni effettuate).
+  // Solo per chi è in servizio a fine mese: chi lascia l'ufficio nel mese non partecipa (Davide, 26/10/2026)
+  const puntiDi = (p: Persona, u: DatiUfficio) => p.ruolo === RUOLO_GARA && inServizio(p, mese)
+    ? punteggio([...u.valori, ...dati.riservati].filter((v) => v.persona_id === p.id), dati.punti) : null
   // Punteggio più alto del mese su tutto il gruppo (anche filtrando per città): quella riga va in giallo
   const migliore = Math.max(-Infinity, ...dati.uffici.flatMap((u) => u.persone
-    .filter((p) => p.ruolo === RUOLO_GARA && inServizio(p, mese))
-    .map((p) => punteggio(u.valori.filter((v) => v.persona_id === p.id), dati.punti))
-    .filter((x): x is number => x !== null)))
-  // Persone di un ruolo in servizio nel mese, in ordine di ufficio (come nel file di gruppo), con il punteggio della gara
+    .map((p) => puntiDi(p, u)).filter((x): x is number => x !== null)))
+  // Persone di un ruolo presenti nel mese (anche chi è uscito: riga rossa), in ordine di ufficio (come nel file di gruppo)
   const righeDi = (ruolo: RuoloPersona) => uffici
-    .flatMap((u) => u.persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese))
-      .map((p) => ({ p, u, punti: ruolo === RUOLO_GARA ? punteggio(u.valori.filter((v) => v.persona_id === p.id), dati.punti) : null })))
+    .flatMap((u) => u.persone.filter((p) => p.ruolo === ruolo && presenteNelMese(p, mese)).map((p) => ({ p, u, punti: puntiDi(p, u) })))
     .sort((a, b) => ordineUfficio.get(a.u.ufficio.id)! - ordineUfficio.get(b.u.ufficio.id)! || ordinaPersone(a.p, b.p))
-  const testoPunti = vociConPunti(dati.voci).filter((v) => dati.punti.has(v.codice))
+  // Locazioni effettuate: le vede e le scrive solo l'amministratore generale (018)
+  const riservate = generale ? vociRiservate(dati.voci) : []
+  const salvatiRiservati = useMemo(() => Object.fromEntries(dati.riservati.filter((v) => v.mese === mese && v.valore !== null)
+    .map((v) => [`${v.persona_id}|${v.voce}`, String(v.valore)])), [dati.riservati, mese])
+  const [testiRiservati, setTestiRiservati] = useState<Record<string, string>>(salvatiRiservati)
+  useEffect(() => { setTestiRiservati(salvatiRiservati) }, [salvatiRiservati])
+  const bozza: BozzaRiservati = { testi: testiRiservati, salvati: salvatiRiservati, cambia: (k, v) => setTestiRiservati((t) => ({ ...t, [k]: v })) }
+  const testoPunti = [...vociConPunti(dati.voci), ...riservate].filter((v) => dati.punti.has(v.codice))
     .map((v) => `${v.gruppo}${v.sotto ? ` ${SOTTO_BREVE[v.sotto] ?? v.sotto}` : ''} ${formattaPunti(dati.punti.get(v.codice))}`).join(' · ')
 
   return (
@@ -512,14 +523,16 @@ function ListePersonale({ dati, mese, generale, affiliato, ctx, onSalvato }: {
             ))}
           </div>
         )}
-        {vista !== 'uscite' && <p className="avviso"><Icona nome="info" /><span>Persone in servizio a {titoloMese(mese).toLowerCase()}.{conGara && <> Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</>}</span></p>}
+        {vista !== 'uscite' && <p className="avviso"><Icona nome="info" /><span>Persone presenti a {titoloMese(mese).toLowerCase()}: in rosso chi ha lasciato l'ufficio nel mese (i suoi numeri restano, ma non partecipa alla gara).{conGara && <> Solo i <strong>collaboratori</strong> partecipano alla gara a punti.</>}</span></p>}
       </div>
       {vista === 'uscite' && <SchedaUscite uffici={uffici} annoIniziale={mese.slice(0, 4)} />}
-      {vista === 'scheda' && conGara && <SchedaPunteggi righe={righeDi(RUOLO_GARA)} migliore={migliore} mese={mese} conPunti={conPunti} />}
-      {vista === 'liste' && conGara && <TabellaPunti voci={dati.voci} punti={dati.punti} modificabile={generale} onSalvato={onSalvato} />}
+      {vista === 'scheda' && conGara && <SchedaPunteggi righe={righeDi(RUOLO_GARA).filter((x) => inServizio(x.p, mese))} migliore={migliore} mese={mese} conPunti={conPunti} />}
+      {vista === 'liste' && conGara && <TabellaPunti voci={dati.voci} punti={dati.punti} modificabile={generale} riservate={riservate} onSalvato={onSalvato} />}
+      {vista === 'liste' && riservate.length > 0 && <SalvaRiservati bozza={bozza} voci={riservate} mese={mese} uffici={dati.uffici} onSalvato={onSalvato} />}
       {vista === 'liste' && LISTE.map(({ ruolo, titolo }) => {
         const colonne = vociDelRapportino(dati.voci)
         const gara = ruolo === RUOLO_GARA && conGara
+        const riservateGara = gara ? riservate : []
         const righe = righeDi(ruolo)
         const primo = (punti: number | null) => gara && punti !== null && punti === migliore
         return (
@@ -528,7 +541,7 @@ function ListePersonale({ dati, mese, generale, affiliato, ctx, onSalvato }: {
             {righe.length === 0 ? <p className="piccolo">Nessuna persona con questo ruolo.</p> : (
               <div className="tabella-scorrevole">
                 <table className="tabella tabella-mensile tabella-report">
-                  <TestataVoci voci={colonne} prime={['Nome', 'Ufficio', 'Inizio · anzianità']} ultime={gara ? ['Punteggio'] : []}
+                  <TestataVoci voci={colonne} prime={['Nome', 'Ufficio', 'Inizio · anzianità']} ultime={gara ? [...riservateGara.map((v) => v.gruppo), 'Punteggio'] : []}
                     annotazioni={annotazioniIndicatori(dati.voci, righe.map((x) => x.p)).annotazioni}
                     titoloStampa={<TitoloStampa titolo={titolo} sottotitolo={`${titoloMese(mese)} · ${righe.length} persone`}
                       info={gara && conPunti && Number.isFinite(migliore) ? `Gara a punti · punteggio più alto: ${formattaPunti(migliore)}` : undefined} />} />
@@ -549,6 +562,19 @@ function ListePersonale({ dati, mese, generale, affiliato, ctx, onSalvato }: {
                           return (
                             <td key={v.codice} className={`destra ${accanto.length ? 'cella-con-fix' : ''} ${valore === null ? 'cella-vuota' : ''}`}>
                               <ValoreConIndicatori valore={valore} tra={accanto.map((a) => valoreDi(a.codice))} />
+                            </td>
+                          )
+                        })}
+                        {riservateGara.map((v) => {
+                          const k = `${p.id}|${v.codice}`
+                          // chi ha lasciato l'ufficio nel mese non partecipa alla gara: niente casella
+                          if (!inServizio(p, mese)) return <td key={v.codice} className="destra cella-riservata cella-vuota">—</td>
+                          return (
+                            <td key={v.codice} className="destra cella-riservata">
+                              <input inputMode="numeric" className={`non-stampa ${leggiNumero(bozza.testi[k] ?? '') === 'errore' ? 'non-valido' : ''}`}
+                                aria-label={`${v.gruppo} – ${p.nome}`} value={bozza.testi[k] ?? ''} placeholder="—"
+                                onChange={(e) => bozza.cambia(k, e.target.value)} />
+                              <span className="solo-stampa">{bozza.testi[k] ?? ''}</span>
                             </td>
                           )
                         })}
@@ -727,11 +753,66 @@ function SchedaPunteggi({ righe, migliore, mese, conPunti }: {
   )
 }
 
+// ---------------------------------------------------------------- Locazioni effettuate (solo amministratore generale)
+
+/** Le caselle delle voci riservate nella lista dei collaboratori: chiave "persona|voce" */
+interface BozzaRiservati { testi: Record<string, string>; salvati: Record<string, string>; cambia: (chiave: string, testo: string) => void }
+
+/** Barra di salvataggio delle Locazioni effettuate (018): le scrive solo l'amministratore generale, contano nel punteggio */
+function SalvaRiservati({ bozza, voci, mese, uffici, onSalvato }: {
+  bozza: BozzaRiservati; voci: VoceMensile[]; mese: string; uffici: DatiUfficio[]; onSalvato: () => void
+}) {
+  const [stato, setStato] = useState<'pronto' | 'salvataggio'>('pronto')
+  const [errore, setErrore] = useState<string | null>(null)
+  const [toast, mostraToast] = useToast()
+  const chiavi = [...new Set([...Object.keys(bozza.testi), ...Object.keys(bozza.salvati)])]
+  const cambiate = chiavi.filter((k) => (bozza.testi[k] ?? '') !== (bozza.salvati[k] ?? ''))
+  const errate = cambiate.filter((k) => leggiNumero(bozza.testi[k] ?? '') === 'errore')
+  const ufficioDi = new Map(uffici.flatMap((u) => u.persone.map((p) => [p.id, u.ufficio.id])))
+
+  async function salva() {
+    if (errate.length > 0) { setErrore('Scrivi solo numeri interi (0, 1, 2…).'); return }
+    setStato('salvataggio')
+    setErrore(null)
+    const righe = cambiate.map((k) => {
+      const [pid, voce] = k.split('|')
+      const v = leggiNumero(bozza.testi[k] ?? '')
+      return { persona_id: Number(pid), ufficio_id: ufficioDi.get(Number(pid))!, mese, voce, valore: typeof v === 'number' ? v : null }
+    })
+    const { error } = await supabase.from('valori_riservati').upsert(righe, { onConflict: 'persona_id,mese,voce' })
+    setStato('pronto')
+    if (error) { setErrore(`Salvataggio non riuscito: ${error.message}`); return }
+    mostraToast(`${voci.map((v) => v.gruppo).join(', ')} salvate: punteggi aggiornati.`)
+    onSalvato()
+  }
+
+  return (
+    <section className="scheda non-stampa">
+      <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="key" /></span>{voci.map((v) => v.gruppo).join(', ')}</h2>
+      <p className="piccolo">
+        Colonna nella lista dei <strong>collaboratori</strong> qui sotto, accanto al punteggio: la vedi e la compili solo tu (non compare agli uffici
+        né agli altri amministratori). Conta nel punteggio della gara con i punti scritti in "Come si ottengono i punti"; non entra nei totali degli uffici.
+      </p>
+      <div className="barra-confronto">
+        {errore ? <span className="errore">{errore}</span>
+          : <span className="piccolo">{cambiate.length > 0 ? `${cambiate.length} ${cambiate.length === 1 ? 'casella modificata' : 'caselle modificate'}: salva per aggiornare i punteggi.` : 'Nessuna modifica.'}</span>}
+        <button className="btn btn-primario" disabled={cambiate.length === 0 || stato !== 'pronto'} onClick={salva}>
+          <Icona nome={stato === 'salvataggio' ? 'circle-notch' : 'floppy-disk'} className={stato === 'salvataggio' ? 'gira' : ''} />Salva
+        </button>
+      </div>
+      {toast}
+    </section>
+  )
+}
+
 // ---------------------------------------------------------------- Tabella dei punti della gara
 
 /** Quanti punti vale ogni voce per i collaboratori; la modifica solo l'amministratore generale */
-function TabellaPunti({ voci, punti, modificabile, onSalvato }: { voci: VoceMensile[]; punti: Map<string, number>; modificabile: boolean; onSalvato: () => void }) {
-  const conPunti = vociConPunti(voci)
+function TabellaPunti({ voci, punti, modificabile, riservate, onSalvato }: {
+  voci: VoceMensile[]; punti: Map<string, number>; modificabile: boolean; riservate: VoceMensile[]; onSalvato: () => void
+}) {
+  // le voci riservate (Locazioni effettuate) le vede solo l'amministratore generale
+  const conPunti = [...vociConPunti(voci), ...riservate.filter((v) => v.con_punti !== false)]
   const senzaPunti = vociDelRapportino(voci).filter((v) => v.con_punti === false)
   const salvati = useMemo(() => Object.fromEntries(conPunti.map((v) => [v.codice, punti.has(v.codice) ? String(punti.get(v.codice)).replace('.', ',') : ''])),
     [punti, voci])  // eslint-disable-line react-hooks/exhaustive-deps
