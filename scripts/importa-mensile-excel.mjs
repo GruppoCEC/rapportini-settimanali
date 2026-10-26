@@ -47,10 +47,10 @@ const UFFICI = [
   [31, 'Roma', 'Taranto', /taranto/], [33, 'Roma', 'S.M Ausiliatrice', /ausiliatrice/], [34, 'Milano', 'Ticinese', /ticinese/],
   [35, 'Roma', 'Prati delle Vittorie', /prati delle vittorie/], [36, 'Roma', 'Marconi', /marconi/], [37, 'Milano', 'San Donato', /san donato/],
   [38, 'Roma', 'Quadraro', /quadraro/], [39, 'Roma', 'Ostiense', /ostiense aventino/], [40, 'Roma', 'Lamaro', /lamaro/],
-  [41, 'Milano', 'Lomellina', /corsica/], [42, 'Milano', 'Ungheria', /ungheria/], [43, 'Roma', 'Garbatella', /^garbatella$/],
+  [41, 'Milano', 'Corsica', /corsica/], [42, 'Milano', 'Ungheria', /ungheria/], [43, 'Roma', 'Garbatella', /^garbatella$/],
   [44, 'Roma', 'Testaccio', /testaccio/], [45, 'Milano', 'Navigli', /navigli/],
   [48, 'Roma', 'Industriale S.Giovanni', /^ind.*giovanni/], [49, 'Roma', 'Oderisi', /oderisi/], [50, 'Roma', 'Villa Bonelli', /villa bonelli/],
-  [51, 'Roma', 'Espero', /espero/], [52, 'Roma', 'Villa Lais', /villa lais/], [53, 'Roma', 'Imm. Garbatella', /garbatella-ostiense/],
+  [51, 'Roma', 'Espero', /espero/], [52, 'Roma', 'Villa Lais', /villa lais/], [53, 'Roma', 'Garbatella-Ostiense', /garbatella-ostiense/],
 ]
 // Righe dell'Excel senza ufficio sulla piattaforma: si saltano, ma se hanno numeri si segnalano
 const SENZA_UFFICIO = [[32, 'St. Appio Latino', /appio latino/]]
