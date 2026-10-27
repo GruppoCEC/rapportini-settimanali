@@ -137,7 +137,7 @@ Nel sito **non** devono comparire i nomi "Tecnocasa" o "Tecnorete" né loghi del
 ## Assets
 - Font: Manrope, Bricolage Grotesque (Google Fonts).
 - Icone: Phosphor, peso duotone.
-- Logo: dalla 0.26.0 il logo del Gruppo C.E.C. (cartella "Kit Gruppo CEC", con il manuale d'uso): logo intero nella pagina di accesso, logo compatto (file 04 e 05, tolto solo il margine trasparente) in testata, presentazioni e stampe, favicon (file 09) e icona per iPhone (file 08). File nel sito: `src/immagini/` e `public/`. I colori Tecnocasa `#0057A3` e Tecnorete `#EE7326` vanno confermati con il manuale del marchio.
+- Logo: dalla 0.26.0 il logo del Gruppo C.E.C. (cartella "Kit Gruppo CEC", con il manuale d'uso): logo intero nella pagina di accesso, logo compatto per sfondi scuri (file 04, tolto solo il margine trasparente) in testata e presentazioni, e nelle stampe su un riquadro `--accent-900` (sempre la versione su fondo scuro, scelta di Davide), favicon (file 09) e icona per iPhone (file 08). File nel sito: `src/immagini/` e `public/`. I colori Tecnocasa `#0057A3` e Tecnorete `#EE7326` vanno confermati con il manuale del marchio.
 
 ## Schermate
 Cartella `schermate/` (catturate dal prototipo a ~920px di larghezza, ruolo amministratore generale, dati inventati): cruscotto, inserisci settimana, andamento, stato compilazione, avvio riunione, presentazione (copertina, totali, classifica, pagina ufficio), amministrazione, il mio account, accesso. Le lettere a/b/c indicano parti successive della stessa pagina scorrendo. Sono un riferimento visivo: per misure e colori fa fede questo README.

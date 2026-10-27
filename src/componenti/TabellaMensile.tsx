@@ -29,7 +29,7 @@ const SOTTO: Record<string, string> = { vendita: 'vend.', locazione: 'loc.' }
 export function TitoloStampa({ titolo, sottotitolo, info }: { titolo: ReactNode; sottotitolo?: ReactNode; info?: ReactNode }) {
   return (
     <div className="stampa-testata">
-      <Logo altezza={64} sfondo="chiaro" />
+      <Logo altezza={56} riquadro />
       <div className="stampa-titoli">
         <span className="stampa-kicker">Gruppo CEC · Rapportini mensili</span>
         <strong>{titolo}</strong>

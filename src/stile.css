@@ -177,6 +177,8 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .logo { display: block; flex: none; }
 @media (max-width: 560px) { .testata .logo, .pres-testata .logo { height: 60px; width: auto; } }   /* al telefono un po' più piccolo */
 .logo-intero { display: block; height: auto; max-width: 100%; }
+/* logo su fondo chiaro (stampe): sempre la versione per sfondi scuri, su un riquadro blu scuro */
+.logo-riquadro { display: inline-flex; flex: none; padding: 8px 12px; border-radius: 12px; background: var(--primario-900); }
 
 .citta-pillole { display: flex; gap: 2px; background: rgba(255, 255, 255, .1); border-radius: 999px; padding: 4px; }
 .citta-pillole button {

@@ -3,16 +3,16 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { createPortal } from 'react-dom'
 import logoSfondoScuro from '../immagini/logo-sfondo-scuro.svg'
 import compattoSfondoScuro from '../immagini/logo-compatto-sfondo-scuro.svg'
-import compattoSfondoChiaro from '../immagini/logo-compatto-sfondo-chiaro.svg'
 
 /**
- * Logo compatto del Gruppo C.E.C. (kit del logo, file 04 e 05: tetto, GRUPPO, C.E.C.) per gli spazi
- * piccoli: testata, presentazioni, stampe. Dai file è stato tolto solo il margine trasparente, così
- * le lettere vengono più grandi; il disegno è quello del kit. Il colore dipende dallo sfondo.
+ * Logo compatto del Gruppo C.E.C. (kit del logo, file 04: tetto, GRUPPO, C.E.C.) per gli spazi piccoli:
+ * testata, presentazioni, stampe. Dal file è stato tolto solo il margine trasparente, così le lettere
+ * vengono più grandi; il disegno è quello del kit. Si usa sempre la versione per sfondi scuri (scelta di
+ * Davide): su un fondo chiaro va con `riquadro`, che lo mette su un riquadro blu scuro come la testata.
  */
-export function Logo({ altezza = 84, sfondo = 'scuro' }: { altezza?: number; sfondo?: 'scuro' | 'chiaro' }) {
-  return <img className="logo" src={sfondo === 'scuro' ? compattoSfondoScuro : compattoSfondoChiaro}
-    height={altezza} width={Math.round(altezza * 242 / 201)} alt="Gruppo C.E.C." />
+export function Logo({ altezza = 84, riquadro }: { altezza?: number; riquadro?: boolean }) {
+  const img = <img className="logo" src={compattoSfondoScuro} height={altezza} width={Math.round(altezza * 242 / 201)} alt="Gruppo C.E.C." />
+  return riquadro ? <span className="logo-riquadro">{img}</span> : img
 }
 
 /** Logo intero del Gruppo C.E.C. per sfondi scuri (kit del logo, file 02), almeno 180 px di larghezza */

@@ -5,8 +5,8 @@
 **Il logo del Gruppo C.E.C.** (fornito da Davide nella cartella *Kit Gruppo CEC*) al posto del quadratino arancione provvisorio:
 - **pagina di accesso**: il logo intero per sfondi scuri (con "Agenzie immobiliari · Roma · Milano"), grande, e sotto *Rapportini Settimanali*;
 - **testata del sito, presentazioni (Riunione/Presentazione) e copertine**: il **logo compatto per sfondi scuri** (tetto, GRUPPO, C.E.C.). Nei punti piccoli il logo intero non si leggerebbe: il manuale chiede il compatto sotto i 180 px. Dai file è stato tolto solo il margine trasparente, così le lettere vengono più grandi; il disegno è quello del kit;
-- **stampe** (report mensili, scheda punteggi…): il logo compatto **per sfondi chiari**;
-- **misure** (più grandi su richiesta di Davide, perché si veda bene): testata 84 px di altezza (60 al telefono), logo intero dell'accesso largo 380 px, presentazioni 64 px nella barra e 96 px in copertina, stampe 64 px;
+- **stampe** (report mensili, scheda punteggi…): lo stesso logo per sfondi scuri, su un **riquadro blu scuro** come la testata del sito, così risalta sul foglio bianco (scelta di Davide: il logo resta sempre quello su fondo scuro). Il riquadro si stampa anche senza attivare "Grafica di sfondo";
+- **misure** (più grandi su richiesta di Davide, perché si veda bene): testata 84 px di altezza (60 al telefono), logo intero dell'accesso largo 380 px, presentazioni 64 px nella barra e 96 px in copertina, stampe 56 px più il riquadro;
 - **icona nella scheda del browser** (favicon, file 09) e **icona per la schermata Home dell'iPhone** (file 08);
 - la cartella *Kit Gruppo CEC* resta sul Mac e non va su GitHub: nel sito ci sono solo i file che servono (`src/immagini/`, `public/`), senza i metadati di provenienza;
 - nessuna modifica al database: basta pubblicare (Push).
