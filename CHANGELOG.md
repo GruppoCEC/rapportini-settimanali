@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.28.0 — 27 ottobre 2026
+
+**Note della settimana obbligatorie** (decisione di Davide):
+- in **Inserisci settimana** le tre caselle delle note (*Cosa è andato bene*, *Difficoltà*, *Mi serve aiuto su…*) sono **obbligatorie**, con **almeno 6 parole** ciascuna. Se una è incompleta il sito **non salva**: dice quali caselle mancano, le evidenzia in rosso e porta il cursore sulla prima;
+- sotto ogni casella un contatore dice quante parole ci sono ("2 parole su almeno 6", in verde quando bastano). Contano solo le parole vere: segni come "–" o "..." no;
+- l'obbligo **non vale**: nelle **settimane non ancora iniziate** (si scrivono solo gli obiettivi), per gli **amministratori** quando correggono i dati di un ufficio, e per le settimane **prima del 26 ottobre 2026** (si possono ancora correggere senza scrivere le note a posteriori);
+- il controllo è nella pagina (`src/lib/note.ts`): nessuna modifica al database, basta pubblicare (Push).
+
 ## 0.27.0 — 27 ottobre 2026
 
 **Report mensile: tutti i mesi dell'anno per l'amministrazione** (richiesta di Davide):

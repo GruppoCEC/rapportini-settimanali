@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { CASELLE_NOTA, caricaNota, type CampoNota } from '../lib/dati'
 import { nomeDaEmail } from '../lib/account'
 import { esito, formattaEsito, formattaPercentuale, leggiNumero, OBIETTIVO_QUOTA, quotaMercato } from '../lib/calcoli'
+import { contaParole, noteIncomplete, noteObbligatorie, PAROLE_MINIME_NOTA } from '../lib/note'
 import { intervalloSettimana, settimanaFutura, settimanaPredefinita, ultimaSettimanaInseribile } from '../lib/settimane'
 import type { Metrica, Rilevazione, Ufficio } from '../lib/tipi'
 import SceltaSettimana from '../componenti/SceltaSettimana'
@@ -15,6 +16,7 @@ interface Props {
   metriche: Metrica[]
   onSalvato?: () => void
   ufficioPredefinito?: number | null   // l'ufficio dell'utente, se ne ha uno (es. amministratore di città che è anche un ufficio)
+  amministratore?: boolean             // gli amministratori correggono i dati senza dover scrivere le note
 }
 
 /** Quanto scritto nelle caselle (come testo, per poter mostrare anche gli errori) */
@@ -32,7 +34,7 @@ function caselleVuote(metriche: Metrica[]): Caselle {
   return Object.fromEntries(metriche.map((m) => [m.codice, { obiettivo: '', risultato: '' }]))
 }
 
-export default function InserisciSettimana({ uffici, metriche, onSalvato, ufficioPredefinito }: Props) {
+export default function InserisciSettimana({ uffici, metriche, onSalvato, ufficioPredefinito, amministratore }: Props) {
   const [ufficioId, setUfficioId] = useState(uffici.find((u) => u.id === ufficioPredefinito)?.id ?? uffici[0].id)
   const [settimana, setSettimana] = useState(settimanaPredefinita())
   const [caselle, setCaselle] = useState<Caselle>(() => caselleVuote(metriche))
@@ -47,6 +49,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
   const [stato, setStato] = useState<'caricamento' | 'pronto' | 'salvataggio'>('caricamento')
   const [messaggio, setMessaggio] = useState<{ tipo: 'ok' | 'errore'; testo: string } | null>(null)
   const [versione, setVersione] = useState(0)   // aumenta dopo ogni salvataggio per ricaricare
+  const [erroriNote, setErroriNote] = useState(false)   // dopo un salvataggio rifiutato si evidenziano le note incomplete
   const [dialogo, chiedi] = useConferma()
   const [toast, mostraToast] = useToast()
 
@@ -138,6 +141,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
       setNota(salvata)
       setNotaOriginale(salvata)
       setNotaVecchia(notaDb?.testo.trim() ?? '')
+      setErroriNote(false)
       setProposteDa(da)
       setObiettiviDa(obDa)
       setStato('pronto')
@@ -161,9 +165,19 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
       .filter((campo) => leggiNumero(caselle[m.codice][campo]) === 'errore')
       .map((campo) => `${m.codice}.${campo}`))
 
+  // note obbligatorie (note.ts): si calcolano qui perché salva() le controlla prima di scrivere
+  const noteMancanti = noteObbligatorie(settimana, { amministratore, futura: settimanaFutura(settimana) }) ? noteIncomplete(nota) : []
+
   async function salva() {
     if (caselleErrate.length > 0) {
       setMessaggio({ tipo: 'errore', testo: 'Alcune caselle contengono valori non validi (solo numeri interi, senza segni o virgole).' })
+      return
+    }
+    if (noteMancanti.length > 0) {
+      const nomi = CASELLE_NOTA.filter(({ campo }) => noteMancanti.includes(campo)).map(({ nome }) => `"${nome}"`).join(', ')
+      setMessaggio({ tipo: 'errore', testo: `Completate le note della settimana: almeno ${PAROLE_MINIME_NOTA} parole in ${nomi}.` })
+      setErroriNote(true)
+      document.getElementById(`nota-${noteMancanti[0]}`)?.focus()
       return
     }
     setStato('salvataggio')
@@ -205,6 +219,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
 
   const disattivo = stato !== 'pronto'
   const futura = settimanaFutura(settimana)          // non ancora iniziata: solo gli obiettivi
+  const obbligatorie = noteObbligatorie(settimana, { amministratore, futura })
 
   return (
     <div className="pagina entra">
@@ -313,20 +328,30 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
           </section>
 
           <section className="scheda">
-            <h2 className="titolo-icona"><span className="icona-quadrata icona-ambra"><Icona nome="note-pencil" /></span>Note della settimana <span className="piccolo">(facoltative, mostrate in riunione)</span></h2>
+            <h2 className="titolo-icona"><span className="icona-quadrata icona-ambra"><Icona nome="note-pencil" /></span>Note della settimana <span className="piccolo">{obbligatorie ? `(obbligatorie: almeno ${PAROLE_MINIME_NOTA} parole per casella, mostrate in riunione)` : '(facoltative, mostrate in riunione)'}</span></h2>
             {notaVecchia && (
               <div className="nota-vecchia">
                 <span className="etichetta-maiuscola">Nota scritta prima delle tre caselle</span>
                 <p>“{notaVecchia}”</p>
               </div>
             )}
-            {CASELLE_NOTA.map(({ campo, nome, segnaposto }) => (
-              <div key={campo} className={`campo campo-nota${campo === 'aiuto' ? ' campo-aiuto' : ''}`}>
-                <label htmlFor={`nota-${campo}`}>{nome}</label>
-                <textarea id={`nota-${campo}`} rows={2} maxLength={1000} value={nota[campo]} disabled={disattivo || futura} placeholder={segnaposto}
-                  onChange={(e) => { const v = e.target.value; setNota((n) => ({ ...n, [campo]: v })); setMessaggio(null) }} />
-              </div>
-            ))}
+            {CASELLE_NOTA.map(({ campo, nome, segnaposto }) => {
+              const parole = contaParole(nota[campo])
+              const bastano = parole >= PAROLE_MINIME_NOTA
+              return (
+                <div key={campo} className={`campo campo-nota${campo === 'aiuto' ? ' campo-aiuto' : ''}`}>
+                  <label htmlFor={`nota-${campo}`}>{nome}{obbligatorie && <span className="obbligatorio" aria-hidden="true"> *</span>}</label>
+                  <textarea id={`nota-${campo}`} rows={2} maxLength={1000} value={nota[campo]} disabled={disattivo || futura} placeholder={segnaposto}
+                    required={obbligatorie} aria-invalid={erroriNote && !bastano} className={erroriNote && !bastano ? 'non-valido' : ''}
+                    onChange={(e) => { const v = e.target.value; setNota((n) => ({ ...n, [campo]: v })); setMessaggio(null) }} />
+                  {obbligatorie && (
+                    <span className={`conta-parole ${bastano ? 'ok' : erroriNote ? 'manca' : ''}`}>
+                      {bastano ? <><Icona nome="check" />{parole} parole</> : `${parole} ${parole === 1 ? 'parola' : 'parole'} su almeno ${PAROLE_MINIME_NOTA}`}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
             <p className="piccolo">Ciò che scrivi in <strong>Mi serve aiuto su…</strong> è messo in risalto nella riunione e arriva all'amministrazione.</p>
           </section>
         </div>

@@ -117,6 +117,11 @@ select { width: auto; }
 .campo select, .campo input { width: 100%; }
 /* Nota della settimana a tre caselle (Inserisci settimana) */
 .campo-nota textarea { width: 100%; min-height: 64px; }
+.campo-nota textarea.non-valido { border-color: var(--ko); background: var(--ko-bg); }
+.conta-parole { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--testo-tenue); }
+.conta-parole.ok { color: var(--ok-fg); font-weight: 600; }
+.conta-parole.manca { color: var(--ko-fg); font-weight: 700; }
+.obbligatorio { color: var(--ko-fg); }
 .campo-aiuto > label { color: var(--secondario-800); }
 .campo-aiuto textarea { border-color: var(--secondario-400); background: var(--secondario-100); }
 .nota-vecchia { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 10px; background: var(--sfondo); }

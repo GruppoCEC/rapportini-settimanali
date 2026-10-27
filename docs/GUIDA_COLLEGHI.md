@@ -19,7 +19,7 @@ Se l'hai dimenticata, chiedi all'amministratore.
    Se in un'attività non hai fatto nulla, scrivi **0**: la casella vuota vuol dire "non ancora inserito".
 3. Nei **dati di zona** trovi già i valori della settimana prima: cambia solo quelli variati.
    La quota di mercato si calcola da sola.
-4. Se vuoi, compila le **note della settimana**: verranno mostrate in riunione. Sono tre caselle, tutte facoltative:
+4. Compila le **note della settimana**: verranno mostrate in riunione. Sono tre caselle, **tutte obbligatorie**, con **almeno 6 parole** ciascuna (sotto ogni casella vedi quante ne hai scritte); se una è incompleta il sito non salva e la evidenzia in rosso:
    - **Cosa è andato bene** (es. un incarico in esclusiva);
    - **Difficoltà** (es. colleghi in ferie, poche richieste);
    - **Mi serve aiuto su…**: quello che scrivi qui è messo in risalto nella riunione e arriva all'amministrazione.
