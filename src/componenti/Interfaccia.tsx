@@ -10,7 +10,7 @@ import compattoSfondoChiaro from '../immagini/logo-compatto-sfondo-chiaro.svg'
  * piccoli: testata, presentazioni, stampe. Dai file è stato tolto solo il margine trasparente, così
  * le lettere vengono più grandi; il disegno è quello del kit. Il colore dipende dallo sfondo.
  */
-export function Logo({ altezza = 50, sfondo = 'scuro' }: { altezza?: number; sfondo?: 'scuro' | 'chiaro' }) {
+export function Logo({ altezza = 84, sfondo = 'scuro' }: { altezza?: number; sfondo?: 'scuro' | 'chiaro' }) {
   return <img className="logo" src={sfondo === 'scuro' ? compattoSfondoScuro : compattoSfondoChiaro}
     height={altezza} width={Math.round(altezza * 242 / 201)} alt="Gruppo C.E.C." />
 }

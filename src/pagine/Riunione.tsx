@@ -267,7 +267,7 @@ function Presentazione({ diapositive, marchio, onEsci }: { diapositive: Diaposit
     <div className="presentazione">
       <header className="pres-testata">
         <div className="pres-testata-riga">
-          <Logo altezza={40} />
+          <Logo altezza={64} />
           <div className="pres-titoli">
             <span className="pres-marchio">{marchio}</span>
             <h2>{d.titolo}</h2>
@@ -365,7 +365,7 @@ function costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePres
       <div className="copertina" style={{ flex: 1 }}>
         <div className="cerchio cerchio-a" /><div className="cerchio cerchio-b" />
         <div>
-          <div className="cop-marchio"><Logo altezza={48} />{nomePresentazione} {parole.aggettivo} · Gruppo CEC</div>
+          <div className="cop-marchio"><Logo altezza={96} />{nomePresentazione} {parole.aggettivo} · Gruppo CEC</div>
           <h1 className="cop-citta">{titolo}</h1>
           <span className="cop-settimana">{descriviPeriodo(periodo)}{meseInCorso(correnti) ? ' · mese in corso' : ''}</span>
           <div className="cop-stats">
@@ -891,7 +891,7 @@ function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nome
       <div className="copertina" style={{ flex: 1 }}>
         <div className="cerchio cerchio-a" /><div className="cerchio cerchio-b" />
         <div>
-          <div className="cop-marchio"><Logo altezza={48} />{nomePresentazione} mensile · Gruppo CEC</div>
+          <div className="cop-marchio"><Logo altezza={96} />{nomePresentazione} mensile · Gruppo CEC</div>
           <h1 className="cop-citta">{titolo}</h1>
           <span className="cop-settimana">{descriviPeriodo(periodo)}{inCorso ? ' · mese in corso' : ''} · rapportini mensili</span>
           <div className="cop-stats">

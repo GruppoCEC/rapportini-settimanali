@@ -61,7 +61,7 @@ Esito positivo/negativo e quota sopra/sotto 20% usano lo stesso schema verde/ros
 
 ### 1. Testata + menu (`App.tsx`)
 Fascia piena `--accent-900`, testo bianco, padding 16px 32px 0, max-width 1360px.
-- **Sinistra**: logo compatto del Gruppo C.E.C. per sfondi scuri (alto 50px, dalla 0.26.0) + "Rapportini Settimanali" (Bricolage 800 22px) + sotto "Gruppo CEC · Roma e Milano" (12px 600 `#AFC0D4`).
+- **Sinistra**: logo compatto del Gruppo C.E.C. per sfondi scuri (alto 84px, 60px al telefono, dalla 0.26.0) + "Rapportini Settimanali" (Bricolage 800 22px) + sotto "Gruppo CEC · Roma e Milano" (12px 600 `#AFC0D4`).
 - **Città**: per `admin_generale` un selettore a pillola Roma/Milano (contenitore `rgba(255,255,255,.1)` raggio 999, padding 4; opzione attiva fondo bianco testo blu scuro; inattiva `#D5DCE6`). Per gli altri ruoli una pillola fissa con il nome città.
 - **Riquadri informativi** (fondo `rgba(255,255,255,.07)`, bordo `rgba(255,255,255,.12)`, raggio 12, padding 8px 14px, icona 22px `--accent-2-300`, etichetta 11px `#AFC0D4`, valore 14px 700):
   - "Settimana in corso" → `etichettaSettimana(settimanaCorrente)`.
@@ -74,7 +74,7 @@ Fascia piena `--accent-900`, testo bianco, padding 16px 32px 0, max-width 1360px
 
 ### 2. Accesso (`Accesso.tsx`)
 Griglia a due colonne (`repeat(auto-fit, minmax(min(100%,460px),1fr))`).
-- **Sinistra**: pannello `--accent-900`, padding 56px, due cerchi decorativi (`--accent-800` in alto a destra 460px; bianco 5% in basso a sinistra). Logo intero del Gruppo C.E.C. per sfondi scuri (largo 300px, dalla 0.26.0) e sotto "Rapportini Settimanali". Titolo h1 clamp(40px,4.6vw,64px): "La settimana di ogni ufficio, **in un solo posto.**" (seconda parte in `--tecnorete`). Paragrafo dal README. Tre punti con icona in quadrato 40px (`device-mobile`, `bell-ringing`, `presentation-chart`): "Compili da computer o da telefono", "Promemoria automatici il venerdì e la domenica", "Esiti, totali e quota di mercato calcolati da soli, pronti per la riunione del lunedì". In basso due mini‑card bianche decorative (Incarichi 16 su 15, 107% ✓; Quota 21,4% ✓), la seconda spostata di 14px in basso.
+- **Sinistra**: pannello `--accent-900`, padding 56px, due cerchi decorativi (`--accent-800` in alto a destra 460px; bianco 5% in basso a sinistra). Logo intero del Gruppo C.E.C. per sfondi scuri (largo 380px, dalla 0.26.0) e sotto "Rapportini Settimanali". Titolo h1 clamp(40px,4.6vw,64px): "La settimana di ogni ufficio, **in un solo posto.**" (seconda parte in `--tecnorete`). Paragrafo dal README. Tre punti con icona in quadrato 40px (`device-mobile`, `bell-ringing`, `presentation-chart`): "Compili da computer o da telefono", "Promemoria automatici il venerdì e la domenica", "Esiti, totali e quota di mercato calcolati da soli, pronti per la riunione del lunedì". In basso due mini‑card bianche decorative (Incarichi 16 su 15, 107% ✓; Quota 21,4% ✓), la seconda spostata di 14px in basso.
 - **Destra**: modulo max 420px. Titoletto "Area riservata", h2 36px "Accedi al tuo ufficio", sottotitolo. Campi con icona (`user`, `lock-key`) alti 52px raggio 12; pulsante Mostra/Nascondi con icona occhio. Errore in riquadro rosso con icona. Pulsante "Entra" pieno `--accent`, alto 54px, raggio 12, ombra `0 8px 20px rgba(0,87,163,.25)`, icona `sign-in` (`circle-notch` durante l'attesa, testo "Accesso in corso…"). "Password dimenticata?…" con icona. Solo in demo (`VITE_DEMO`): riquadro tratteggiato con i 3 utenti come pulsanti che compilano nome utente + password.
 - Tutti i messaggi di errore restano quelli di `traduciErrore`.
 

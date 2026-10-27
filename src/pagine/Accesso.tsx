@@ -50,7 +50,7 @@ export default function Accesso() {
         <section className="accesso-pannello">
           <div className="cerchio cerchio-a" /><div className="cerchio cerchio-b" />
           <div className="accesso-marchio entra">
-            <LogoIntero larghezza={300} />
+            <LogoIntero larghezza={380} />
             <span className="marchio-nome">Rapportini Settimanali</span>
           </div>
           <div className="entra entra-1" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>

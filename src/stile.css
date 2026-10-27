@@ -175,6 +175,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .marchio-nome { font-family: var(--font-titoli); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; }
 .marchio-sotto { font-size: 12px; font-weight: 600; color: #AFC0D4; }
 .logo { display: block; flex: none; }
+@media (max-width: 560px) { .testata .logo, .pres-testata .logo { height: 60px; width: auto; } }   /* al telefono un po' più piccolo */
 .logo-intero { display: block; height: auto; max-width: 100%; }
 
 .citta-pillole { display: flex; gap: 2px; background: rgba(255, 255, 255, .1); border-radius: 999px; padding: 4px; }
