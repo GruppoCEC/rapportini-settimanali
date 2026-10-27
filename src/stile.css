@@ -1028,3 +1028,82 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .promossi { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .promossi h3 { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ok-fg); }
 .scheda-uscite .promossi .tabella-uscite th[scope=row] { box-shadow: inset 4px 0 0 var(--ok); }
+
+/* ---------------------------------------------------------------- Guida di Inserisci mese (src/componenti/GuidaMensile.tsx) */
+.dialogo.guida { width: min(580px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; gap: 12px; }
+.guida-testata { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.guida-disegno {
+  display: grid; place-items: center; height: 240px; overflow: hidden; padding: 18px; border-radius: 12px;
+  background: var(--sfondo); border: 1px solid var(--bordo-card); animation: rsFade .3s both;
+}
+.guida-video { width: 100%; max-height: 320px; border-radius: 8px; background: #000; }
+.guida-testo { font-size: 15px; line-height: 1.6; color: var(--testo-2); min-height: 8em; }   /* 5 righe: la finestra non cambia altezza tra un passo e l'altro */
+.guida-pallini { display: flex; justify-content: center; gap: 8px; }
+.guida-pallini button {
+  width: 10px; height: 10px; padding: 0; border: 0; border-radius: 50%; background: var(--bordo-input); cursor: pointer;
+  transition: width .25s var(--curva), background .25s;
+}
+.guida-pallini button.attivo { width: 26px; border-radius: 999px; background: var(--primario); }
+.guida-piede { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.guida-azioni { display: flex; gap: 8px; margin-left: auto; }
+.guida-azioni .btn-fantasma { font-size: 14px; }
+/* i disegni dei passi: pezzi della pagina in piccolo, non cliccabili */
+.guida-disegno .btn { pointer-events: none; }
+.guida-colonna { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 460px; }
+.guida-mini { width: 100%; max-width: 460px; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; font-size: 13px; }
+.guida-mini th, .guida-mini td { padding: 6px 10px; border-bottom: 1px solid var(--bordo-card); text-align: right; }
+.guida-mini th:first-child { text-align: left; }
+.guida-mini thead th { font-size: 11px; color: var(--testo-tenue); font-weight: 700; }
+.guida-mini small { display: block; font-size: 11px; font-weight: 400; color: var(--testo-tenue); }
+.guida-mini .guida-totale > * { background: var(--primario-100); font-weight: 800; color: var(--primario-900); border-bottom: 0; }
+.guida-mini .guida-giallo > * { background: #FFF1A6; font-weight: 700; }
+.guida-mini .guida-giallo > th { box-shadow: inset 4px 0 0 #E2B400; }
+.guida-persona {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+  padding: 8px 12px; border-radius: 8px; background: #fff; font-size: 14px;
+}
+.guida-persona small { display: block; font-size: 12px; color: var(--testo-tenue); }
+.guida-entrata { background: var(--ok-bg); box-shadow: inset 4px 0 0 var(--ok); }
+.guida-uscita { background: var(--ko-bg); box-shadow: inset 4px 0 0 var(--ko); }
+.guida-date { display: inline-flex; align-items: center; gap: 6px; }
+.guida-date s { color: var(--ko-fg); }
+.guida-regole { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--testo-2); }
+.guida-regole span { display: flex; align-items: center; gap: 6px; }
+.guida-regole i { font-size: 16px; color: var(--primario-700); }
+.guida-pulsanti { display: flex; flex-wrap: wrap; gap: 6px; }
+.guida-pulsanti .btn { background: #fff; }
+.guida-pulsanti small { font-size: 11px; font-weight: 400; margin-left: 4px; }
+.guida-caselle { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: 100%; text-align: center; }
+.guida-caselle small { display: block; margin-top: 6px; font-size: 12px; line-height: 1.3; color: var(--testo-2); }
+.guida-casella {
+  display: inline-grid; place-items: center; width: 64px; height: 44px; border-radius: 10px;
+  background: #fff; border: 1.5px solid var(--bordo-input); font-size: 18px; font-weight: 700;
+}
+.guida-casella-vuota { border-style: dashed; }
+.guida-barra {
+  display: flex; align-items: center; justify-content: flex-end; gap: 16px; width: 100%; max-width: 420px;
+  padding: 12px 14px; border-radius: 12px; background: #fff; box-shadow: 0 4px 14px rgba(45, 43, 43, .12);
+}
+.guida-stampa { align-self: flex-end; }
+/* Pulsante "Guida" accanto alla scelta del mese */
+.intestazione-azioni { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+/* Date di inizio provvisorie nel Personale */
+.date-da-completare { flex-direction: column; gap: 8px; }
+.date-da-completare .intestazione-avviso { display: flex; gap: 10px; align-items: flex-start; }
+.date-da-completare ul { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 0; padding: 0 0 0 28px; list-style: none; }
+.date-da-completare li { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; background: #fff; font-size: 14px; }
+.date-da-completare li .btn { min-height: 28px; }
+.aiuto-data { display: block; margin-top: 4px; font-size: 12px; color: var(--testo-tenue); font-weight: 400; }
+.collegamento { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: var(--primario-700); text-decoration: underline; cursor: pointer; }
+@media (max-width: 560px) {
+  .dialogo.guida { padding: 18px 16px; }
+  .guida-disegno { height: auto; padding: 10px; }
+  .guida-disegno > * { min-width: 0; max-width: 100%; }
+  .guida-mini { font-size: 12px; }
+  .guida-mini th, .guida-mini td { padding: 5px 4px; }
+  .guida-mini thead th { font-size: 9.5px; letter-spacing: -.01em; }
+  .guida-caselle { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .guida-testo { min-height: 0; }
+  .guida-azioni { width: 100%; justify-content: flex-end; }
+}
+.tag-a-capo { display: flex; width: fit-content; margin-top: 4px; }

@@ -2,7 +2,7 @@
 
 > **A chi è rivolto questo documento**: a Claude (o a chi monta il video). Contiene tutto quello che serve per
 > preparare il video senza dover studiare il codice: a chi parla il video, cosa mostrare, in che ordine, con
-> quali parole, e cosa **non** mostrare. Le funzioni descritte sono quelle della versione 0.23 della piattaforma
+> quali parole, e cosa **non** mostrare. Le funzioni descritte sono quelle della versione 0.24 della piattaforma
 > "Rapportini Gruppo CEC" (ottobre 2026).
 
 ---
@@ -38,9 +38,11 @@ npm run demo
 
 Poi aprire nel browser **http://localhost:5199**.
 
-- Nella pagina di accesso c'è un riquadro **Demo** con i pulsanti degli account: premere **somalia** (inserisce da solo nome utente e password `demo`), poi **Accedi**.
+- Nella pagina di accesso c'è un riquadro **Demo** con i pulsanti degli account: premere **somalia** (inserisce da solo nome utente e password `demo`), poi **Entra**.
 - I dati della demo sono inventati e **si azzerano ricaricando la pagina**: prima di ogni ripresa ricaricare, così si parte sempre dalla stessa situazione.
 - La demo si apre sul **mese scorso** (il mese da compilare), con la scadenza fra una settimana alle 10:00 e la chiusura dopo la scadenza. Il **mese prima ancora** è già chiuso: serve per mostrare il report del gruppo (video 3).
+- Aprendo **Inserisci mese** si apre da sola la **guida a passi** (dalla 0.24): prima di registrare chiuderla con **Salta**. Spuntando *Non mostrare più* non si riapre nemmeno ricaricando la pagina.
+- In Somalia il responsabile e la coordinatrice hanno la **data di inizio provvisoria** 01/01/2026: sopra la tabella e nel riquadro *Personale dell'ufficio* compare l'avviso arancio *Date di inizio da completare* (si può mostrare nel video 1, vedi sezione 4).
 - Nella demo l'ufficio Somalia ha già: un responsabile, alcuni collaboratori, una coordinatrice (con la casellina degli appuntamenti fissati), un marketer che ha lasciato l'ufficio nel mese (riga rossa) e una persona con *Ruolo da definire*. La riga verde si ottiene aggiungendo una persona (video 1).
 - Consigli per la registrazione: finestra del browser a **1600 × 1000** circa, zoom del browser al 100–110%, mouse lento, una pausa di un secondo dopo ogni clic.
 
@@ -60,6 +62,7 @@ Portafoglio immobili (vendita, locazione) · Acquisizioni · Appuntamenti (vendi
 - Bisogna premere **Salva**. Finché non si salva, in basso compare *"Modifiche non salvate"*. Se si prova a chiudere la pagina o a cambiare mese con modifiche non salvate, la piattaforma lo chiede prima.
 
 **Il personale**
+- **Date di inizio provvisorie**: responsabili, coordinatrici e marketer caricati dai rapportini del 2026 hanno come inizio il **01/01/2026**, perché la data vera non c'era. Un avviso arancio li elenca: con **Modifica** l'ufficio scrive la data vera, **per il responsabile da quando è responsabile, per tutti gli altri da quando lavorano nel gruppo** (regola di Davide). Sotto la casella della data la pagina ricorda la regola in base al ruolo.
 - Si inserisce **una volta sola** e vale per tutti i mesi: nome e cognome, ruolo (*Responsabile, Collaboratore, Coordinatrice, Marketer*; *Ruolo da definire* solo se non si sa ancora) e data di inizio.
 - Nella tabella le persone sono raggruppate (*Responsabile e collaboratori*, *Coordinatrici e marketer*); sotto ogni nome ci sono il ruolo e l'anzianità (es. "4 anni e 5 mesi").
 - Chi entra nel mese ha la **riga verde** con la scritta *"Nuovo ingresso dal …"*.
@@ -140,3 +143,14 @@ Ogni video parte **già nella pagina Inserisci mese** (l'accesso è lo stesso de
 - [ ] Mostrati (nei tre video): riga verde, riga rossa, totale e staff automatici, report del gruppo con la riga gialla e la stampa
 - [ ] Ogni video **sotto i 90 secondi**, senza introduzioni né saluti, attese di caricamento tagliate
 - [ ] I testi sullo schermo corrispondono alla sezione 6
+
+## 9. Dove finiscono i video
+
+I tre video si vedono **dentro la guida a passi** che si apre in *Inserisci mese* (`src/componenti/GuidaMensile.tsx`): il video 1 nel passo *Il personale dell'ufficio*, il video 2 in *Inserire i numeri*, il video 3 in *Scadenza e report del gruppo*. Finché un video manca, il passo mostra un disegno.
+
+- **Formato**: MP4 (H.264), 1280×720 o 1920×1080, **al massimo circa 10 MB** l'uno. Il video si scarica solo quando l'ufficio preme Play, quindi non rallenta la piattaforma.
+- **Nomi dei file**: `mensile-1-personale.mp4`, `mensile-2-numeri.mp4`, `mensile-3-scadenza.mp4`, nella cartella `public/video/` del progetto.
+- **Per attivarli**: nel file della guida, nel passo giusto, si scrive il nome del file nel campo `video` (oggi c'è `video: undefined` con il nome già scritto accanto).
+- **Se pesano troppo**: sul Mac si comprimono con il programma di Apple già installato, dal Terminale:
+  `avconvert --preset Preset1280x720 --source video-originale.mov --output public/video/mensile-1-personale.mp4`
+- **Sottotitoli**: le scritte in sovrimpressione vanno messe nel video (molti guardano senza audio in ufficio).

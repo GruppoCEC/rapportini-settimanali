@@ -189,6 +189,26 @@ export function righeDelMese(persone: Persona[], mese: string): Persona[] {
   return persone.filter((p) => presenteNelMese(p, mese)).sort(ordinaPersone)
 }
 
+// ---------------------------------------------------------------- Date di inizio provvisorie
+
+/**
+ * Data di inizio messa d'ufficio a responsabili, coordinatrici e marketer caricati dai rapportini
+ * del 2026, perché nei fogli la data vera non c'era. Gli uffici la correggono dal Personale.
+ */
+export const DATA_INIZIO_PROVVISORIA = '2026-01-01'
+export const RUOLI_DATA_DA_COMPLETARE: RuoloPersona[] = ['responsabile', 'coordinatrice', 'marketer']
+
+/** Chi è ancora in ufficio con la data di inizio provvisoria (i collaboratori no: le loro date c'erano) */
+export function dateDaCompletare(persone: Persona[], oggi: string = oggiISO()): Persona[] {
+  return persone.filter((p) => RUOLI_DATA_DA_COMPLETARE.includes(p.ruolo) && p.data_inizio === DATA_INIZIO_PROVVISORIA
+    && (!p.data_fine || p.data_fine > oggi)).sort(ordinaPersone)
+}
+
+/** Che data scrivere come inizio, secondo il ruolo (regola di Davide, 27/10/2026) */
+export function aiutoDataInizio(ruolo: RuoloPersona): string {
+  return ruolo === 'responsabile' ? 'Da quando è responsabile' : 'Da quando lavora nel gruppo'
+}
+
 /** Mesi interi di servizio dalla data di inizio alla fine del mese indicato */
 export function mesiDiServizio(dataInizio: string, mese: string): number {
   return mesiTraDate(dataInizio, ultimoGiornoDelMese(mese))

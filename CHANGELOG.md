@@ -1,5 +1,20 @@
 # Storia delle versioni
 
+## 0.24.0 — 27 ottobre 2026
+
+**Guida a passi in Inserisci mese** (richiesta di Davide):
+- aprendo **Inserisci mese**, uffici e affiliati trovano una **guida in 6 passi**, come nei siti al primo accesso: benvenuti · le date di inizio · il personale · inserire i numeri · salvare · scadenza e report del gruppo. Si sfoglia con **Avanti / Indietro** (o le frecce della tastiera), si chiude con **Salta** (o Esc) e all'ultimo passo con **Ho capito**;
+- **Salta** senza spunta: la guida non torna finché la scheda del browser resta aperta, poi ricompare al prossimo accesso. Con **Non mostrare più** spuntata non si apre più da sola. La scelta vale **per quel computer e quel browser**: su un altro PC la guida ricompare una volta;
+- il pulsante **Guida**, in alto accanto alla scelta del mese, la riapre quando si vuole. Agli amministratori non si apre da sola, ma il pulsante c'è;
+- ogni passo ha un piccolo disegno con i colori del sito. Quando i **tre video tutorial** saranno pronti si mettono nei passi Personale, Numeri e Scadenza: si scaricano solo se l'ufficio preme Play, quindi non rallentano la piattaforma (come prepararli: `docs/GUIDA_VIDEO_RAPPORTINO_MENSILE.md`, sezione 9).
+
+**Date di inizio da completare** (richiesta di Davide: responsabili, coordinatrici e marketer sono stati caricati con inizio 01/01/2026 perché la data vera non c'era):
+- in **Personale dell'ufficio** un avviso arancio elenca chi è ancora in ufficio con inizio **01/01/2026** (responsabili, coordinatrici e marketer; i collaboratori no), ognuno con il suo pulsante **Modifica**, che apre la riga e porta sulla data. Nella tabella c'è l'etichetta *Data da completare*; sopra la tabella dei numeri una riga rimanda al riquadro;
+- regola di Davide: per il **responsabile** la data da cui è **responsabile**, per **tutti gli altri** quella di inizio **nel gruppo**. Sotto la casella *Data di inizio* (anche nel modulo *Aggiungi*) la pagina lo ricorda in base al ruolo scelto;
+- l'avviso sparisce quando la data viene cambiata. Chi ha iniziato davvero il 1° gennaio 2026 resta nell'elenco: l'avviso dice di ignorarlo (scelta di Davide: nessuna modifica al database);
+- **protezione**: se la nuova data di inizio è **dopo** quella vecchia e la persona ha già numeri nei mesi prima, il sito chiede conferma, perché quei numeri non comparirebbero più nel rapportino né nei totali;
+- nessuna modifica al database: basta pubblicare (Push). Provato con le prove automatiche (204) e nella demo (Somalia ha il responsabile e la coordinatrice con la data provvisoria), anche al telefono.
+
 ## 0.23.1 — 26 ottobre 2026
 
 **Imbuto della vendita con pochi casi** (segnalato da Davide: nelle pagine dei singoli uffici della presentazione, il passaggio proposte → vendite era quasi sempre vuoto e si vedeva solo quello di Roma):

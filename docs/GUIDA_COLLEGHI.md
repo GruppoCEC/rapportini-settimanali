@@ -31,6 +31,20 @@ ricevi l'ultimo promemoria: inseriscili subito, prima della riunione.
 
 Puoi correggere anche le settimane passate con le frecce ‹ ›.
 
+## Inserire il rapportino del mese
+
+Apri **Inserisci mese**. La prima volta si apre una **guida in pochi passi** che spiega come si compila:
+sfogliala con **Avanti**, oppure chiudila con **Salta**. Se spunti **Non mostrare più**, su quel computer
+non si apre più da sola; puoi sempre riaprirla con il pulsante **Guida**, in alto accanto al mese.
+
+**Per prima cosa, le date di inizio.** Responsabili, coordinatrici e marketer hanno una data di inizio
+provvisoria, il **01/01/2026**, e nel riquadro **Personale dell'ufficio** compare un avviso arancio con i loro
+nomi. Premi **Modifica** accanto a ogni nome e scrivi la data vera:
+- per il **responsabile**, da quando è responsabile;
+- per **tutti gli altri**, da quando lavorano nel gruppo.
+
+L'avviso sparisce quando tutte le date sono corrette.
+
 ## Vedere il proprio andamento
 
 In **Il mio ufficio** trovi:

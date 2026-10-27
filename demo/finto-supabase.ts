@@ -6,7 +6,7 @@
 // =====================================================================
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { aggiungiSettimane, lunediDi, oggiISO, settimanaPredefinita } from '../src/lib/settimane'
-import { aggiungiMesi, inServizio, mesePredefinito, mesiDiServizio, riepilogoMensile, STAFF, totaleConStorico, vociDelRapportino } from '../src/lib/mensile'
+import { aggiungiMesi, DATA_INIZIO_PROVVISORIA, inServizio, mesePredefinito, mesiDiServizio, riepilogoMensile, RUOLI_DATA_DA_COMPLETARE, STAFF, totaleConStorico, vociDelRapportino } from '../src/lib/mensile'
 import { quotaDaTotali, totaliPerUfficio } from '../src/lib/aggregazioni'
 
 export const configurato = true
@@ -176,6 +176,11 @@ for (const u of uffici) {
   if (u.id % 5 === 2) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: `${NOMI[tra(0, NOMI.length - 1)]} ${COGNOMI[tra(0, COGNOMI.length - 1)]}`, ruolo: 'collaboratore', data_inizio: `${meseDaCompilare.slice(0, 8)}${String(tra(1, 20)).padStart(2, '0')}`, data_fine: null })
   // qualcuno del rapportino senza ruolo scritto, solo col nome (017)
   if (u.id % 6 === 1) persone.push({ id: prossimoIdPersona++, ufficio_id: u.id, nome: NOMI[tra(0, NOMI.length - 1)], ruolo: 'da_definire', data_inizio: dataTra(2020, 2025), data_fine: null })
+}
+// A Somalia responsabile, coordinatrici e marketer con la data di inizio provvisoria, come sul sito vero
+// dopo il caricamento dei rapportini 2026: l'ufficio li vede nell'avviso "Date di inizio da completare"
+for (const p of persone) {
+  if (p.ufficio_id === uffici.find((u) => u.nome === 'Somalia')!.id && !p.data_fine && RUOLI_DATA_DA_COMPLETARE.includes(p.ruolo)) p.data_inizio = DATA_INIZIO_PROVVISORIA
 }
 // un collaboratore passato da un ufficio all'altro due mesi fa (017): non è un'uscita né un nuovo ingresso
 {

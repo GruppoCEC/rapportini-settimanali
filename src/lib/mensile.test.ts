@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, formattaAnzianita, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
+  aggiungiMesi, aiutoDataInizio, dateDaCompletare, formattaAnzianita, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   presenteNelMese, righeDelMese, riepilogoDaRighe, riepilogoMensile, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione, vociRiservate,
 } from './mensile'
 import type { Persona, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
@@ -346,5 +346,23 @@ describe('ordine del report', () => {
       ({ id, nome, citta_id: 1, area_id: null, attivo: true, blocco_mensile, ordine_mensile })
     const ordinati = ordinaUfficiReport([u(1, 'Villa Lais', 2, 5), u(2, 'Somalia', 1, 13), u(3, "Casal de' Pazzi", 1, 1), u(4, 'Nuovo', 1, null), u(5, 'Espero', 2, 4)])
     expect(ordinati.map((x) => x.nome)).toEqual(["Casal de' Pazzi", 'Somalia', 'Nuovo', 'Espero', 'Villa Lais'])
+  })
+})
+
+describe('date di inizio provvisorie', () => {
+  it('segnala responsabili, coordinatrici e marketer ancora in ufficio con inizio 01/01/2026', () => {
+    const elenco = [
+      persona(1, 'coordinatrice', '2026-01-01'),
+      persona(2, 'responsabile', '2026-01-01'),
+      persona(3, 'collaboratore', '2026-01-01'),               // i collaboratori no
+      persona(4, 'marketer', '2026-01-01', '2026-05-01'),      // è già uscito
+      persona(5, 'marketer', '2026-01-01', '2026-12-31'),      // uscirà: va ancora corretto
+      persona(6, 'responsabile', '2019-03-04'),                // data già corretta
+    ]
+    expect(dateDaCompletare(elenco, '2026-10-27').map((p) => p.id)).toEqual([2, 1, 5])
+  })
+  it('spiega che data scrivere secondo il ruolo', () => {
+    expect(aiutoDataInizio('responsabile')).toBe('Da quando è responsabile')
+    expect(aiutoDataInizio('coordinatrice')).toBe('Da quando lavora nel gruppo')
   })
 })

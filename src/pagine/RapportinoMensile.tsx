@@ -1,13 +1,14 @@
 // Pagina "Rapportino mensile": l'ufficio scrive i numeri del mese di ogni persona
 // (come nel file Excel "Rapportino vuoto NUOVO") e tiene aggiornato il proprio personale.
 // Totale dell'ufficio e staff si calcolano da soli.
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { nomeDaEmail } from '../lib/account'
 import { leggiNumero } from '../lib/calcoli'
 import { caricaPersone, caricaScadenza, caricaStorico, caricaValoriMensili, caricaVociMensili, mensileAperto } from '../lib/dati'
 import {
-  dataItaliana, dataOra, inServizio, meseChiuso, mesePredefinito, scadenzaPassata, ordinaPersone, righeDelMese, titoloMese, totaleUfficio, ORDINE_RUOLI,
+  aiutoDataInizio, dataItaliana, dataOra, dateDaCompletare, DATA_INIZIO_PROVVISORIA, inServizio, meseChiuso, mesePredefinito, primoDelMese, scadenzaPassata, ordinaPersone, righeDelMese,
+  titoloMese, totaleUfficio, ORDINE_RUOLI,
 } from '../lib/mensile'
 import { NOMI_MOTIVO_FINE, NOMI_RUOLO_PERSONA, type MotivoFine, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
 import { oggiISO } from '../lib/settimane'
@@ -17,11 +18,14 @@ import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 import SceltaMese from '../componenti/SceltaMese'
 import { AvvisoUscite, classeMovimento, EtichettaMovimento, TabellaRapportino } from '../componenti/TabellaMensile'
 import ReportGruppoUfficio from '../componenti/ReportGruppoUfficio'
+import GuidaMensile from '../componenti/GuidaMensile'
+import { guidaDaMostrare, guidaNascosta, memorieBrowser, ricordaChiusura } from '../lib/guida'
 
 interface Props {
   uffici: Ufficio[]                     // uffici che l'utente può compilare (di solito uno solo)
   ufficioPredefinito?: number | null
   amministratore?: boolean              // gli amministratori possono scrivere anche a mese chiuso
+  nomeUtente: string                    // per ricordare se la guida va ancora aperta da sola
 }
 
 /** Caselle scritte, come testo: chiave "persona|voce" */
@@ -29,11 +33,11 @@ type Caselle = Record<string, string>
 const chiave = (personaId: number, voce: string) => `${personaId}|${voce}`
 const num = (s: string) => { const v = leggiNumero(s); return typeof v === 'number' ? v : null }
 
-export default function RapportinoMensile({ uffici, ufficioPredefinito, amministratore }: Props) {
+export default function RapportinoMensile({ uffici, ufficioPredefinito, amministratore, nomeUtente }: Props) {
   const base = useDati(() => Promise.all([caricaVociMensili(), mensileAperto()]), [])
   if (!base.dati) return <div className="pagina"><Caricamento errore={base.errore} /></div>
   const [voci, aperto] = base.dati
-  return <Compilazione uffici={uffici} ufficioPredefinito={ufficioPredefinito} amministratore={amministratore} voci={voci} aperto={aperto} />
+  return <Compilazione uffici={uffici} ufficioPredefinito={ufficioPredefinito} amministratore={amministratore} nomeUtente={nomeUtente} voci={voci} aperto={aperto} />
 }
 
 /** Funzione ancora in prova: lo si dice chiaramente, agli uffici e agli amministratori */
@@ -51,7 +55,7 @@ export function AvvisoProva({ amministratore }: { amministratore?: boolean }) {
   )
 }
 
-function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto }: Props & { voci: VoceMensile[]; aperto: boolean }) {
+function Compilazione({ uffici, ufficioPredefinito, amministratore, nomeUtente, voci, aperto }: Props & { voci: VoceMensile[]; aperto: boolean }) {
   const [ufficioId, setUfficioId] = useState(uffici.find((u) => u.id === ufficioPredefinito)?.id ?? uffici[0].id)
   const [mese, setMese] = useState(mesePredefinito())
   const [persone, setPersone] = useState<Persona[]>([])
@@ -65,6 +69,13 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
   const [versione, setVersione] = useState(0)
   const [dialogo, chiedi] = useConferma()
   const [toast, mostraToast] = useToast()
+  // Guida di benvenuto: si apre da sola a uffici e affiliati, finché non scelgono "Non mostrare più"
+  const [memorie] = useState(memorieBrowser)
+  const [guida, setGuida] = useState(() => guidaDaMostrare(nomeUtente, !!amministratore, memorie))
+  const chiudiGuida = useCallback((nonMostrarePiu: boolean) => {
+    ricordaChiusura(nomeUtente, nonMostrarePiu, memorie)
+    setGuida(false)
+  }, [nomeUtente, memorie])
 
   const cambiate = useMemo(() => {
     const chiavi = new Set([...Object.keys(caselle), ...Object.keys(originali)])
@@ -115,6 +126,7 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
   }), [caselle, ufficioId, mese])
   const righe = righeDelMese(persone, mese)
   const totale = totaleUfficio(persone, valoriAttuali, mese, voci)
+  const daCompletare = dateDaCompletare(persone)
   const errate = new Set(Object.entries(caselle).filter(([, t]) => leggiNumero(t) === 'errore').map(([k]) => k))
 
   async function conPermesso(azione: () => void) {
@@ -171,7 +183,10 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
             </span>
           )}
         </div>
-        <SceltaMese mese={mese} onCambia={(m) => conPermesso(() => setMese(m))} />
+        <div className="intestazione-azioni">
+          <button className="btn btn-secondario" onClick={() => setGuida(true)}><Icona nome="question" />Guida</button>
+          <SceltaMese mese={mese} onCambia={(m) => conPermesso(() => setMese(m))} />
+        </div>
       </div>
 
       {/* dopo la scadenza con il blocco l'ufficio vede e stampa il report di tutto il gruppo, in cima alla pagina (018) */}
@@ -189,6 +204,15 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
           </p>
         )}
         {!inProva && <AvvisoScadenza scadenza={scadenza} amministratore={amministratore} />}
+        {!inProva && daCompletare.length > 0 && (
+          <p className="avviso avviso-arancio compare"><Icona nome="calendar-x" />
+            <span>
+              {daCompletare.length === 1 ? '1 persona ha' : `${daCompletare.length} persone hanno`} la <strong>data di inizio da completare</strong>:{' '}
+              <button className="collegamento" onClick={() => document.getElementById('personale-ufficio')?.scrollIntoView({ behavior: 'smooth' })}>
+                {daCompletare.length === 1 ? 'la trovate' : 'le trovate'} in Personale dell'ufficio</button>, qui sotto.
+            </span>
+          </p>
+        )}
         {conStorico && stato !== 'caricamento' && (
           <p className="avviso compare"><Icona nome="file-xls" />
             <span>Per {titoloMese(mese).toLowerCase()} il report usa il <strong>totale dell'ufficio dal file Excel annuale</strong>. Se inserisci qui i numeri persona per persona, il report userà quelli al posto del totale dell'Excel.</span>
@@ -200,7 +224,7 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
           onCambia={(pid, voce, valore) => { setCaselle((c) => ({ ...c, [chiave(pid, voce)]: valore })); setMessaggio(null) }} />
       </section>
 
-      <Personale persone={persone} ufficioId={ufficioId} mese={mese} onCambiato={ricaricaPersone} chiedi={chiedi} mostraToast={mostraToast} bloccato={inProva} />
+      <Personale persone={persone} daCompletare={daCompletare} ufficioId={ufficioId} mese={mese} onCambiato={ricaricaPersone} chiedi={chiedi} mostraToast={mostraToast} bloccato={inProva} />
 
       <div className="barra-salvataggio">
         {messaggio && (
@@ -216,6 +240,7 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, voci, aperto
       </div>
       {dialogo}
       {toast}
+      {guida && <GuidaMensile nascostaAllInizio={guidaNascosta(nomeUtente, memorie)} onChiudi={chiudiGuida} />}
     </div>
   )
 }
@@ -249,6 +274,7 @@ function AvvisoScadenza({ scadenza, amministratore }: { scadenza: Scadenza | nul
 
 interface PropsPersonale {
   persone: Persona[]
+  daCompletare: Persona[]               // con la data di inizio provvisoria (01/01/2026)
   ufficioId: number
   mese: string
   onCambiato: () => Promise<void>
@@ -264,7 +290,7 @@ function messaggioErrore(m: string): string {
   return m
 }
 
-function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, bloccato }: PropsPersonale) {
+function Personale({ persone, daCompletare, ufficioId, mese, onCambiato, chiedi, mostraToast, bloccato }: PropsPersonale) {
   const vuota: Bozza = { nome: '', ruolo: 'collaboratore', data_inizio: '', data_fine: '', motivo_fine: 'uscita' }
   const [nuova, setNuova] = useState<Bozza>(vuota)
   const [inModifica, setInModifica] = useState<{ id: number; bozza: Bozza } | null>(null)
@@ -296,12 +322,33 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
   async function salvaModifica() {
     if (!inModifica) return
     const b = inModifica.bozza
+    if (!await confermaInizioPosticipato(inModifica.id, b)) return
     // il motivo si scrive solo se c'è una data di fine (e solo se il database ha già la 015)
     const campi = { nome: b.nome.trim(), ruolo: b.ruolo, data_inizio: b.data_inizio, data_fine: b.data_fine || null,
       ...(b.data_fine && (b.motivo_fine !== 'uscita' || persone.some((x) => 'motivo_fine' in x)) ? { motivo_fine: b.motivo_fine } : {}) }
     const ok = await esegui(supabase.from('persone').update(campi).eq('id', inModifica.id),
       `Scheda di ${b.nome.trim()} aggiornata.`)
     if (ok) setInModifica(null)
+  }
+
+  /**
+   * Spostando avanti la data di inizio, i numeri dei mesi prima non compaiono più (né nel rapportino
+   * né nei totali): se ce ne sono, lo si chiede prima. Evita di "perdere" per errore i mesi già caricati.
+   */
+  async function confermaInizioPosticipato(id: number, b: Bozza): Promise<boolean> {
+    const prima = persone.find((x) => x.id === id)
+    if (!prima || !b.data_inizio || b.data_inizio <= prima.data_inizio) return true
+    const { data, error } = await supabase.from('valori_mensili').select('mese, valore').eq('persona_id', id).lt('mese', primoDelMese(b.data_inizio))
+    if (error) { setErrore(`Impossibile controllare i numeri già inseriti: ${error.message}`); return false }
+    const mesi = [...new Set((data as { mese: string; valore: number | null }[]).filter((v) => v.valore !== null).map((v) => v.mese))].sort()
+    if (mesi.length === 0) return true
+    const quali = mesi.length === 1 ? `in ${titoloMese(mesi[0]).toLowerCase()}`
+      : `tra ${titoloMese(mesi[0]).toLowerCase()} e ${titoloMese(mesi[mesi.length - 1]).toLowerCase()}`
+    return chiedi({
+      titolo: 'Controlla la data di inizio',
+      testo: `${b.nome.trim()} ha già dei numeri ${quali}. Con inizio dal ${dataItaliana(b.data_inizio)} quei numeri non compariranno più nel rapportino né nei totali dell'ufficio. Vuoi cambiare lo stesso la data?`,
+      conferma: 'Cambia la data', pericolo: true,
+    })
   }
 
   async function elimina(p: Persona) {
@@ -315,12 +362,35 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
 
   const modifica = (p: Persona, dataFine?: string) =>
     setInModifica({ id: p.id, bozza: { nome: p.nome, ruolo: p.ruolo, data_inizio: p.data_inizio, data_fine: dataFine ?? p.data_fine ?? '', motivo_fine: p.motivo_fine ?? 'uscita' } })
+  // dall'avviso delle date da completare: apre la riga e porta sulla data di inizio
+  const correggiInizio = (p: Persona) => {
+    modifica(p)
+    setTimeout(() => document.getElementById(`inizio-${p.id}`)?.focus())
+  }
+  const daCompletareIds = new Set(daCompletare.map((p) => p.id))
   const campoBozza = (campo: keyof Bozza, valore: string) =>
     setInModifica((m) => m && { ...m, bozza: { ...m.bozza, [campo]: valore } })
 
   return (
-    <section className="scheda entra entra-2">
+    <section className="scheda entra entra-2" id="personale-ufficio">
       <h2 className="titolo-icona"><span className="icona-quadrata icona-arancio"><Icona nome="users-three" /></span>Personale dell'ufficio</h2>
+      {daCompletare.length > 0 && (
+        <div className="avviso avviso-arancio date-da-completare" role="note">
+          <div className="intestazione-avviso"><Icona nome="calendar-x" />
+            <span>
+              <strong>Date di inizio da completare.</strong> Per {daCompletare.length === 1 ? 'questa persona' : 'queste persone'} abbiamo messo il {dataItaliana(DATA_INIZIO_PROVVISORIA)} perché la data vera non c'era.
+              Premete <strong>Modifica</strong> e scrivete: per il <strong>responsabile</strong> da quando è responsabile, per <strong>gli altri</strong> da quando lavorano nel gruppo.
+              Se la data è davvero il 1° gennaio 2026, ignorate questo avviso.
+            </span>
+          </div>
+          <ul>
+            {daCompletare.map((p) => (
+              <li key={p.id}>{p.nome} <span className="piccolo">· {NOMI_RUOLO_PERSONA[p.ruolo].toLowerCase()}</span>
+                <button className="btn btn-fantasma" disabled={bloccato} onClick={() => correggiInizio(p)}>Modifica</button></li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="piccolo">
         Il personale si inserisce una volta sola e vale per tutti i mesi, a partire dalla data di inizio.
         Quando qualcuno lascia l'ufficio premi <strong>Ha lasciato</strong>, indica l'ultimo giorno e il motivo (ha lasciato il gruppo, promosso a responsabile oppure trasferito in un altro ufficio: in quel caso crealo anche nel nuovo ufficio). Nel mese in cui esce resta nel rapportino con la riga rossa: i suoi numeri di quel mese contano nel totale dell'ufficio, ma non nello staff né nella gara a punti. Dal mese dopo non compare più; i suoi numeri dei mesi precedenti restano.
@@ -335,7 +405,8 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
             {ORDINE_RUOLI.map((r) => <option key={r} value={r}>{NOMI_RUOLO_PERSONA[r]}</option>)}
           </select></label>
         <label className="campo"><span className="etichetta">Data di inizio</span>
-          <input required type="date" disabled={bloccato} value={nuova.data_inizio} onChange={(e) => setNuova({ ...nuova, data_inizio: e.target.value })} /></label>
+          <input required type="date" disabled={bloccato} value={nuova.data_inizio} onChange={(e) => setNuova({ ...nuova, data_inizio: e.target.value })} />
+          <span className="aiuto-data">{aiutoDataInizio(nuova.ruolo)}</span></label>
         <button type="submit" className="btn btn-primario" disabled={occupato || bloccato}><Icona nome="user-plus" />Aggiungi</button>
       </form>
 
@@ -354,7 +425,10 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
                       <td><select value={b.ruolo} aria-label="Ruolo" onChange={(e) => campoBozza('ruolo', e.target.value)}>
                         {ORDINE_RUOLI.map((r) => <option key={r} value={r}>{NOMI_RUOLO_PERSONA[r]}</option>)}
                       </select></td>
-                      <td><input type="date" value={b.data_inizio} aria-label="Data di inizio" onChange={(e) => campoBozza('data_inizio', e.target.value)} /></td>
+                      <td>
+                        <input type="date" id={`inizio-${p.id}`} value={b.data_inizio} aria-label="Data di inizio" onChange={(e) => campoBozza('data_inizio', e.target.value)} />
+                        <span className="aiuto-data">{aiutoDataInizio(b.ruolo)}</span>
+                      </td>
                       <td>
                         <input type="date" value={b.data_fine} aria-label="Data di fine" onChange={(e) => campoBozza('data_fine', e.target.value)} />
                         {b.data_fine && (
@@ -375,7 +449,7 @@ function Personale({ persone, ufficioId, mese, onCambiato, chiedi, mostraToast, 
                   <tr key={p.id} className={classeMovimento(p, mese) || (p.data_fine && p.data_fine < oggi ? 'disattivo' : '')}>
                     <th scope="row">{p.nome}</th>
                     <td>{NOMI_RUOLO_PERSONA[p.ruolo]}</td>
-                    <td>{dataItaliana(p.data_inizio)}</td>
+                    <td>{dataItaliana(p.data_inizio)}{daCompletareIds.has(p.id) && <span className="tag tag-quasi tag-a-capo">Data da completare</span>}</td>
                     <td>{dataItaliana(p.data_fine)}{p.motivo_fine && p.motivo_fine !== 'uscita' && <span className="piccolo" style={{ display: 'block' }}>{NOMI_MOTIVO_FINE[p.motivo_fine].toLowerCase()}</span>}</td>
                     <td>
                       <EtichettaMovimento persona={p} mese={mese} />
