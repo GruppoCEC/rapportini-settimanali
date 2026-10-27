@@ -1,5 +1,12 @@
 # Storia delle versioni
 
+## 0.26.1 — 27 ottobre 2026
+
+**Intestazioni delle colonne del rapportino mensile** (segnalato da Davide: in stampa si leggevano "GE-STIONE INCARI-CHI", "COLLO-QUI", "VENDI-TE EFFET-TUATE"):
+- le intestazioni non si spezzano più a metà parola: vanno a capo solo tra una parola e l'altra (*Gestione / incarichi*, *Vendite / effettuate*, *Incarichi / scaduti*) e ogni colonna è larga almeno quanto la sua parola più lunga (*Colloqui*, *Acquisizioni*, …). Non sono servite abbreviazioni;
+- vale a schermo e in stampa, in tutte le tabelle del mensile (Inserisci mese, report del gruppo, Report mensile). In stampa la tabella sta ancora nella larghezza del foglio (provato in PDF, A4 orizzontale, 2 pagine come prima);
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.26.0 — 27 ottobre 2026
 
 **Il logo del Gruppo C.E.C.** (fornito da Davide nella cartella *Kit Gruppo CEC*) al posto del quadratino arancione provvisorio:

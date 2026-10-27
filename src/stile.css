@@ -616,7 +616,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 
 /* ---------------------------------------------------------------- Rapportino e report mensile */
 .tabella-mensile { font-size: 13px; }
-.tabella-mensile thead th { white-space: normal; text-align: center; font-size: 9.5px; letter-spacing: .01em; padding: 6px 2px; line-height: 1.25; vertical-align: bottom; hyphens: auto; -webkit-hyphens: auto; }
+.tabella-mensile thead th { white-space: normal; text-align: center; font-size: 9.5px; letter-spacing: .01em; padding: 6px 2px; line-height: 1.25; vertical-align: bottom; hyphens: manual; -webkit-hyphens: manual; }
 .tabella-mensile thead th.ufficio-fisso { text-align: left; vertical-align: bottom; }
 .tabella-mensile .testa-gruppo { border-bottom: 0; padding-bottom: 2px; }
 .tabella-mensile .testa-sotto { text-transform: none; letter-spacing: 0; font-weight: 600; padding-top: 2px; }
@@ -769,7 +769,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   .tabella-mensile { width: 100%; font-size: 10pt; }
   .tabella-mensile th, .tabella-mensile td { padding: 3px 2px !important; border: .6pt solid #9E9A90 !important; min-width: 0 !important; }
   .tabella-mensile tbody th { padding-left: 4px !important; padding-right: 4px !important; }
-  .tabella-mensile thead th { font-size: 7.5pt; letter-spacing: 0; color: #000; line-height: 1.15; hyphens: auto; -webkit-hyphens: auto; }
+  .tabella-mensile thead th { font-size: 7.5pt; letter-spacing: 0; color: #000; line-height: 1.15; hyphens: manual; -webkit-hyphens: manual; }
   .tabella-mensile tbody th, .tabella-mensile tbody th.ufficio-fisso { font-size: 10pt; line-height: 1.2; white-space: nowrap; max-width: none; min-width: 0 !important; }
   .tabella-mensile td { font-size: 10pt; line-height: 1.2; white-space: nowrap; }
   .tabella-mensile .riga-totale-mese th, .tabella-mensile .riga-totale-mese td { font-weight: 800; }
