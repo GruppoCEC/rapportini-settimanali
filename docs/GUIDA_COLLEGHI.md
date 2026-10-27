@@ -37,9 +37,9 @@ Apri **Inserisci mese**. La prima volta si apre una **guida in pochi passi** che
 sfogliala con **Avanti**, oppure chiudila con **Salta**. Se spunti **Non mostrare più**, su quel computer
 non si apre più da sola; puoi sempre riaprirla con il pulsante **Guida**, in alto accanto al mese.
 
-**Per prima cosa, le date di inizio.** Responsabili, coordinatrici e marketer hanno una data di inizio
-provvisoria, il **01/01/2026**, e nel riquadro **Personale dell'ufficio** compare un avviso arancio con i loro
-nomi. Premi **Modifica** accanto a ogni nome e scrivi la data vera:
+**Per prima cosa, le date di inizio.** Le date di inizio di responsabili, coordinatrici e marketer devono
+essere riviste, perché non erano a nostra disposizione: nel riquadro **Personale dell'ufficio** un avviso
+arancio elenca i loro nomi. Premi **Modifica** accanto a ogni nome e scrivi la data giusta:
 - per il **responsabile**, da quando è responsabile;
 - per **tutti gli altri**, da quando lavorano nel gruppo.
 

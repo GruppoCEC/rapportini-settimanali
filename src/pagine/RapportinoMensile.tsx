@@ -7,7 +7,7 @@ import { nomeDaEmail } from '../lib/account'
 import { leggiNumero } from '../lib/calcoli'
 import { caricaPersone, caricaScadenza, caricaStorico, caricaValoriMensili, caricaVociMensili, mensileAperto } from '../lib/dati'
 import {
-  aiutoDataInizio, dataItaliana, dataOra, dateDaCompletare, DATA_INIZIO_PROVVISORIA, inServizio, meseChiuso, mesePredefinito, primoDelMese, scadenzaPassata, ordinaPersone, righeDelMese,
+  aiutoDataInizio, dataItaliana, dataOra, dateDaCompletare, inServizio, meseChiuso, mesePredefinito, primoDelMese, scadenzaPassata, ordinaPersone, righeDelMese,
   titoloMese, totaleUfficio, ORDINE_RUOLI,
 } from '../lib/mensile'
 import { NOMI_MOTIVO_FINE, NOMI_RUOLO_PERSONA, type MotivoFine, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
@@ -378,9 +378,8 @@ function Personale({ persone, daCompletare, ufficioId, mese, onCambiato, chiedi,
         <div className="avviso avviso-arancio date-da-completare" role="note">
           <div className="intestazione-avviso"><Icona nome="calendar-x" />
             <span>
-              <strong>Date di inizio da completare.</strong> Per {daCompletare.length === 1 ? 'questa persona' : 'queste persone'} abbiamo messo il {dataItaliana(DATA_INIZIO_PROVVISORIA)} perché la data vera non c'era.
-              Premete <strong>Modifica</strong> e scrivete: per il <strong>responsabile</strong> da quando è responsabile, per <strong>gli altri</strong> da quando lavorano nel gruppo.
-              Se la data è davvero il 1° gennaio 2026, ignorate questo avviso.
+              <strong>Date di inizio da completare.</strong> Le date di inizio di responsabili, coordinatrici e marketer devono essere riviste,
+              perché non erano a nostra disposizione. Premete <strong>Modifica</strong> accanto a ogni nome e scrivete la data giusta.
             </span>
           </div>
           <ul>

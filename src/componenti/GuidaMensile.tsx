@@ -30,7 +30,7 @@ const PASSI: Passo[] = [
   },
   {
     titolo: 'Per prima cosa: le date di inizio',
-    testo: <>Responsabili, coordinatrici e marketer hanno una data di inizio provvisoria, <strong>01/01/2026</strong>, perché quella vera non l'avevamo. Nel riquadro <strong>Personale dell'ufficio</strong> premete <strong>Modifica</strong> e scrivete la data giusta: per il <strong>responsabile</strong> da quando è responsabile, per <strong>tutti gli altri</strong> da quando lavorano nel gruppo.</>,
+    testo: <>Le date di inizio di <strong>responsabili, coordinatrici e marketer</strong> devono essere riviste, perché non erano a nostra disposizione. Nel riquadro <strong>Personale dell'ufficio</strong> premete <strong>Modifica</strong> accanto a ogni nome e scrivete la data giusta.</>,
     disegno: (
       <div className="guida-colonna">
         <div className="guida-persona">
