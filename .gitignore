@@ -17,3 +17,6 @@ fogli attività/
 # Rapportini mensili degli uffici (numeri persona per persona): restano solo sul Mac
 rapportini mensili uffici/
 /*.pdf
+
+# Kit del logo (originali e manuale d'uso): nel sito ci sono solo i file che servono (src/immagini, public)
+Kit Gruppo CEC/

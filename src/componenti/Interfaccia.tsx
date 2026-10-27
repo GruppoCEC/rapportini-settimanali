@@ -1,15 +1,23 @@
 // Elementi grafici comuni: logo, icone, animazione dei numeri, dialogo di conferma, messaggio a comparsa.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import logoSfondoScuro from '../immagini/logo-sfondo-scuro.svg'
+import compattoSfondoScuro from '../immagini/logo-compatto-sfondo-scuro.svg'
+import compattoSfondoChiaro from '../immagini/logo-compatto-sfondo-chiaro.svg'
 
-/** Logo provvisorio: quattro barre su un quadrato arancio */
-export function Logo({ dimensione = 40 }: { dimensione?: number }) {
-  return (
-    <svg className="logo" width={dimensione} height={dimensione} viewBox="0 0 34 34" aria-hidden="true">
-      <rect width="34" height="34" rx="9" fill="var(--secondario)" />
-      <path d="M9 24V16M15 24V10M21 24v-5M27 24V13" stroke="var(--primario-900)" strokeWidth="3.2" strokeLinecap="round" />
-    </svg>
-  )
+/**
+ * Logo compatto del Gruppo C.E.C. (kit del logo, file 04 e 05: tetto, GRUPPO, C.E.C.) per gli spazi
+ * piccoli: testata, presentazioni, stampe. Dai file è stato tolto solo il margine trasparente, così
+ * le lettere vengono più grandi; il disegno è quello del kit. Il colore dipende dallo sfondo.
+ */
+export function Logo({ altezza = 50, sfondo = 'scuro' }: { altezza?: number; sfondo?: 'scuro' | 'chiaro' }) {
+  return <img className="logo" src={sfondo === 'scuro' ? compattoSfondoScuro : compattoSfondoChiaro}
+    height={altezza} width={Math.round(altezza * 242 / 201)} alt="Gruppo C.E.C." />
+}
+
+/** Logo intero del Gruppo C.E.C. per sfondi scuri (kit del logo, file 02), almeno 180 px di larghezza */
+export function LogoIntero({ larghezza = 220 }: { larghezza?: number }) {
+  return <img className="logo-intero" src={logoSfondoScuro} width={larghezza} alt="Gruppo C.E.C. · Agenzie immobiliari · Roma · Milano" />
 }
 
 /** Icona Phosphor (peso duotone) */

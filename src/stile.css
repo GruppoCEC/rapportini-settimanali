@@ -175,6 +175,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .marchio-nome { font-family: var(--font-titoli); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; }
 .marchio-sotto { font-size: 12px; font-weight: 600; color: #AFC0D4; }
 .logo { display: block; flex: none; }
+.logo-intero { display: block; height: auto; max-width: 100%; }
 
 .citta-pillole { display: flex; gap: 2px; background: rgba(255, 255, 255, .1); border-radius: 999px; padding: 4px; }
 .citta-pillole button {
@@ -428,8 +429,9 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .cerchio-a { right: -140px; top: -140px; width: 460px; height: 460px; background: var(--primario-800); }
 .cerchio-b { left: -120px; bottom: -200px; width: 420px; height: 420px; background: rgba(255, 255, 255, .05); }
 .accesso-pannello > *:not(.cerchio) { position: relative; }
-.accesso-marchio .marchio-nome { font-size: 24px; }
-.accesso-marchio .marchio-sotto { font-size: 13px; }
+.accesso-marchio { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.accesso-marchio .logo-intero { margin-left: -16px; }   /* il file ha un margine trasparente: si allinea al testo */
+.accesso-marchio .marchio-nome { font-size: 22px; color: #D5DCE6; }
 .accesso-titolo { font-size: clamp(40px, 4.6vw, 64px); line-height: 1.02; color: #fff; max-width: 11em; }
 .accesso-titolo span { color: var(--secondario); }
 .accesso-testo { font-size: 18px; line-height: 1.55; max-width: 30em; color: #D5DCE6; }

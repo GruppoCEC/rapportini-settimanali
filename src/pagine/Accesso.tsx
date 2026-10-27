@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { PROMEMORIA_ATTIVI } from '../lib/contesto'
-import { Icona, Logo } from '../componenti/Interfaccia'
+import { Icona, LogoIntero } from '../componenti/Interfaccia'
 
 const UTENTI_DEMO = [['davide', 'amministratore generale'], ['admin-milano', 'amministratore di Milano'], ['somalia', 'un ufficio'], ['affiliato-demo', 'un affiliato']]
 
@@ -49,12 +49,9 @@ export default function Accesso() {
       <div className="accesso">
         <section className="accesso-pannello">
           <div className="cerchio cerchio-a" /><div className="cerchio cerchio-b" />
-          <div className="marchio accesso-marchio entra">
-            <Logo dimensione={48} />
-            <div className="marchio-testi">
-              <span className="marchio-nome">Rapportini Settimanali</span>
-              <span className="marchio-sotto">Gruppo CEC · Roma e Milano</span>
-            </div>
+          <div className="accesso-marchio entra">
+            <LogoIntero larghezza={300} />
+            <span className="marchio-nome">Rapportini Settimanali</span>
           </div>
           <div className="entra entra-1" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <h1 className="accesso-titolo">La settimana di ogni ufficio, <span>in un solo posto.</span></h1>
