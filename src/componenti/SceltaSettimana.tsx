@@ -5,18 +5,20 @@ import { Icona } from './Interfaccia'
 interface Props {
   settimana: string
   onCambia: (lunedi: string) => void
+  ultima?: string                     // ultima settimana che si può aprire; di solito quella in corso
 }
 
-/** "Settimana in corso", "Settimana scorsa" oppure solo "Settimana" */
+/** "Settimana in corso", "Settimana scorsa", "Settimana prossima", "Fra 3 settimane" oppure solo "Settimana" */
 export function nomeRelativo(settimana: string): string {
   const corrente = lunediDi(oggiISO())
   if (settimana === corrente) return 'Settimana in corso'
   if (settimana === aggiungiSettimane(corrente, -1)) return 'Settimana scorsa'
+  if (settimana === aggiungiSettimane(corrente, 1)) return 'Settimana prossima'
+  if (settimana > corrente) return `Fra ${Math.round((Date.parse(settimana) - Date.parse(corrente)) / (7 * 86400000))} settimane`
   return 'Settimana'
 }
 
-export default function SceltaSettimana({ settimana, onCambia }: Props) {
-  const ultima = lunediDi(oggiISO())          // non si compilano settimane future
+export default function SceltaSettimana({ settimana, onCambia, ultima = lunediDi(oggiISO()) }: Props) {
   const proposta = settimanaPredefinita()
   const nota = notaMeseSettimana(settimana)
   return (

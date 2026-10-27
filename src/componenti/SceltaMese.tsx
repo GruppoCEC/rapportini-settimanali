@@ -2,10 +2,15 @@
 import { aggiungiMesi, meseInCorso, mesePredefinito, titoloMese } from '../lib/mensile'
 import { Icona } from './Interfaccia'
 
-export default function SceltaMese({ mese, onCambia }: { mese: string; onCambia: (mese: string) => void }) {
+interface Props {
+  mese: string
+  onCambia: (mese: string) => void
+  proposto?: string                            // mese a cui si torna; di solito quello appena concluso
+}
+
+export default function SceltaMese({ mese, onCambia, proposto = mesePredefinito() }: Props) {
   const ultimo = meseInCorso()                 // non si va oltre il mese in corso
-  const proposto = mesePredefinito()
-  const etichetta = mese === proposto ? 'Mese appena concluso' : mese === ultimo ? 'Mese in corso' : 'Mese'
+  const etichetta = mese === ultimo ? 'Mese in corso' : mese === mesePredefinito() ? 'Mese appena concluso' : 'Mese'
   return (
     <div className="scelta-settimana-colonna">
       <div className="scelta-settimana">

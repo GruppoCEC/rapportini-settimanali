@@ -47,6 +47,19 @@ export function mesePredefinito(oggi: string = oggiISO()): string {
   return aggiungiMesi(primoDelMese(oggi), -1)
 }
 
+/**
+ * Mese da aprire in Inserisci mese: il mese appena concluso fino al giorno della sua scadenza compreso
+ * (la riunione di fine mese), dal giorno dopo il mese in corso. Senza scadenza fissata vale quella
+ * proposta (il 5 del mese dopo). Richiesta di Davide (27/10/2026): fino al 03/11 si apre ottobre,
+ * dal 04/11 novembre, così gli uffici non compilano per errore un mese già passato.
+ * `scadenzaMeseScorso` è la scadenza del mese appena concluso (mesePredefinito).
+ */
+export function meseDaCompilare(scadenzaMeseScorso: Scadenza | null, oggi: string = oggiISO()): string {
+  const scorso = mesePredefinito(oggi)
+  const giorno = scadenzaMeseScorso ? oggiISO(new Date(scadenzaMeseScorso.scadenza)) : scadenzaProposta(scorso).slice(0, 10)
+  return oggi <= giorno ? scorso : meseInCorso(oggi)
+}
+
 /** Es. "Settembre 2026" */
 export function titoloMese(mese: string): string {
   const n = nomeMese(mese)

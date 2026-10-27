@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, aiutoDataInizio, dateDaCompletare, formattaAnzianita, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
+  aggiungiMesi, aiutoDataInizio, dateDaCompletare, formattaAnzianita, meseDaCompilare, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   presenteNelMese, righeDelMese, riepilogoDaRighe, riepilogoMensile, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione, vociRiservate,
 } from './mensile'
 import type { Persona, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
@@ -364,5 +364,25 @@ describe('date di inizio provvisorie', () => {
   it('spiega che data scrivere secondo il ruolo', () => {
     expect(aiutoDataInizio('responsabile')).toBe('Da quando è responsabile')
     expect(aiutoDataInizio('coordinatrice')).toBe('Da quando lavora nel gruppo')
+  })
+})
+
+describe('mese da compilare', () => {
+  // scadenza di ottobre: martedì 3 novembre alle 10 (ora italiana)
+  const ottobre = { mese: '2026-10-01', scadenza: '2026-11-03T09:00:00Z', blocca: true }
+  it('fino al giorno della riunione di fine mese apre il mese appena concluso', () => {
+    expect(meseDaCompilare(ottobre, '2026-11-01')).toBe('2026-10-01')
+    expect(meseDaCompilare(ottobre, '2026-11-03')).toBe('2026-10-01')
+  })
+  it('dal giorno dopo apre il mese in corso', () => {
+    expect(meseDaCompilare(ottobre, '2026-11-04')).toBe('2026-11-01')
+    expect(meseDaCompilare(ottobre, '2026-11-20')).toBe('2026-11-01')
+  })
+  it('a fine mese, prima della scadenza del mese dopo, resta sul mese in corso', () => {
+    expect(meseDaCompilare(ottobre, '2026-11-30')).toBe('2026-11-01')
+  })
+  it('senza scadenza fissata vale il 5 del mese dopo', () => {
+    expect(meseDaCompilare(null, '2026-11-05')).toBe('2026-10-01')
+    expect(meseDaCompilare(null, '2026-11-06')).toBe('2026-11-01')
   })
 })

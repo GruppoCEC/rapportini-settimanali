@@ -7,7 +7,7 @@ import { nomeDaEmail } from '../lib/account'
 import { leggiNumero } from '../lib/calcoli'
 import { caricaPersone, caricaScadenza, caricaStorico, caricaValoriMensili, caricaVociMensili, mensileAperto } from '../lib/dati'
 import {
-  aiutoDataInizio, dataItaliana, dataOra, dateDaCompletare, inServizio, meseChiuso, mesePredefinito, primoDelMese, scadenzaPassata, ordinaPersone, righeDelMese,
+  aiutoDataInizio, dataItaliana, dataOra, dateDaCompletare, inServizio, meseChiuso, meseDaCompilare, mesePredefinito, primoDelMese, scadenzaPassata, ordinaPersone, righeDelMese,
   titoloMese, totaleUfficio, ORDINE_RUOLI,
 } from '../lib/mensile'
 import { NOMI_MOTIVO_FINE, NOMI_RUOLO_PERSONA, type MotivoFine, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
@@ -34,10 +34,12 @@ const chiave = (personaId: number, voce: string) => `${personaId}|${voce}`
 const num = (s: string) => { const v = leggiNumero(s); return typeof v === 'number' ? v : null }
 
 export default function RapportinoMensile({ uffici, ufficioPredefinito, amministratore, nomeUtente }: Props) {
-  const base = useDati(() => Promise.all([caricaVociMensili(), mensileAperto()]), [])
+  // la scadenza del mese appena concluso dice quale mese aprire (meseDaCompilare); se non si legge, si apre quello appena concluso
+  const base = useDati(() => Promise.all([caricaVociMensili(), mensileAperto(), caricaScadenza(mesePredefinito()).catch(() => undefined)]), [])
   if (!base.dati) return <div className="pagina"><Caricamento errore={base.errore} /></div>
-  const [voci, aperto] = base.dati
-  return <Compilazione uffici={uffici} ufficioPredefinito={ufficioPredefinito} amministratore={amministratore} nomeUtente={nomeUtente} voci={voci} aperto={aperto} />
+  const [voci, aperto, scadenzaScorso] = base.dati
+  const meseIniziale = scadenzaScorso === undefined ? mesePredefinito() : meseDaCompilare(scadenzaScorso)
+  return <Compilazione uffici={uffici} ufficioPredefinito={ufficioPredefinito} amministratore={amministratore} nomeUtente={nomeUtente} voci={voci} aperto={aperto} meseIniziale={meseIniziale} />
 }
 
 /** Funzione ancora in prova: lo si dice chiaramente, agli uffici e agli amministratori */
@@ -55,9 +57,9 @@ export function AvvisoProva({ amministratore }: { amministratore?: boolean }) {
   )
 }
 
-function Compilazione({ uffici, ufficioPredefinito, amministratore, nomeUtente, voci, aperto }: Props & { voci: VoceMensile[]; aperto: boolean }) {
+function Compilazione({ uffici, ufficioPredefinito, amministratore, nomeUtente, voci, aperto, meseIniziale }: Props & { voci: VoceMensile[]; aperto: boolean; meseIniziale: string }) {
   const [ufficioId, setUfficioId] = useState(uffici.find((u) => u.id === ufficioPredefinito)?.id ?? uffici[0].id)
-  const [mese, setMese] = useState(mesePredefinito())
+  const [mese, setMese] = useState(meseIniziale)
   const [persone, setPersone] = useState<Persona[]>([])
   const [scadenza, setScadenza] = useState<Scadenza | null>(null)
   const [conStorico, setConStorico] = useState(false)       // per questo mese c'è il totale dal file Excel annuale
@@ -185,7 +187,7 @@ function Compilazione({ uffici, ufficioPredefinito, amministratore, nomeUtente, 
         </div>
         <div className="intestazione-azioni">
           <button className="btn btn-secondario" onClick={() => setGuida(true)}><Icona nome="question" />Guida</button>
-          <SceltaMese mese={mese} onCambia={(m) => conPermesso(() => setMese(m))} />
+          <SceltaMese mese={mese} proposto={meseIniziale} onCambia={(m) => conPermesso(() => setMese(m))} />
         </div>
       </div>
 

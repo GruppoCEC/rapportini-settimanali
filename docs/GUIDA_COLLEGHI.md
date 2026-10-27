@@ -29,11 +29,16 @@ Se l'hai dimenticata, chiedi all'amministratore.
 inserito nulla, ricevi un promemoria via email. Se il lunedì alle 9:30 mancano ancora i dati,
 ricevi l'ultimo promemoria: inseriscili subito, prima della riunione.
 
-Puoi correggere anche le settimane passate con le frecce ‹ ›.
+Puoi correggere anche le settimane passate con le frecce ‹ ›. Con la freccia › puoi anche andare
+**fino a 4 settimane avanti**, per preparare gli obiettivi (per esempio quelli di tutto il mese dopo):
+nelle settimane non ancora iniziate si scrivono **solo gli obiettivi**, mentre risultati, dati di zona e note
+si inseriscono quando la settimana è iniziata.
 
 ## Inserire il rapportino del mese
 
-Apri **Inserisci mese**. La prima volta si apre una **guida in pochi passi** che spiega come si compila:
+Apri **Inserisci mese**: trovi già il mese da compilare. Fino al giorno della riunione di fine mese è il
+mese appena concluso (per esempio ottobre fino al 3 novembre); dal giorno dopo è il mese in corso.
+La prima volta si apre una **guida in pochi passi** che spiega come si compila:
 sfogliala con **Avanti**, oppure chiudila con **Salta**. Se spunti **Non mostrare più**, su quel computer
 non si apre più da sola; puoi sempre riaprirla con il pulsante **Guida**, in alto accanto al mese.
 

@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { CASELLE_NOTA, caricaNota, type CampoNota } from '../lib/dati'
 import { nomeDaEmail } from '../lib/account'
 import { esito, formattaEsito, formattaPercentuale, leggiNumero, OBIETTIVO_QUOTA, quotaMercato } from '../lib/calcoli'
-import { intervalloSettimana, settimanaPredefinita } from '../lib/settimane'
+import { intervalloSettimana, settimanaFutura, settimanaPredefinita, ultimaSettimanaInseribile } from '../lib/settimane'
 import type { Metrica, Rilevazione, Ufficio } from '../lib/tipi'
 import SceltaSettimana from '../componenti/SceltaSettimana'
 import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
@@ -98,8 +98,9 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
       // Dati di zona non ancora inseriti → proponi quelli dell'ultima settimana compilata
       const proposte: Caselle = structuredClone(salvate)
       let da: string | null = null
+      // (non in una settimana futura: lì i dati di zona non si scrivono, e salvando gli obiettivi diventerebbero risultati)
       const zonaVuota = zona.every((m) => salvate[m.codice].risultato === '')
-      if (zonaVuota && zona.length > 0) {
+      if (zonaVuota && zona.length > 0 && !settimanaFutura(settimana)) {
         const precedenti = await supabase.from('rilevazioni')
           .select('metrica, risultato, settimana')
           .eq('ufficio_id', ufficioId).lt('settimana', settimana)
@@ -203,6 +204,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
   const ufficio = uffici.find((u) => u.id === ufficioId)!
 
   const disattivo = stato !== 'pronto'
+  const futura = settimanaFutura(settimana)          // non ancora iniziata: solo gli obiettivi
 
   return (
     <div className="pagina entra">
@@ -224,13 +226,19 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
             </span>
           )}
         </div>
-        <SceltaSettimana settimana={settimana} onCambia={(s) => conPermesso(() => setSettimana(s))} />
+        <SceltaSettimana settimana={settimana} ultima={ultimaSettimanaInseribile()} onCambia={(s) => conPermesso(() => setSettimana(s))} />
       </div>
 
       <div className="due-colonne">
         <section className="scheda entra entra-1">
           <h2 className="titolo-icona"><span className="icona-quadrata icona-blu"><Icona nome="briefcase" /></span>Attività della settimana</h2>
-          <p className="piccolo">Se in un'attività non hai fatto nulla scrivi <strong>0</strong>: la casella vuota vuol dire "non ancora inserito".</p>
+          {futura ? (
+            <p className="avviso compare"><Icona nome="calendar-plus" />
+              <span><strong>Settimana non ancora iniziata:</strong> potete inserire solo gli <strong>obiettivi</strong>. Risultati, dati di zona e note si inseriscono quando la settimana è iniziata.</span>
+            </p>
+          ) : (
+            <p className="piccolo">Se in un'attività non hai fatto nulla scrivi <strong>0</strong>: la casella vuota vuol dire "non ancora inserito".</p>
+          )}
           {obiettiviDa && (
             <p className="avviso compare"><Icona nome="info" />
               <span>Obiettivi ripresi dalla settimana {intervalloSettimana(obiettiviDa)}: cambiali se questa settimana sono diversi, poi salva.</span>
@@ -249,7 +257,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
                     <th scope="row">{m.nome}</th>
                     {(['obiettivo', 'risultato'] as const).map((campo) => (
                       <td key={campo} className={`destra ${campo}`}>
-                        <input inputMode="numeric" aria-label={`${m.nome} – ${campo}`} value={c[campo]} disabled={disattivo}
+                        <input inputMode="numeric" aria-label={`${m.nome} – ${campo}`} value={c[campo]} disabled={disattivo || (futura && campo === 'risultato')}
                           className={caselleErrate.includes(`${m.codice}.${campo}`) ? 'non-valido' : ''}
                           onChange={(ev) => cambia(m.codice, campo, ev.target.value)} />
                       </td>
@@ -276,7 +284,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
               {zona.map((m) => (
                 <div key={m.codice} className="campo">
                   <label htmlFor={`zona-${m.codice}`}>{m.nome}</label>
-                  <input id={`zona-${m.codice}`} inputMode="numeric" value={caselle[m.codice].risultato} disabled={disattivo}
+                  <input id={`zona-${m.codice}`} inputMode="numeric" value={caselle[m.codice].risultato} disabled={disattivo || futura}
                     className={caselleErrate.includes(`${m.codice}.risultato`) ? 'non-valido' : ''}
                     onChange={(ev) => cambia(m.codice, 'risultato', ev.target.value)} />
                 </div>
@@ -315,7 +323,7 @@ export default function InserisciSettimana({ uffici, metriche, onSalvato, uffici
             {CASELLE_NOTA.map(({ campo, nome, segnaposto }) => (
               <div key={campo} className={`campo campo-nota${campo === 'aiuto' ? ' campo-aiuto' : ''}`}>
                 <label htmlFor={`nota-${campo}`}>{nome}</label>
-                <textarea id={`nota-${campo}`} rows={2} maxLength={1000} value={nota[campo]} disabled={disattivo} placeholder={segnaposto}
+                <textarea id={`nota-${campo}`} rows={2} maxLength={1000} value={nota[campo]} disabled={disattivo || futura} placeholder={segnaposto}
                   onChange={(e) => { const v = e.target.value; setNota((n) => ({ ...n, [campo]: v })); setMessaggio(null) }} />
               </div>
             ))}

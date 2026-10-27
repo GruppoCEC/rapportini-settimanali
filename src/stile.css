@@ -110,7 +110,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 input::placeholder, textarea::placeholder { color: #8A8D94; }
 textarea { min-height: 90px; resize: vertical; }
 input.non-valido { border-color: var(--secondario); background: var(--secondario-100); }
-input:disabled, select:disabled, textarea:disabled { opacity: .6; }
+input:disabled, select:disabled, textarea:disabled { opacity: .6; background: var(--fondo-barra); cursor: not-allowed; }
 select { width: auto; }
 .campo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .campo > label, .campo > span.etichetta { font-size: 13px; font-weight: 700; color: var(--testo-2); }

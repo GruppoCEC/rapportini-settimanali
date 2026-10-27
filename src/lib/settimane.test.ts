@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   aggiungiMesi, aggiungiSettimane, etichettaSettimana, giornoEMese, intervalloSettimana, intervalloSettimane, lunediDi, meseDellaSettimana, notaMeseSettimana,
-  nomeMeseBreve, oggiISO, settimanaNelMese, settimanaPredefinita, settimaneDelMese, ultimaSettimanaConclusa,
+  nomeMeseBreve, oggiISO, settimanaFutura, settimanaNelMese, settimanaPredefinita, settimaneDelMese, ultimaSettimanaConclusa, ultimaSettimanaInseribile,
 } from './settimane'
 
 describe('lunedì della settimana', () => {
@@ -79,5 +79,17 @@ describe('mesi', () => {
   it('nome breve per i grafici', () => {
     expect(nomeMeseBreve('2026-10')).toBe('ott')
     expect(nomeMeseBreve('2026-01')).toBe('gen')
+  })
+})
+
+describe('settimane in anticipo', () => {
+  it('si aprono fino a 4 settimane dopo quella da compilare', () => {
+    expect(ultimaSettimanaInseribile('2026-10-27')).toBe('2026-11-23')   // martedì: da compilare 26/10
+    expect(ultimaSettimanaInseribile('2026-10-26')).toBe('2026-11-16')   // lunedì: da compilare 19/10
+  })
+  it('una settimana non ancora iniziata è futura, quella in corso no', () => {
+    expect(settimanaFutura('2026-11-02', '2026-10-27')).toBe(true)
+    expect(settimanaFutura('2026-10-26', '2026-10-27')).toBe(false)
+    expect(settimanaFutura('2026-10-19', '2026-10-27')).toBe(false)
   })
 })

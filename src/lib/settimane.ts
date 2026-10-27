@@ -68,6 +68,22 @@ export function settimanaPredefinita(oggi: string = oggiISO()): string {
   return oggi === lunedi ? aggiungiSettimane(lunedi, -1) : lunedi
 }
 
+/**
+ * Quante settimane dopo quella da compilare si possono aprire in Inserisci settimana, per scrivere in anticipo
+ * gli obiettivi (Davide, 27/10/2026: "almeno 4", così si preparano quelli di tutto il mese dopo).
+ */
+export const SETTIMANE_IN_ANTICIPO = 4
+
+/** L'ultima settimana che si può aprire in Inserisci settimana */
+export function ultimaSettimanaInseribile(oggi: string = oggiISO()): string {
+  return aggiungiSettimane(settimanaPredefinita(oggi), SETTIMANE_IN_ANTICIPO)
+}
+
+/** Settimana non ancora iniziata: si scrivono solo gli obiettivi (niente risultati, dati di zona e note) */
+export function settimanaFutura(lunedi: string, oggi: string = oggiISO()): boolean {
+  return lunedi > lunediDi(oggi)
+}
+
 /** Ultima settimana già conclusa (quella prima della settimana in corso): base per cruscotto e riunione */
 export function ultimaSettimanaConclusa(oggi: string = oggiISO()): string {
   return aggiungiSettimane(lunediDi(oggi), -1)

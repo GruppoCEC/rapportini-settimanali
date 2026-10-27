@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.25.0 — 27 ottobre 2026
+
+**Quale mese e quale settimana si aprono** (richieste di Davide):
+- **Inserisci mese** si apre sul mese **da compilare**: il mese appena concluso **fino al giorno della sua scadenza compreso** (la riunione di fine mese), **dal giorno dopo il mese in corso**. Esempio: con la scadenza di ottobre il 03/11 alle 10, fino al 03/11 si apre ottobre, dal 04/11 novembre. Così gli uffici non compilano per errore un mese già passato. Se per un mese non c'è una scadenza, vale quella proposta (il 5 del mese dopo). Oggi, 27/10, si apre già ottobre, perché la scadenza di settembre (5/10) è passata. Le frecce funzionano come prima (fino al mese in corso); il Report mensile degli amministratori non cambia;
+- **Inserisci settimana** si può aprire **fino a 4 settimane dopo** quella da compilare (prima al massimo una), per inserire in anticipo gli obiettivi, anche di tutto il mese dopo. Nelle settimane **non ancora iniziate** si scrivono **solo gli obiettivi**: risultati, dati di zona e note sono bloccati (in grigio) e un avviso lo spiega. Per questo i dati di zona della settimana prima non vengono proposti nelle settimane future: salvando gli obiettivi diventerebbero risultati. I promemoria guardano solo i risultati, quindi gli obiettivi inseriti in anticipo non li fermano;
+- sopra la settimana compare *Settimana prossima* o *Fra N settimane*; le caselle bloccate ora sono grigie in tutto il sito;
+- nessuna modifica al database: basta pubblicare (Push). Provato con le prove automatiche (210) e nella demo.
+
 ## 0.24.0 — 27 ottobre 2026
 
 **Guida a passi in Inserisci mese** (richiesta di Davide):
