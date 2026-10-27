@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.27.0 — 27 ottobre 2026
+
+**Report mensile: tutti i mesi dell'anno per l'amministrazione** (richiesta di Davide):
+- in **Report mensile** gli amministratori (generale e di città) possono andare con la freccia › **fino a dicembre dell'anno in corso** (prima si fermavano al mese in corso). Servono per esempio a **fissare in anticipo le scadenze** di novembre e dicembre, e la casella *Salta la riunione settimanale*. A dicembre si apre anche gennaio dell'anno dopo;
+- sopra il mese compare *Mese futuro*; i mesi futuri sono vuoti finché gli uffici non li compilano. Il Riepilogo dell'anno continua a sommare solo i mesi conclusi;
+- per gli affiliati e per gli uffici (Inserisci mese) non cambia nulla;
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.26.1 — 27 ottobre 2026
 
 **Intestazioni delle colonne del rapportino mensile** (segnalato da Davide: in stampa si leggevano "GE-STIONE INCARI-CHI", "COLLO-QUI", "VENDI-TE EFFET-TUATE"):

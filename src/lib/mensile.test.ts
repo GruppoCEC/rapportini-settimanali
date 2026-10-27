@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  aggiungiMesi, aiutoDataInizio, dateDaCompletare, formattaAnzianita, meseDaCompilare, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
+  aggiungiMesi, aiutoDataInizio, dateDaCompletare, formattaAnzianita, meseDaCompilare, ultimoMeseReport, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   presenteNelMese, righeDelMese, riepilogoDaRighe, riepilogoMensile, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione, vociRiservate,
 } from './mensile'
 import type { Persona, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
@@ -384,5 +384,15 @@ describe('mese da compilare', () => {
   it('senza scadenza fissata vale il 5 del mese dopo', () => {
     expect(meseDaCompilare(null, '2026-11-05')).toBe('2026-10-01')
     expect(meseDaCompilare(null, '2026-11-06')).toBe('2026-11-01')
+  })
+})
+
+describe('mesi del Report mensile', () => {
+  it("l'amministrazione apre fino a dicembre dell'anno in corso", () => {
+    expect(ultimoMeseReport('2026-10-27')).toBe('2026-12-01')
+    expect(ultimoMeseReport('2026-01-15')).toBe('2026-12-01')
+  })
+  it('a dicembre anche gennaio dell\'anno dopo', () => {
+    expect(ultimoMeseReport('2026-12-10')).toBe('2027-01-01')
   })
 })

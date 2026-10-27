@@ -6,11 +6,11 @@ interface Props {
   mese: string
   onCambia: (mese: string) => void
   proposto?: string                            // mese a cui si torna; di solito quello appena concluso
+  ultimo?: string                              // ultimo mese apribile; di solito quello in corso
 }
 
-export default function SceltaMese({ mese, onCambia, proposto = mesePredefinito() }: Props) {
-  const ultimo = meseInCorso()                 // non si va oltre il mese in corso
-  const etichetta = mese === ultimo ? 'Mese in corso' : mese === mesePredefinito() ? 'Mese appena concluso' : 'Mese'
+export default function SceltaMese({ mese, onCambia, proposto = mesePredefinito(), ultimo = meseInCorso() }: Props) {
+  const etichetta = mese === meseInCorso() ? 'Mese in corso' : mese === mesePredefinito() ? 'Mese appena concluso' : mese > meseInCorso() ? 'Mese futuro' : 'Mese'
   return (
     <div className="scelta-settimana-colonna">
       <div className="scelta-settimana">

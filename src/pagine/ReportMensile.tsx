@@ -9,7 +9,7 @@ import { AvvisoProva } from './RapportinoMensile'
 import Collaboratori from './Collaboratori'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
-  punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, dataOra, lunediVicino, scadenzaPassata, scadenzaProposta, ultimoRitardo,
+  punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, ultimoMeseReport, dataOra, lunediVicino, scadenzaPassata, scadenzaProposta, ultimoRitardo,
   indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleConStorico, variazione,
   presenteNelMese, vociDelRapportino, vociRiservate, type TotaliMese,
 } from '../lib/mensile'
@@ -102,7 +102,8 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
           <span className="kicker">Report mensile</span>
           <h1 className="titolo-pagina">{titolo}</h1>
         </div>
-        {scheda !== 'anno' && <SceltaMese mese={mese} onCambia={setMese} />}
+        {/* l'amministrazione apre tutti i mesi dell'anno (per esempio per fissare le scadenze); gli affiliati fino al mese in corso */}
+        {scheda !== 'anno' && <SceltaMese mese={mese} onCambia={setMese} ultimo={affiliato ? undefined : ultimoMeseReport()} />}
       </div>
       <div className="comandi non-stampa">
         <div className="segmentato" role="tablist">

@@ -42,6 +42,16 @@ export function meseInCorso(oggi: string = oggiISO()): string {
   return primoDelMese(oggi)
 }
 
+/**
+ * Ultimo mese che l'amministrazione può aprire in Report mensile: dicembre dell'anno in corso, per vedere
+ * già tutti i mesi dell'anno e fissarne le scadenze (Davide, 27/10/2026); a dicembre anche gennaio dopo.
+ */
+export function ultimoMeseReport(oggi: string = oggiISO()): string {
+  const dicembre = `${oggi.slice(0, 4)}-12-01`
+  const prossimo = aggiungiMesi(meseInCorso(oggi), 1)
+  return prossimo > dicembre ? prossimo : dicembre
+}
+
 /** Mese proposto all'apertura: quello appena concluso (a ottobre si apre settembre) */
 export function mesePredefinito(oggi: string = oggiISO()): string {
   return aggiungiMesi(primoDelMese(oggi), -1)
