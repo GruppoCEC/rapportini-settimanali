@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.29.1 — 2 novembre 2026
+
+**Riunione → Mese: tutto il gruppo insieme** (segnalato da Davide: la presentazione del mese era divisa tra Roma e Milano, mentre alla riunione di fine mese i dati si guardano tutti insieme):
+- per l'**amministratore generale**, in **Riunione** con **Mese** scelto, la presentazione comprende **tutti gli uffici di Roma e Milano insieme** (*Tutto il gruppo*), qualunque città sia scelta in alto. È la stessa presentazione della scheda *Presentazione* del Report mensile: **solo i rapportini mensili inseriti sulla piattaforma**, senza i totali del file Excel annuale, così i numeri sono uguali nei due posti;
+- con **Settimana** non cambia nulla: la riunione del lunedì resta divisa per città;
+- non cambia nulla per gli amministratori di città, gli uffici e gli affiliati;
+- nessuna modifica al database: basta pubblicare (Push). Provato con le prove automatiche (215) e nella demo, con Roma e con Milano scelte in alto (47 uffici, 7 pagine).
+
 ## 0.29.0 — 2 novembre 2026
 
 **Presentazione per la riunione di fine mese nel Report mensile** (richiesta di Davide):

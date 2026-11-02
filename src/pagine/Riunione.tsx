@@ -16,7 +16,7 @@ import {
   CASELLE_NOTA, caricaNote, caricaPersone, caricaPosizioneCitta, caricaPosizioneMensileCitta, type PosizioniCitta, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
 } from '../lib/dati'
 import {
-  formattaNumero, inServizio, meseInCorso as meseAttuale, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
+  formattaNumero, inServizio, meseInCorso as meseAttuale, ordinaUfficiReport, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
   type RiepilogoMensile, type TotaliMese,
 } from '../lib/mensile'
 import { isAffiliato, isAmministratore } from '../lib/permessi'
@@ -114,28 +114,32 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
   const [areaFiltro, setAreaFiltro] = useState<number | 'tutte'>('tutte')
   const [attiva, setAttiva] = useState(false)
 
+  // Il mese usa i rapportini mensili; la settimana i rapportini settimanali.
+  const mensile = MENSILE_ATTIVO && periodo.tipo === 'mese'
+
   // Chi vede cosa: l'ufficio solo sé stesso, l'affiliato i suoi uffici (anche di città diverse),
-  // gli amministratori la città scelta
+  // gli amministratori la città scelta. Nel mese l'amministratore generale presenta tutto il gruppo,
+  // Roma e Milano insieme, come alla riunione di fine mese (richiesta di Davide del 02/11/2026).
   const amministrazione = isAmministratore(ctx.utente)
   const soloUfficio = ctx.utente.ruolo === 'ufficio'
-  const visibili = ufficiVisibili(ctx)
+  const gruppoIntero = mensile && ctx.utente.ruolo === 'admin_generale'
+  const visibili = gruppoIntero ? ordinaUfficiReport(ctx.uffici.filter((u) => u.attivo)) : ufficiVisibili(ctx)
   const tutti = soloUfficio ? visibili.filter((u) => u.id === ctx.utente.ufficio_id) : visibili
   const uffici = areaFiltro === 'tutte' ? tutti : tutti.filter((u) => u.area_id === areaFiltro)
   const ids = uffici.map((u) => u.id)
   const areeCitta = soloUfficio || isAffiliato(ctx.utente) ? [] : ctx.aree.filter((a) => a.citta_id === ctx.cittaId)
   const nomeCitta = ctx.citta.find((c) => c.id === ctx.cittaId)?.nome ?? ''
-  const nomeGruppo = soloUfficio ? (tutti[0]?.nome ?? 'Il mio ufficio') : isAffiliato(ctx.utente) ? 'I miei uffici' : nomeCitta
+  const nomeGruppo = soloUfficio ? (tutti[0]?.nome ?? 'Il mio ufficio') : isAffiliato(ctx.utente) ? 'I miei uffici' : gruppoIntero ? 'Tutto il gruppo' : nomeCitta
   const titolo = areaFiltro === 'tutte' ? nomeGruppo : `${nomeGruppo} · ${nomeArea(ctx, areaFiltro)}`
   const nomePresentazione = amministrazione ? 'Riunione' : 'Presentazione'
 
-  // Il mese usa i rapportini mensili; la settimana i rapportini settimanali.
   // Passando a "Mese" si parte dal mese appena concluso, come nel Report mensile (a ottobre, settembre).
-  const mensile = MENSILE_ATTIVO && periodo.tipo === 'mese'
   const cambiaPeriodo = (p: Periodo) => setPeriodo(MENSILE_ATTIVO && p.tipo === 'mese' && periodo.tipo === 'settimana'
     ? { tipo: 'mese', settimana: settimaneDelMese(mesePredefinito().slice(0, 7))[0] } : p)
   const mesi = Array.from({ length: STORICO.mese }, (_, i) => `${aggiungiMesi(meseDellaSettimana(periodo.settimana), i - STORICO.mese + 1)}-01`)
-  const caricoMese = useDati<DatiMensili | null>(async () => (mensile ? caricaDatiMensili(mesi, uffici, soloUfficio) : null),
-    [mensile, mesi.join(','), ids.join(','), soloUfficio])
+  // tutto il gruppo: come la Presentazione del Report mensile, solo i rapportini inseriti (senza il file Excel annuale)
+  const caricoMese = useDati<DatiMensili | null>(async () => (mensile ? caricaDatiMensili(mesi, uffici, soloUfficio, !gruppoIntero) : null),
+    [mensile, mesi.join(','), ids.join(','), soloUfficio, gruppoIntero])
 
   const periodi = periodiStorico(periodo)
   const correnti = periodi[periodi.length - 1]
@@ -160,7 +164,7 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
   const datiMese = mensile ? caricoMese.dati : null
   const datiSettimane = mensile ? null : caricoSettimane.dati
   const pronto = !!(datiMese ?? datiSettimane)
-  const diapositive = datiMese ? costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, ...datiMese })
+  const diapositive = datiMese ? costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, soloRapportini: gruppoIntero, ...datiMese })
     : datiSettimane ? costruisciDiapositive({ ctx, uffici, periodo, periodi, titolo, nomePresentazione, nomeCitta, ...datiSettimane }) : []
   const daControllare = settimaneDaControllare(correnti)
   const compilati = datiMese ? datiMese.uffici.filter((u) => u.stato !== 'mancante').length
@@ -186,14 +190,14 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
     <div className="due-colonne entra">
       <section className="scheda" style={{ gap: 18 }}>
         <span className="kicker">{amministrazione ? 'Modalità riunione' : 'Presentazione'}</span>
-        <h1 className="titolo-pagina">{amministrazione ? `${nomeCitta}, lunedì mattina` : nomeGruppo}</h1>
+        <h1 className="titolo-pagina">{gruppoIntero ? 'Tutto il gruppo, fine mese' : amministrazione ? `${nomeCitta}, lunedì mattina` : nomeGruppo}</h1>
         <p style={{ fontSize: 18 }}>
           {amministrazione ? 'Una presentazione a tutto schermo da proiettare in riunione:'
             : `Una presentazione a tutto schermo con i dati ${soloUfficio ? 'del tuo ufficio' : 'dei tuoi uffici'}, settimanali o mensili:`}
         </p>
         {mensile ? (
           <ul className="elenco-icone">
-            <li><Icona nome="sigma" />i numeri dei <strong>rapportini mensili</strong>: {soloUfficio ? 'totali dell\'ufficio' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'} voce per voce, con il confronto sul mese prima e gli ultimi 6 mesi;</li>
+            <li><Icona nome="sigma" />i numeri dei <strong>rapportini mensili</strong>: {soloUfficio ? 'totali dell\'ufficio' : gruppoIntero ? 'totali di tutto il gruppo, Roma e Milano insieme' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'} voce per voce, con il confronto sul mese prima e gli ultimi 6 mesi;</li>
             {cittaPerUfficio && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
             <li><Icona nome="funnel" />imbuto della vendita degli ultimi {MESI_IMBUTO} mesi: dalle acquisizioni alle vendite, con i passaggi tra una fase e l'altra;</li>
             {uffici.length > 1 && <li><Icona nome="ranking" />classifiche degli uffici su {CLASSIFICHE_MENSILI.length} voci (acquisizioni, appuntamenti, incarichi, proposte, accettazioni, vendite).</li>}
@@ -219,7 +223,7 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignSelf: 'flex-start' }}>
           <SceltaPeriodo periodo={periodo} onCambia={cambiaPeriodo} />
           <strong style={{ fontSize: 18 }}>{descriviPeriodo(periodo)}</strong>
-          {mensile && <span className="piccolo">Il mese usa i numeri dei rapportini mensili (per i mesi prima della piattaforma, il file Excel annuale).{mesi[mesi.length - 1] >= meseAttuale() ? ' Il mese non è ancora finito.' : ''}</span>}
+          {mensile && <span className="piccolo">{gruppoIntero ? 'Il mese usa solo i rapportini mensili inseriti sulla piattaforma, Roma e Milano insieme (la scelta della città in alto qui non conta).' : 'Il mese usa i numeri dei rapportini mensili (per i mesi prima della piattaforma, il file Excel annuale).'}{mesi[mesi.length - 1] >= meseAttuale() ? ' Il mese non è ancora finito.' : ''}</span>}
           {periodo.tipo === 'mese' && !mensile && <span className="piccolo">Il mese somma le settimane che hanno il giovedì nel mese ({correnti.length} settimane).{meseInCorso(correnti) ? ' Il mese non è ancora finito.' : ''}</span>}
         </div>
         {areeCitta.length > 0 && (
