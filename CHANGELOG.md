@@ -1,5 +1,18 @@
 # Storia delle versioni
 
+## 0.30.0 — 2 novembre 2026
+
+**Presentazione del mese: una pagina per ogni ufficio** (richiesta di Davide: vedere i numeri dei singoli uffici, come nella presentazione settimanale):
+- dopo le classifiche c'è **una pagina per ogni ufficio**, nell'ordine del report di gruppo, con:
+  - **staff**, **stato del rapportino del mese** (completo / parziale / mancante, con quando è stato salvato e da chi) e quante voci sono migliorate o peggiorate rispetto al mese prima;
+  - **tutte le voci del rapportino mensile**: il numero del mese, la variazione sul mese prima (per gli incarichi scaduti un aumento è in rosso) e il grafico degli ultimi 6 mesi;
+  - l'**imbuto della vendita** dell'ufficio negli ultimi 3 mesi, confrontato con il totale (in verde i passaggi almeno come il totale, in arancio quelli sotto);
+- solo numeri dei rapportini mensili, come il resto della presentazione;
+- vale in **Report mensile → Presentazione** e in **Riunione → Mese**, per l'amministrazione e per gli affiliati (i loro uffici). Per un ufficio da solo non cambia nulla: la sua pagina è già quella dei totali;
+- la pagina va su uno schermo intero senza scorrere (righe un po' più strette di quella dei totali);
+- la pagina *Imbuto della vendita · ufficio per ufficio* resta;
+- nessuna modifica al database: basta pubblicare (Push). Provato con le prove automatiche (215) e nella demo: 54 pagine per tutto il gruppo, 10 per l'affiliato.
+
 ## 0.29.1 — 2 novembre 2026
 
 **Riunione → Mese: tutto il gruppo insieme** (segnalato da Davide: la presentazione del mese era divisa tra Roma e Milano, mentre alla riunione di fine mese i dati si guardano tutti insieme):

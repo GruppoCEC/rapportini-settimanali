@@ -582,6 +582,18 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabellone-mensile .tabellone-riga .nome { font-size: 16px; }
 .tabellone-mensile .tabellone-riga .valori strong { font-size: 26px; }
 .tabellone-mensile .tabellone-riga.testa { padding: 10px 0 4px; }
+/* pagina del singolo ufficio nella presentazione mensile: righe più strette, così l'imbuto sta nello schermo */
+.pagina-ufficio-mese { gap: 14px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga svg { max-height: 30px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .valori strong { font-size: 23px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .delta { padding: 1px 9px; }
+.pagina-ufficio-mese .sintesi .tag-grande { align-self: flex-start; }
+.pagina-ufficio-mese .imbuto-riga, .pagina-ufficio-mese .imbuto-riga-pezzo { gap: 6px; }
+.pagina-ufficio-mese .imbuto-riga-fase { padding: 6px 10px; min-width: 0; }
+.pagina-ufficio-mese .imbuto-riga-fase span { font-size: 12px; }
+.pagina-ufficio-mese .imbuto-riga-fase strong { font-size: 20px; }
+.pagina-ufficio-mese .imbuto-riga-passaggio { padding: 4px 8px; font-size: 11px; }
+.pagina-ufficio-mese .imbuto-riga-passaggio strong { font-size: 15px; }
 
 .classifiche { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 24px; }
 .p-card h3 { font-size: 28px; color: var(--primario-900); margin-bottom: 12px; }

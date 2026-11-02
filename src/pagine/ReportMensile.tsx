@@ -147,7 +147,7 @@ const titoloPresentazione = (titolo: string) => titolo === 'Gruppo' ? 'Tutto il 
  * Presentazione a tutto schermo del mese scelto, per la riunione di fine mese (richiesta di Davide del 02/11/2026):
  * gli uffici del report (l'amministratore generale tutto il gruppo, Roma e Milano insieme), SOLO i numeri dei
  * rapportini mensili inseriti sulla piattaforma (niente rapportini settimanali né totali del file Excel annuale).
- * Pagine: copertina, totali, imbuto della vendita (anche ufficio per ufficio), classifiche degli uffici.
+ * Pagine: copertina, totali, imbuto della vendita (anche ufficio per ufficio), classifiche, una pagina per ogni ufficio.
  * Le pagine sono quelle della Riunione → Mese, che resta com'è.
  */
 function PresentazioneMese({ uffici, mese, titolo, affiliato }: { uffici: Ufficio[]; mese: string; titolo: string; affiliato: boolean }) {
@@ -185,7 +185,8 @@ function PresentazioneMese({ uffici, mese, titolo, affiliato }: { uffici: Uffici
         <ul className="elenco-icone">
           <li><Icona nome="sigma" />i totali {affiliato ? 'dei tuoi uffici' : titolo === 'Gruppo' ? 'di tutto il gruppo (Roma e Milano insieme)' : `di ${titolo}`} voce per voce, con il confronto sul mese prima e gli ultimi {STORICO.mese} mesi;</li>
           <li><Icona nome="funnel" />l'imbuto della vendita degli ultimi {MESI_IMBUTO} mesi, anche ufficio per ufficio;</li>
-          {uffici.length > 1 && <li><Icona nome="ranking" />le classifiche degli uffici: acquisizioni, appuntamenti, incarichi, proposte, accettazioni e vendite.</li>}
+          {uffici.length > 1 && <li><Icona nome="ranking" />le classifiche degli uffici: acquisizioni, appuntamenti, incarichi, proposte, accettazioni e vendite;</li>}
+          {uffici.length > 1 && <li><Icona nome="storefront" />una pagina per ogni ufficio: tutte le voci del mese, il confronto con il mese prima, gli ultimi {STORICO.mese} mesi e il suo imbuto.</li>}
         </ul>
         <p className="piccolo">
           Non contano i rapportini settimanali né i totali del file Excel annuale: un ufficio che non ha inserito il rapportino del mese risulta vuoto.

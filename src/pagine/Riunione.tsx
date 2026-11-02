@@ -72,7 +72,7 @@ interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta |
 export interface DatiMensili {
   voci: VoceMensile[]
   mesi: string[]                       // 'AAAA-MM-01', dal più vecchio; l'ultimo è quello presentato
-  uffici: { ufficio: Ufficio; totali: TotaliMese[]; stato: Stato; daStorico: boolean }[]
+  uffici: { ufficio: Ufficio; totali: TotaliMese[]; stato: Stato; daStorico: boolean; inserito: { il: string; da: string | null } | null }[]
   citta: RiepilogoMensile | null       // per un ufficio: tutta la sua città (solo le somme)
   posizione: PosizioniCitta | null     // per un ufficio: la sua posizione nella città (solo la sua riga)
 }
@@ -101,8 +101,11 @@ export async function caricaDatiMensili(mesi: string[], uffici: Ufficio[], soloU
       const suoStorico = storico.filter((s) => s.ufficio_id === ufficio.id)
       const perMese = mesi.map((m) => totaleConStorico(suePersone, suoiValori, m, voci, suoStorico))
       const daStorico = perMese[perMese.length - 1].daStorico
+      const ultimoValore = suoiValori.filter((v) => v.mese === ultimo && v.aggiornato_il)
+        .sort((a, b) => b.aggiornato_il!.localeCompare(a.aggiornato_il!))[0]
       return {
         ufficio, daStorico, totali: perMese.map((x) => x.totale),
+        inserito: ultimoValore ? { il: ultimoValore.aggiornato_il!, da: ultimoValore.aggiornato_da ?? null } : null,
         stato: daStorico ? 'completo' : statoMensile(suePersone.filter((p) => inServizio(p, ultimo)), suoiValori.filter((v) => v.mese === ultimo), voci),
       }
     }),
@@ -200,7 +203,8 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
             <li><Icona nome="sigma" />i numeri dei <strong>rapportini mensili</strong>: {soloUfficio ? 'totali dell\'ufficio' : gruppoIntero ? 'totali di tutto il gruppo, Roma e Milano insieme' : amministrazione ? 'totali della città' : 'totali dei tuoi uffici'} voce per voce, con il confronto sul mese prima e gli ultimi 6 mesi;</li>
             {cittaPerUfficio && <li><Icona nome="buildings" />come va tutta {nomeCitta}: i totali di tutti gli uffici della città, senza i numeri dei singoli;</li>}
             <li><Icona nome="funnel" />imbuto della vendita degli ultimi {MESI_IMBUTO} mesi: dalle acquisizioni alle vendite, con i passaggi tra una fase e l'altra;</li>
-            {uffici.length > 1 && <li><Icona nome="ranking" />classifiche degli uffici su {CLASSIFICHE_MENSILI.length} voci (acquisizioni, appuntamenti, incarichi, proposte, accettazioni, vendite).</li>}
+            {uffici.length > 1 && <li><Icona nome="ranking" />classifiche degli uffici su {CLASSIFICHE_MENSILI.length} voci (acquisizioni, appuntamenti, incarichi, proposte, accettazioni, vendite);</li>}
+            {uffici.length > 1 && <li><Icona nome="storefront" />una pagina per ogni ufficio: tutte le voci del mese, il confronto con il mese prima, gli ultimi 6 mesi e il suo imbuto.</li>}
           </ul>
         ) : (
           <ul className="elenco-icone">
@@ -968,6 +972,8 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
   const codici = codiciImbuto(IMBUTO_MENSILE)
   const mesiImbuto = mesi.slice(-MESI_IMBUTO)
   const ultimiMesi = (andamento: TotaliMese[]) => sommaPeriodi(andamento.slice(-MESI_IMBUTO), codici)
+  const periodoImbutoMese = `ultimi ${mesiImbuto.length} mesi (${titoloMese(mesiImbuto[0]).toLowerCase()} – ${titoloMese(mesiImbuto[mesiImbuto.length - 1]).toLowerCase()})`
+  const imbutoGruppo = calcolaImbuto(IMBUTO_MENSILE, ultimiMesi(gruppo.andamento))
   out.push(...pagineImbuto({
     def: IMBUTO_MENSILE, nomeGruppo: titolo,
     gruppo: ultimiMesi(gruppo.andamento),
@@ -1015,12 +1021,29 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
       ),
     })
   }
+
+  // 4. Una pagina per ufficio, come nella presentazione settimanale (richiesta di Davide del 02/11/2026).
+  // Con un ufficio solo non serve: è già la pagina dei totali.
+  if (uffici.length > 1) {
+    for (const u of uffici) {
+      out.push(paginaTotaliMensili({
+        titolo: u.ufficio.nome, riepilogo: riepilogoMensile([u.totali], colonne), voci, colonne, etichette,
+        nota: u.daStorico ? 'I numeri vengono dal file Excel annuale (solo il totale dell\'ufficio).' : '',
+        ufficio: {
+          stato: u.stato, inserito: u.inserito,
+          imbuto: calcolaImbuto(IMBUTO_MENSILE, ultimiMesi(u.totali)), riferimento: imbutoGruppo, nomeRiferimento: titolo, periodoImbuto: periodoImbutoMese,
+        },
+      }))
+    }
+  }
   return out
 }
 
 /** Pagina dei totali mensili: ogni voce con il valore del mese, il confronto con il mese prima e gli ultimi 6 mesi */
-function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota }: {
+function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota, ufficio }: {
   titolo: string; riepilogo: RiepilogoMensile; voci: VoceMensile[]; colonne: string[]; etichette: string[]; nota: string
+  /** pagina di un singolo ufficio: stato del rapportino al posto del conteggio, e il suo imbuto in fondo */
+  ufficio?: { stato: Stato; inserito: { il: string; da: string | null } | null; imbuto: Imbuto; riferimento: Imbuto; nomeRiferimento: string; periodoImbuto: string }
 }): Diapositiva {
   const totale = riepilogo.andamento[riepilogo.andamento.length - 1]
   let su = 0, giu = 0
@@ -1050,16 +1073,29 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
   return {
     titolo,
     contenuto: (t) => (
-      <div className="p-colonna">
+      <div className={`p-colonna ${ufficio ? 'pagina-ufficio-mese' : ''}`}>
         <div className="sintesi-griglia sintesi-compatta">
           <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
             <span><Icona nome="users-three" /></span>
             <div><span className="p-etichetta">Staff</span><strong>{totale.get(STAFF) == null ? '—' : conta(totale.get(STAFF)!, t)}</strong><span>persone in servizio nel mese</span></div>
           </div>
-          <div className="sintesi" style={{ background: 'var(--ok-bg)', color: 'var(--ok-fg)' }}>
-            <span><Icona nome="clipboard-text" /></span>
-            <div><span className="p-etichetta">Rapportini inseriti</span><strong>{riepilogo.ufficiConDati} su {riepilogo.ufficiTotali}</strong><span>{riepilogo.ufficiTotali === 1 ? 'ufficio' : 'uffici'} con i numeri del mese</span></div>
-          </div>
+          {ufficio ? (
+            <div className="sintesi" style={{ background: ufficio.stato === 'completo' ? 'var(--ok-bg)' : 'var(--ko-bg)', color: ufficio.stato === 'completo' ? 'var(--ok-fg)' : 'var(--ko-fg)' }}>
+              <span><Icona nome="clipboard-text" /></span>
+              <div style={{ gap: 6 }}>
+                <span className="p-etichetta">Rapportino del mese</span>
+                <BadgeStato stato={ufficio.stato} grande />
+                <span>{ufficio.inserito
+                  ? `Salvato ${new Date(ufficio.inserito.il).toLocaleString('it-IT', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}${ufficio.inserito.da ? ` da ${nomeDaEmail(ufficio.inserito.da)}` : ''}`
+                  : ufficio.stato === 'mancante' ? 'Nessun numero inserito' : ''}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="sintesi" style={{ background: 'var(--ok-bg)', color: 'var(--ok-fg)' }}>
+              <span><Icona nome="clipboard-text" /></span>
+              <div><span className="p-etichetta">Rapportini inseriti</span><strong>{riepilogo.ufficiConDati} su {riepilogo.ufficiTotali}</strong><span>{riepilogo.ufficiTotali === 1 ? 'ufficio' : 'uffici'} con i numeri del mese</span></div>
+            </div>
+          )}
           <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
             <span><Icona nome="trend-up" /></span>
             <div><span className="p-etichetta">Rispetto al mese prima</span><strong>{su} ▲ · {giu} ▼</strong><span>{su} voci migliorate, {giu} peggiorate</span></div>
@@ -1069,6 +1105,12 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
           {colonna(righe.slice(0, meta), t)}
           {colonna(righe.slice(meta), t)}
         </div>
+        {ufficio && (
+          <div className="p-card">
+            <span className="p-etichetta">Imbuto della vendita · {ufficio.periodoImbuto}</span>
+            <ImbutoInRiga imbuto={ufficio.imbuto} riferimento={ufficio.riferimento} nomeRiferimento={ufficio.nomeRiferimento} />
+          </div>
+        )}
         <p className="piccolo">
           Numeri dei rapportini mensili.
           {parziale && ' Il confronto con il mese prima conta solo gli uffici che hanno la voce in entrambi i mesi.'}
