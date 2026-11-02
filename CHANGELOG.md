@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.29.0 — 2 novembre 2026
+
+**Presentazione per la riunione di fine mese nel Report mensile** (richiesta di Davide):
+- in **Report mensile** c'è la nuova scheda **Presentazione**: una presentazione a tutto schermo del mese scelto con le frecce in alto, da proiettare in riunione. Si sfoglia come la Riunione (<kbd>→</kbd>/<kbd>spazio</kbd> avanti, <kbd>←</kbd> indietro, <kbd>Esc</kbd> per uscire);
+- **uffici**: quelli del Report mensile. L'amministratore generale vede **tutto il gruppo, Roma e Milano insieme**, l'amministratore di città la sua città, l'affiliato i suoi uffici (per lui si chiama *Presentazione mensile*);
+- **dati**: **solo i rapportini mensili inseriti sulla piattaforma**. Non contano i rapportini settimanali né i totali del file Excel annuale: un ufficio che non ha inserito il rapportino del mese risulta vuoto (scelta di Davide). Per questo nei mesi in cui un ufficio ha solo il totale dell'Excel i numeri possono essere più bassi della Panoramica, dove quei totali contano (etichetta *Excel*);
+- **pagine**: copertina (staff, portafoglio vendita, incarichi vendita, vendite effettuate, uffici che hanno inserito il rapportino), totali voce per voce con il confronto sul mese prima e gli ultimi 6 mesi, imbuto della vendita degli ultimi 3 mesi (anche ufficio per ufficio), classifiche degli uffici su 6 voci (acquisizioni, appuntamenti, incarichi, proposte, accettazioni e vendite). Niente gara a punti né pagine dei singoli uffici;
+- la **Riunione → Mese** resta com'è (per città, con il file Excel dove manca il rapportino), anche per uffici e affiliati;
+- nessuna modifica al database: basta pubblicare (Push). Provato con le prove automatiche (215) e nella demo, come amministratore generale (47 uffici, 7 pagine) e come affiliato (3 uffici).
+
 ## 0.28.0 — 27 ottobre 2026
 
 **Note della settimana obbligatorie** (decisione di Davide):

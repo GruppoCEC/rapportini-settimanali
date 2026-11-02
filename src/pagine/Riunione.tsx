@@ -39,7 +39,7 @@ import { conta, Icona, Logo, useProgresso } from '../componenti/Interfaccia'
 import SceltaPeriodo, { descriviPeriodo, periodoPredefinito, type Periodo } from '../componenti/SceltaPeriodo'
 
 /** Quanti periodi mostrano i grafici di andamento: 8 settimane oppure 6 mesi */
-const STORICO = { settimana: 8, mese: 6 }
+export const STORICO = { settimana: 8, mese: 6 }
 
 /** I periodi dei grafici, dal più vecchio; l'ultimo è quello presentato. Ogni periodo è un elenco di lunedì. */
 function periodiStorico(p: Periodo): string[][] {
@@ -61,7 +61,7 @@ function paroleDelPeriodo(p: Periodo) {
 
 const etichettaBreve = (lunedi: string) => { const [, m, g] = lunedi.split('-').map(Number); return `${g}/${m}` }
 
-interface Diapositiva {
+export interface Diapositiva {
   titolo: string
   contenuto: (t: number) => ReactNode      // t = avanzamento dell'animazione (0–1)
 }
@@ -69,7 +69,7 @@ interface Diapositiva {
 interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta | null; posizione: PosizioniCitta | null; segnali: Segnale[] | null }
 
 /** Presentazione mensile: i rapportini mensili degli uffici negli ultimi 6 mesi */
-interface DatiMensili {
+export interface DatiMensili {
   voci: VoceMensile[]
   mesi: string[]                       // 'AAAA-MM-01', dal più vecchio; l'ultimo è quello presentato
   uffici: { ufficio: Ufficio; totali: TotaliMese[]; stato: Stato; daStorico: boolean }[]
@@ -80,9 +80,15 @@ interface DatiMensili {
 /** Staff e colonne del rapportino mensile (l'indicatore delle coordinatrici resta fuori) */
 const colonneMensili = (voci: VoceMensile[]) => [STAFF, ...vociDelRapportino(voci).map((v) => v.codice)]
 
-async function caricaDatiMensili(mesi: string[], uffici: Ufficio[], soloUfficio: boolean): Promise<DatiMensili> {
+/**
+ * conStorico = false: solo i numeri inseriti sulla piattaforma, senza i totali del file Excel annuale
+ * (presentazione del Report mensile, decisione di Davide del 02/11/2026)
+ */
+export async function caricaDatiMensili(mesi: string[], uffici: Ufficio[], soloUfficio: boolean, conStorico = true): Promise<DatiMensili> {
   const ids = uffici.map((u) => u.id)
-  const [voci, persone, valori, storico] = await Promise.all([caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids), caricaStorico(mesi, ids)])
+  const [voci, persone, valori, storico] = await Promise.all([
+    caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids), conStorico ? caricaStorico(mesi, ids) : Promise.resolve([]),
+  ])
   const [citta, posizione] = soloUfficio
     ? await Promise.all([caricaTotaliMensiliCitta(mesi, colonneMensili(voci)), caricaPosizioneMensileCitta(mesi.slice(-2))])
     : [null, null]
@@ -243,7 +249,7 @@ export default function Riunione({ ctx }: { ctx: Contesto }) {
 
 // ---------------------------------------------------------------- Presentazione
 
-function Presentazione({ diapositive, marchio, onEsci }: { diapositive: Diapositiva[]; marchio: string; onEsci: () => void }) {
+export function Presentazione({ diapositive, marchio, onEsci }: { diapositive: Diapositiva[]; marchio: string; onEsci: () => void }) {
   const [indice, setIndice] = useState(0)
   const totale = diapositive.length
   const t = useProgresso(indice)
@@ -856,6 +862,9 @@ function nomeVoceMensile(voci: VoceMensile[], codice: string): string {
   return v ? `${v.gruppo}${v.sotto ? ` ${v.sotto}` : ''}` : codice
 }
 
+/** Il periodo "mese" (quello di SceltaPeriodo) di un mese 'AAAA-MM-01' */
+export const periodoDelMese = (mese: string): Periodo => ({ tipo: 'mese', settimana: settimaneDelMese(mese.slice(0, 7))[0] })
+
 /** Classe e testo della variazione sul mese prima (per le voci "meglio se scende" un aumento è in rosso) */
 function deltaMensile(variazione: number | null, voce?: VoceMensile) {
   const classe = variazione === null || variazione === 0 ? '' : variazioneBuona(variazione, voce) ? 'su' : 'giu'
@@ -863,8 +872,9 @@ function deltaMensile(variazione: number | null, voce?: VoceMensile) {
   return { classe, testo }
 }
 
-function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, voci, mesi, uffici, citta, posizione }: DatiMensili & {
+export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, voci, mesi, uffici, citta, posizione, soloRapportini = false }: DatiMensili & {
   periodo: Periodo; titolo: string; nomePresentazione: string; nomeCitta: string
+  soloRapportini?: boolean      // dati caricati senza il file Excel annuale: lo dice la pagina dei totali
 }): Diapositiva[] {
   const colonne = colonneMensili(voci)
   const etichette = mesi.map((m) => nomeMeseBreve(m.slice(0, 7)))
@@ -931,7 +941,8 @@ function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nome
   const storicoUsato = uffici.some((u) => u.daStorico)
   out.push(paginaTotaliMensili({
     titolo: `Totali · ${titolo}`, riepilogo: gruppo, voci, colonne, etichette,
-    nota: storicoUsato ? `${uffici.length === 1 ? 'I numeri vengono' : 'Per alcuni uffici i numeri vengono'} dal file Excel annuale (solo il totale dell'ufficio).` : '',
+    nota: soloRapportini ? 'Solo i numeri inseriti sulla piattaforma: i totali del file Excel annuale non contano.'
+      : storicoUsato ? `${uffici.length === 1 ? 'I numeri vengono' : 'Per alcuni uffici i numeri vengono'} dal file Excel annuale (solo il totale dell'ufficio).` : '',
   }))
   if (citta) {
     out.push(paginaTotaliMensili({

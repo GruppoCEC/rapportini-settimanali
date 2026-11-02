@@ -1,17 +1,21 @@
 // Pagina "Report mensile" (amministratori; gli affiliati la consultano per i loro uffici, senza gara a punti): il riepilogo di fine mese di tutto il gruppo,
 // come il file Excel "Modello rapportino mensile gruppo", stampabile; i rapportini dei
-// singoli uffici; le liste di collaboratori, coordinatrici e marketer, con la gara a punti dei collaboratori.
-import { useEffect, useMemo, useState } from 'react'
+// singoli uffici; le liste di collaboratori, coordinatrici e marketer, con la gara a punti dei collaboratori;
+// la presentazione a tutto schermo per la riunione di fine mese, solo con i rapportini mensili.
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { PROMEMORIA_ATTIVI, type Contesto } from '../lib/contesto'
 import { formattaPercentuale, leggiNumero } from '../lib/calcoli'
 import { caricaConfronto, caricaPersone, caricaPunti, caricaScadenza, caricaStorico, caricaValoriMensili, caricaValoriMesi, caricaValoriRiservati, caricaVociMensili, mensileAperto } from '../lib/dati'
 import { AvvisoProva } from './RapportinoMensile'
 import Collaboratori from './Collaboratori'
+import { caricaDatiMensili, costruisciDiapositiveMensili, periodoDelMese, Presentazione, STORICO, type DatiMensili } from './Riunione'
+import { MESI_IMBUTO } from '../lib/imbuto'
 import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
   punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, ultimoMeseReport, dataOra, lunediVicino, scadenzaPassata, scadenzaProposta, ultimoRitardo,
   indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleConStorico, variazione,
-  presenteNelMese, vociDelRapportino, vociRiservate, type TotaliMese,
+  presenteNelMese, vociDelRapportino, vociRiservate, meseInCorso, type TotaliMese,
 } from '../lib/mensile'
 import { supabase } from '../lib/supabase'
 import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
@@ -24,7 +28,7 @@ import {
   annotazioniIndicatori, TitoloStampa, classeMovimento, EtichettaMovimento, LegendaIndicatori, LegendaMovimenti, TabellaRapportino, TestataVoci, ValoreConIndicatori,
 } from '../componenti/TabellaMensile'
 
-type Scheda = 'panoramica' | 'rapportini' | 'personale' | 'collaboratori' | 'anno'
+type Scheda = 'panoramica' | 'rapportini' | 'personale' | 'collaboratori' | 'anno' | 'presentazione'
 
 /** Titolo del report per l'affiliato, che vede i suoi uffici anche di città diverse */
 const TITOLO_AFFILIATO = 'I miei uffici'
@@ -107,26 +111,109 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
       </div>
       <div className="comandi non-stampa">
         <div className="segmentato" role="tablist">
-          {(['panoramica', 'rapportini', 'personale', ...(affiliato ? [] : ['collaboratori']), 'anno'] as Scheda[]).map((s) => (
+          {(['panoramica', 'rapportini', 'personale', ...(affiliato ? [] : ['collaboratori']), 'anno', 'presentazione'] as Scheda[]).map((s) => (
             <button key={s} role="tab" aria-selected={scheda === s} className={scheda === s ? 'attivo' : ''} onClick={() => setScheda(s)}>
-              <Icona nome={{ panoramica: 'table', rapportini: 'storefront', personale: 'users-three', collaboratori: 'user-focus', anno: 'calendar-dots' }[s]} />
-              {{ panoramica: 'Panoramica', rapportini: 'Singoli rapportini', personale: 'Personale', collaboratori: 'Collaboratori', anno: 'Riepilogo anno' }[s]}
+              <Icona nome={{ panoramica: 'table', rapportini: 'storefront', personale: 'users-three', collaboratori: 'user-focus', anno: 'calendar-dots', presentazione: 'presentation-chart' }[s]} />
+              {{ panoramica: 'Panoramica', rapportini: 'Singoli rapportini', personale: 'Personale', collaboratori: 'Collaboratori', anno: 'Riepilogo anno', presentazione: 'Presentazione' }[s]}
             </button>
           ))}
         </div>
-        <button className="btn btn-secondario" onClick={() => window.print()} disabled={scheda !== 'anno' && scheda !== 'collaboratori' && !dati.dati}><Icona nome="printer" />Stampa</button>
+        {scheda !== 'presentazione' && (
+          <button className="btn btn-secondario" onClick={() => window.print()} disabled={scheda !== 'anno' && scheda !== 'collaboratori' && !dati.dati}><Icona nome="printer" />Stampa</button>
+        )}
       </div>
 
       {scheda === 'anno' && <RiepilogoAnno uffici={uffici} titolo={titolo} ctx={ctx} />}
+      {scheda === 'presentazione' && <PresentazioneMese uffici={uffici} mese={mese} titolo={titolo} affiliato={affiliato} />}
       {/* scheda del collaboratore e curva dei nuovi: solo l'amministrazione (decisione di Davide del 21/10/2026) */}
       {scheda === 'collaboratori' && !affiliato && <Collaboratori uffici={uffici} mese={mese} />}
-      {scheda !== 'anno' && scheda !== 'collaboratori' && (!dati.dati ? <Caricamento errore={dati.errore} /> : (
+      {scheda !== 'anno' && scheda !== 'collaboratori' && scheda !== 'presentazione' && (!dati.dati ? <Caricamento errore={dati.errore} /> : (
         <>
           {scheda === 'panoramica' && <Panoramica dati={dati.dati} mese={mese} titolo={titolo} generale={generale} affiliato={affiliato} ctx={ctx} onSalvato={dati.ricarica} />}
           {scheda === 'rapportini' && <SingoliRapportini dati={dati.dati} mese={mese} affiliato={affiliato} />}
           {scheda === 'personale' && <ListePersonale dati={dati.dati} mese={mese} generale={generale} affiliato={affiliato} ctx={ctx} onSalvato={dati.ricarica} />}
         </>
       ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- Presentazione per la riunione di fine mese
+
+/** "Gruppo" → "Tutto il gruppo" sulla copertina; "Roma", "I miei uffici" restano */
+const titoloPresentazione = (titolo: string) => titolo === 'Gruppo' ? 'Tutto il gruppo' : titolo
+
+/**
+ * Presentazione a tutto schermo del mese scelto, per la riunione di fine mese (richiesta di Davide del 02/11/2026):
+ * gli uffici del report (l'amministratore generale tutto il gruppo, Roma e Milano insieme), SOLO i numeri dei
+ * rapportini mensili inseriti sulla piattaforma (niente rapportini settimanali né totali del file Excel annuale).
+ * Pagine: copertina, totali, imbuto della vendita (anche ufficio per ufficio), classifiche degli uffici.
+ * Le pagine sono quelle della Riunione → Mese, che resta com'è.
+ */
+function PresentazioneMese({ uffici, mese, titolo, affiliato }: { uffici: Ufficio[]; mese: string; titolo: string; affiliato: boolean }) {
+  const [attiva, setAttiva] = useState(false)
+  const mesi = Array.from({ length: STORICO.mese }, (_, i) => aggiungiMesi(mese, i - STORICO.mese + 1))
+  const futuro = mese > meseInCorso()
+  const carico = useDati<DatiMensili | null>(async () => (futuro ? null : caricaDatiMensili(mesi, uffici, false, false)),
+    [mesi.join(','), uffici.map((u) => u.id).join(','), futuro])
+  const nome = titoloPresentazione(titolo)
+  const nomePresentazione = affiliato ? 'Presentazione' : 'Riunione'
+  const periodo = periodoDelMese(mese)
+  const diapositive = carico.dati ? costruisciDiapositiveMensili({ periodo, titolo: nome, nomePresentazione, nomeCitta: '', soloRapportini: true, ...carico.dati }) : []
+  const compilati = carico.dati ? carico.dati.uffici.filter((u) => u.stato !== 'mancante').length : null
+
+  function avvia() {
+    setAttiva(true)
+    document.documentElement.requestFullscreen?.().catch(() => { /* il browser può rifiutare: si resta in finestra */ })
+  }
+  const esci = useCallback(() => {
+    setAttiva(false)
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+  }, [])
+
+  // a tutto schermo sopra il sito (fuori dalla pagina, che ha un'animazione d'entrata)
+  if (attiva && diapositive.length > 0) {
+    return createPortal(<Presentazione diapositive={diapositive} marchio={`${nome} · ${titoloMese(mese)}`} onEsci={esci} />, document.body)
+  }
+
+  return (
+    <div className="due-colonne entra">
+      <section className="scheda" style={{ gap: 18 }}>
+        <span className="kicker">Riunione di fine mese</span>
+        <h2 style={{ fontSize: 28 }}>{nome} · {titoloMese(mese)}</h2>
+        <p style={{ fontSize: 18 }}>Una presentazione a tutto schermo da proiettare in riunione, fatta <strong>solo con i rapportini mensili</strong> inseriti sulla piattaforma:</p>
+        <ul className="elenco-icone">
+          <li><Icona nome="sigma" />i totali {affiliato ? 'dei tuoi uffici' : titolo === 'Gruppo' ? 'di tutto il gruppo (Roma e Milano insieme)' : `di ${titolo}`} voce per voce, con il confronto sul mese prima e gli ultimi {STORICO.mese} mesi;</li>
+          <li><Icona nome="funnel" />l'imbuto della vendita degli ultimi {MESI_IMBUTO} mesi, anche ufficio per ufficio;</li>
+          {uffici.length > 1 && <li><Icona nome="ranking" />le classifiche degli uffici: acquisizioni, appuntamenti, incarichi, proposte, accettazioni e vendite.</li>}
+        </ul>
+        <p className="piccolo">
+          Non contano i rapportini settimanali né i totali del file Excel annuale: un ufficio che non ha inserito il rapportino del mese risulta vuoto.
+          Per cambiare mese usa le frecce in alto.
+        </p>
+        <p className="piccolo" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          Durante la presentazione: <kbd>→</kbd> o <kbd>spazio</kbd> avanti, <kbd>←</kbd> indietro, <kbd>Esc</kbd> per uscire.
+        </p>
+      </section>
+      <section className="scheda entra entra-1" style={{ gap: 22 }}>
+        <h2>Pronta da avviare</h2>
+        {futuro ? <p>{titoloMese(mese)} non è ancora iniziato: non c'è nulla da presentare.</p> : (
+          <>
+            <div className="contatori">
+              <div><strong>{carico.dati ? diapositive.length : '…'}</strong><span className="piccolo">pagine</span></div>
+              <div><strong>{compilati === null ? '…' : `${compilati} / ${uffici.length}`}</strong><span className="piccolo">uffici con il rapportino mensile inserito</span></div>
+            </div>
+            {mese === meseInCorso() && <p className="piccolo">Il mese non è ancora finito: i numeri possono cambiare.</p>}
+            <div>
+              <button className="btn btn-primario btn-grande" onClick={avvia} disabled={!carico.dati || uffici.length === 0}>
+                <Icona nome={carico.caricamento ? 'circle-notch' : 'play'} className={carico.caricamento ? 'gira' : ''} />
+                {carico.caricamento ? 'Preparazione…' : 'Avvia la presentazione'}
+              </button>
+            </div>
+          </>
+        )}
+        {carico.errore && <p className="errore">Impossibile caricare i dati: {carico.errore}</p>}
+      </section>
     </div>
   )
 }
