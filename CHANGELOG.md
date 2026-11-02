@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.31.0 — 2 novembre 2026
+
+**Chi ha inserito il rapportino mensile, con giorno e ora** (richiesta di Davide: finora la Panoramica diceva solo chi mancava):
+- in **Report mensile → Panoramica**, nel riquadro della scadenza, sotto *In ritardo* e *Non hanno ancora compilato*, c'è **Hanno inserito (N su M)**: ogni ufficio che ha inserito il rapportino del mese, **in ordine di salvataggio**, con **giorno e ora** (es. *sab 31/10, 18:42*) e **chi** ha salvato (l'ufficio, oppure un amministratore o un affiliato che l'ha compilato per lui);
+- in **giallo** con l'etichetta *parziale* chi ha inserito solo una parte; *in ritardo* chi ha salvato dopo la scadenza;
+- l'ora è quella dell'**ultimo salvataggio**: il sito non conserva quella del primo inserimento, che cambia a ogni correzione;
+- per i mesi caricati dall'amministrazione dai rapportini di carta (gennaio–settembre 2026) c'è scritto *caricato dall'amministrazione*, perché il caricamento non ha un'ora significativa; per i totali dal file Excel annuale *dal file Excel annuale*;
+- l'elenco e quello di chi manca ora compaiono **anche nei mesi senza scadenza**; riservati all'amministrazione, come prima;
+- nessuna modifica al database: basta pubblicare (Push). Provato con le prove automatiche (215) e nella demo.
+
 ## 0.30.0 — 2 novembre 2026
 
 **Presentazione del mese: una pagina per ogni ufficio** (richiesta di Davide: vedere i numeri dei singoli uffici, come nella presentazione settimanale):

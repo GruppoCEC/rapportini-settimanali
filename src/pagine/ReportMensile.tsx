@@ -18,6 +18,7 @@ import {
   presenteNelMese, vociDelRapportino, vociRiservate, meseInCorso, type TotaliMese,
 } from '../lib/mensile'
 import { supabase } from '../lib/supabase'
+import { nomeDaEmail } from '../lib/account'
 import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import type { StatoCompilazione } from '../lib/aggregazioni'
@@ -43,6 +44,7 @@ interface DatiUfficio {
   stato: StatoCompilazione
   ritardo: string | null              // ultimo inserimento arrivato dopo la scadenza
   daStorico: boolean                  // il totale viene dal file Excel annuale (mese compilato prima della piattaforma)
+  salvato: { il: string; da: string } | null   // ultimo salvataggio dal sito (chi e quando); null se caricato dall'amministrazione
 }
 
 interface DatiMese {
@@ -89,6 +91,7 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
           ufficio, persone: suePersone, valori: suoiValori, totale, daStorico,
           stato: daStorico ? 'completo' : statoMensile(suePersone.filter((p) => inServizio(p, mese)), suoiValori, voci),
           ritardo: ultimoRitardo(suoiValori, scadenza),
+          salvato: ultimoSalvataggio(suoiValori),
         }
       }),
     }
@@ -411,22 +414,64 @@ function GestioneScadenza({ dati, mese, modificabile, onSalvato }: { dati: DatiM
         </div>
       )}
       {errore && <span className="errore">{errore}</span>}
-      {s && (
-        <div className="esito-scadenza">
+      <div className="esito-scadenza">
+        {s && (
           <p className={inRitardo.length ? 'in-ritardo' : 'piccolo'}>
             <Icona nome="alarm" /><strong>In ritardo ({inRitardo.length}):</strong>{' '}
             {inRitardo.length ? inRitardo.map((u) => `${u.ufficio.nome} (${dataOra(u.ritardo!)})`).join(' · ') : 'nessuno, finora.'}
           </p>
-          {mancanti.length > 0 && (
-            <p className={passata ? 'in-ritardo' : 'piccolo'}>
-              <Icona nome="hourglass-medium" /><strong>{passata ? 'Ancora mancanti dopo la scadenza' : 'Non hanno ancora compilato'} ({mancanti.length}):</strong>{' '}
-              {mancanti.map((u) => u.ufficio.nome).join(' · ')}
-            </p>
-          )}
-        </div>
-      )}
+        )}
+        {mancanti.length > 0 && (
+          <p className={passata ? 'in-ritardo' : 'piccolo'}>
+            <Icona nome="hourglass-medium" /><strong>{passata ? 'Ancora mancanti dopo la scadenza' : 'Non hanno ancora compilato'} ({mancanti.length}):</strong>{' '}
+            {mancanti.map((u) => u.ufficio.nome).join(' · ')}
+          </p>
+        )}
+        <ElencoInseriti uffici={dati.uffici} />
+      </div>
       {toast}
     </section>
+  )
+}
+
+/** Ultimo salvataggio fatto dal sito (chi e quando). I numeri caricati dall'amministrazione con i file SQL non hanno autore. */
+function ultimoSalvataggio(valori: ValoreMensile[]): { il: string; da: string } | null {
+  const dalSito = valori.filter((v) => v.aggiornato_il && v.aggiornato_da)
+  if (dalSito.length === 0) return null
+  const ultimo = dalSito.reduce((a, b) => (b.aggiornato_il! > a.aggiornato_il! ? b : a))
+  return { il: ultimo.aggiornato_il!, da: ultimo.aggiornato_da! }
+}
+
+/** "sab 31/10, 18:42" */
+const quandoBreve = (iso: string) => new Date(iso).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+/**
+ * Gli uffici che hanno inserito il rapportino del mese, in ordine di salvataggio, con giorno e ora dell'ultimo
+ * salvataggio e chi l'ha fatto (richiesta di Davide del 02/11/2026). L'ora è quella dell'ULTIMO salvataggio:
+ * il sito non conserva quella del primo inserimento, che cambia a ogni correzione.
+ */
+function ElencoInseriti({ uffici }: { uffici: DatiUfficio[] }) {
+  const inseriti = uffici.filter((u) => u.stato !== 'mancante')
+    .sort((a, b) => (a.salvato?.il ?? '~').localeCompare(b.salvato?.il ?? '~') || a.ufficio.nome.localeCompare(b.ufficio.nome))
+  if (inseriti.length === 0) return null
+  return (
+    <div className="elenco-inseriti">
+      <p className="piccolo">
+        <Icona nome="check-circle" /><strong>Hanno inserito ({inseriti.length} su {uffici.length}):</strong>
+        in ordine di salvataggio, con giorno e ora dell'ultimo salvataggio
+      </p>
+      <ul>
+        {inseriti.map((u) => (
+          <li key={u.ufficio.id} className={u.stato === 'parziale' ? 'parziale' : ''}>
+            <span className="nome">{u.ufficio.nome}</span>
+            <span className="quando">{u.salvato ? quandoBreve(u.salvato.il) : u.daStorico ? 'dal file Excel annuale' : 'caricato dall\'amministrazione'}</span>
+            {u.salvato && <span className="chi">da {nomeDaEmail(u.salvato.da)}</span>}
+            {u.stato === 'parziale' && <span className="tag tag-quasi">parziale</span>}
+            {u.ritardo && <span className="tag tag-ritardo">in ritardo</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
