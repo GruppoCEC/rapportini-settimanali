@@ -3,7 +3,7 @@
 import { supabase } from './supabase'
 import { posizioniDaRighe, totaliCittaDaRighe, type Posizione, type RigaPosizione, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
 import { riepilogoDaRighe, type RiepilogoMensile, type RigaTotaliMensiliCitta, type TotaliMese } from './mensile'
-import type { Metrica, Persona, Rilevazione, Scadenza, StoricoMensile, Ufficio, Utente, ValoreMensile, VoceMensile } from './tipi'
+import type { Metrica, OrdinePresentazione, Persona, Rilevazione, Scadenza, StoricoMensile, Ufficio, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
 
@@ -284,6 +284,18 @@ export async function caricaScadenza(mese: string): Promise<Scadenza | null> {
   const { data, error } = await supabase.from('scadenze_mensili').select('*').eq('mese', mese).maybeSingle()
   if (error) throw new Error(error.message)
   return data as Scadenza | null
+}
+
+/**
+ * Ordine degli uffici per la presentazione di un mese (020): quello salvato per il mese o, se non c'è, l'ultimo
+ * salvato per un mese prima. null se non c'è nessun ordine o se la tabella non esiste ancora (prima della 020).
+ */
+export async function caricaOrdinePresentazione(mese: string): Promise<OrdinePresentazione | null> {
+  const { data, error } = await supabase.from('ordine_presentazione').select('*')
+    .lte('mese', mese).order('mese', { ascending: false }).limit(1).maybeSingle()
+  if (error || !data) return null
+  const r = data as OrdinePresentazione
+  return { ...r, uffici: (r.uffici ?? []).map(Number) }
 }
 
 /** Tutto il mensile, per il backup (null se le tabelle non esistono ancora nel database) */

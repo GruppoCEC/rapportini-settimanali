@@ -133,3 +133,11 @@ export interface Scadenza {
   blocca: boolean             // dopo la scadenza gli uffici non possono più scrivere
   salta_lunedi?: boolean      // la riunione settimanale del lunedì più vicino non c'è (019; manca prima della 019)
 }
+
+/** Ordine delle pagine degli uffici nella presentazione del mese (020), scelto dall'amministratore generale */
+export interface OrdinePresentazione {
+  mese: string                // 'AAAA-MM-01': il mese per cui è stato salvato (può essere uno prima di quello presentato)
+  uffici: number[]            // id degli uffici, nell'ordine scelto
+  aggiornato_da: string | null
+  aggiornato_il: string
+}

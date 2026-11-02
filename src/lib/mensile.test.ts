@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   aggiungiMesi, aiutoDataInizio, dateDaCompletare, formattaAnzianita, meseDaCompilare, ultimoMeseReport, mesiDellAnno, totaleAnnoUfficio, meseChiuso, scadenzaPassata, scadenzaProposta, turnoverAnno, ultimoRitardo, formattaPunti, indicatori, indicatoriAccanto, leggiPunti, punteggio, variazioneBuona, vociConPunti, movimentoNelMese, vociDelRapportino, formattaVariazione, inServizio, mesePredefinito, mesiDiServizio, ordinaUfficiReport,
   presenteNelMese, righeDelMese, riepilogoDaRighe, riepilogoMensile, sommaTotali, statoMensile, STAFF, titoloMese, totaleConStorico, totaleUfficio, ultimoGiornoDelMese, variazione, vociRiservate,
+  applicaOrdine,
 } from './mensile'
 import type { Persona, StoricoMensile, Ufficio, ValoreMensile, VoceMensile } from './tipi'
 
@@ -394,5 +395,22 @@ describe('mesi del Report mensile', () => {
   })
   it('a dicembre anche gennaio dell\'anno dopo', () => {
     expect(ultimoMeseReport('2026-12-10')).toBe('2027-01-01')
+  })
+})
+
+describe('applicaOrdine (020)', () => {
+  const uffici = [{ id: 1, nome: 'A' }, { id: 2, nome: 'B' }, { id: 3, nome: 'C' }, { id: 4, nome: 'D' }]
+  const nomi = (l: { nome: string }[]) => l.map((u) => u.nome).join('')
+  it('senza ordine lascia com\'è', () => {
+    expect(nomi(applicaOrdine(uffici, (u) => u.id, null))).toBe('ABCD')
+    expect(nomi(applicaOrdine(uffici, (u) => u.id, []))).toBe('ABCD')
+  })
+  it('segue l\'elenco, mette in fondo chi non c\'è e ignora gli uffici sconosciuti', () => {
+    expect(nomi(applicaOrdine(uffici, (u) => u.id, [3, 1, 4, 2]))).toBe('CADB')
+    expect(nomi(applicaOrdine(uffici, (u) => u.id, [4, 99, 2]))).toBe('DBAC')
+  })
+  it('non cambia l\'elenco di partenza', () => {
+    applicaOrdine(uffici, (u) => u.id, [4, 3, 2, 1])
+    expect(nomi(uffici)).toBe('ABCD')
   })
 })

@@ -1,5 +1,5 @@
 -- FILE GENERATO AUTOMATICAMENTE da scripts/unisci-sql.mjs — non modificarlo a mano.
--- Contiene, in ordine: 001_tabelle.sql, 002_sicurezza.sql, 003_viste_calcoli.sql, 004_dati_iniziali.sql, 005_mensile.sql, 006_affiliati.sql, 007_quota_mercato.sql, 008_totali_citta.sql, 009_storico_mensile.sql, 010_totali_mensili_citta.sql, 011_settimane_dal_mensile.sql, 012_affiliati_compilano.sql, 013_nota_tre_caselle.sql, 014_posizione_citta.sql, 015_motivo_fine.sql, 016_storico_voce_per_voce.sql, 017_ruolo_da_definire_trasferimenti.sql, 018_uscite_nel_mese_report_uffici_locazioni.sql
+-- Contiene, in ordine: 001_tabelle.sql, 002_sicurezza.sql, 003_viste_calcoli.sql, 004_dati_iniziali.sql, 005_mensile.sql, 006_affiliati.sql, 007_quota_mercato.sql, 008_totali_citta.sql, 009_storico_mensile.sql, 010_totali_mensili_citta.sql, 011_settimane_dal_mensile.sql, 012_affiliati_compilano.sql, 013_nota_tre_caselle.sql, 014_posizione_citta.sql, 015_motivo_fine.sql, 016_storico_voce_per_voce.sql, 017_ruolo_da_definire_trasferimenti.sql, 018_uscite_nel_mese_report_uffici_locazioni.sql, 019_salta_riunione_settimanale.sql, 020_ordine_presentazione.sql
 -- Da incollare UNA SOLA VOLTA in Supabase → SQL Editor → New query → Run.
 
 -- ▼▼▼ 001_tabelle.sql ▼▼▼
@@ -2200,3 +2200,74 @@ begin
   new.aggiornato_il := now();
   return new;
 end $$;
+
+
+-- ▼▼▼ 019_salta_riunione_settimanale.sql ▼▼▼
+-- =====================================================================
+-- 019 — SALTA LA RIUNIONE SETTIMANALE NELLA SETTIMANA DI FINE MESE
+-- Richiesta di Davide del 26/10/2026: quando la riunione di fine mese è troppo vicina al lunedì
+-- (es. martedì 3 novembre 2026), la riunione settimanale di quel lunedì salta. Lo decide
+-- l'amministratore generale mese per mese, con una casella accanto alla scadenza del mensile
+-- (Report mensile → Panoramica).
+--
+-- Il lunedì che salta è quello più vicino al giorno della scadenza: della stessa settimana se la
+-- riunione è da lunedì a giovedì, quello dopo se è da venerdì a domenica (regola in
+-- scripts/promemoria-calendario.mjs e src/lib/mensile.ts). Quel lunedì non parte il promemoria
+-- settimanale; il sabato prima parte lo stesso, senza nominare la riunione del lunedì.
+--
+-- Si esegue una volta in Supabase → SQL Editor; si può rieseguire senza danni.
+-- =====================================================================
+
+alter table scadenze_mensili add column if not exists salta_lunedi boolean not null default false;
+
+comment on column scadenze_mensili.salta_lunedi is
+  'La riunione settimanale del lunedì più vicino alla scadenza non c''è: niente promemoria settimanale quel lunedì';
+
+
+-- ▼▼▼ 020_ordine_presentazione.sql ▼▼▼
+-- =====================================================================
+-- 020 — ORDINE DEGLI UFFICI NELLA PRESENTAZIONE DEL MESE
+-- Richiesta di Davide del 02/11/2026: le pagine dei singoli uffici nella presentazione del mese
+-- (Report mensile → Presentazione e Riunione → Mese) seguono un ordine scelto da lui, che cambia
+-- ogni mese. Lo decide l'amministratore generale in Report mensile → Presentazione.
+--
+-- Una riga per mese con l'elenco degli uffici nell'ordine scelto. Un mese senza riga usa l'ordine
+-- dell'ultimo mese salvato prima (lo fa il sito); gli uffici che non sono nell'elenco vanno in fondo,
+-- nell'ordine del report di gruppo.
+--
+-- Si esegue una volta in Supabase → SQL Editor; si può rieseguire senza danni.
+-- =====================================================================
+
+create table if not exists ordine_presentazione (
+  mese          date primary key check (extract(day from mese) = 1),
+  uffici        bigint[] not null,
+  aggiornato_da text,
+  aggiornato_il timestamptz not null default now()
+);
+
+comment on table ordine_presentazione is
+  'Ordine delle pagine degli uffici nella presentazione del mese, scelto dall''amministratore generale mese per mese';
+
+create or replace function ordine_presentazione_prima() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.aggiornato_da := nullif(email_corrente(), '');
+  new.aggiornato_il := now();
+  return new;
+end $$;
+
+drop trigger if exists ordine_presentazione_prima on ordine_presentazione;
+create trigger ordine_presentazione_prima before insert or update on ordine_presentazione
+for each row execute function ordine_presentazione_prima();
+
+-- Lo leggono tutti gli utenti del sito (sono solo numeri degli uffici, nessun dato), lo cambia solo l'amministratore generale
+alter table ordine_presentazione enable row level security;
+drop policy if exists ordine_lettura on ordine_presentazione;
+create policy ordine_lettura on ordine_presentazione for select to authenticated
+  using (mio_ruolo() is not null);
+drop policy if exists ordine_gestione on ordine_presentazione;
+create policy ordine_gestione on ordine_presentazione for all to authenticated
+  using (sono_admin_generale()) with check (sono_admin_generale());
+
+revoke all on ordine_presentazione from anon;
+grant select, insert, update, delete on ordine_presentazione to authenticated;

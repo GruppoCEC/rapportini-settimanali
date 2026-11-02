@@ -583,46 +583,47 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabellone-mensile .tabellone-riga .valori strong { font-size: 26px; }
 .tabellone-mensile .tabellone-riga.testa { padding: 10px 0 4px; }
 /* pagina del singolo ufficio nella presentazione mensile: righe più strette, così l'imbuto sta nello schermo */
-.pagina-ufficio-mese { gap: 12px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .delta { padding: 0 8px; font-size: 13px; }
-/* tabelle più strette e imbuto in verticale a destra; sotto, il personale */
-.striscia-ufficio { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: center; padding: 8px 16px; border-radius: 12px; background: #fff; font-size: 15px; font-weight: 600; color: var(--testo-2, #3A4250); }
+/* Pagina del singolo ufficio nella presentazione del mese: striscia, totali stretti, imbuto in verticale, personale.
+   Righe e caratteri crescono con lo spazio disponibile (richiesta di Davide): --r è l'altezza di una riga, calcolata
+   dall'altezza dello schermo e dal numero di persone dell'ufficio (--n), e limitata dalla larghezza perché i nomi
+   delle voci stiano nella colonna. Con 9 persone su uno schermo 1600×1000 vale circa 27px, con 5 persone su un
+   proiettore Full HD circa 39px. */
+.pagina-ufficio-mese {
+  --r: clamp(27px, min(calc((100vh - 510px) / (10 + var(--n, 6))), 2.15vw), 52px);
+  gap: calc(var(--r) * .4);
+}
+.striscia-ufficio { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: center; padding: calc(var(--r, 30px) * .25) 16px; border-radius: 12px; background: #fff; font-size: calc(var(--r, 30px) * .5); font-weight: 600; color: var(--testo-2); }
+.striscia-ufficio .tag { font-size: calc(var(--r, 30px) * .42); }
 .striscia-voce { display: inline-flex; align-items: center; gap: 8px; }
-.striscia-voce i { font-size: 20px; color: var(--primario); }
-.striscia-voce strong { font: 800 20px/1 var(--font-titoli); color: var(--primario-900); }
-.ufficio-mese-centro { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 14px; align-items: start; }
+.striscia-voce i { font-size: calc(var(--r, 30px) * .66); color: var(--primario); }
+.striscia-voce strong { font: 800 calc(var(--r, 30px) * .66)/1 var(--font-titoli); color: var(--primario-900); }
+.ufficio-mese-centro { display: grid; grid-template-columns: minmax(0, 1fr) clamp(270px, calc(var(--r, 30px) * 8.6), 390px); gap: 14px; align-items: start; }
 .pagina-ufficio-mese .tabellone-mensile { grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); gap: 16px; }
 .pagina-ufficio-mese .tabellone-mensile .tabellone { padding: 2px 14px 6px; gap: 2px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga { grid-template-columns: minmax(0, 1fr) 48px 70px 104px; gap: 10px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .nome { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .valori strong { font-size: 20px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga svg { max-height: 22px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga { padding: 0; height: 30px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga.testa { height: auto; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga.testa { font-size: 10.5px; padding: 8px 0 2px; }
-.pagina-ufficio-mese .sintesi { padding: 8px 18px; }
-.pagina-ufficio-mese .sintesi strong { font-size: 24px; }
-.pagina-ufficio-mese .sintesi > span { width: 38px; height: 38px; }
-.pagina-ufficio-mese .sintesi > span i { font-size: 20px; }
-.pagina-ufficio-mese .sintesi .tag-grande { font-size: 14px; padding: 2px 10px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga { grid-template-columns: minmax(0, 1fr) calc(var(--r) * 1.7) calc(var(--r) * 2.35) calc(var(--r) * 3.4); gap: 10px; padding: 0; height: var(--r); }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga.testa { height: auto; font-size: calc(var(--r) * .35); padding: 8px 0 2px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .nome { font-size: calc(var(--r) * .48); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .valori strong { font-size: calc(var(--r) * .68); }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .delta { padding: 0 8px; font-size: calc(var(--r) * .43); }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga svg { max-height: calc(var(--r) - 8px); }
 .imbuto-verticale { gap: 0; padding: 10px 12px; }
 .imbuto-verticale .imbuto-riga { flex-direction: column; flex-wrap: nowrap; gap: 2px; margin-top: 4px; }
 .imbuto-verticale .imbuto-riga-pezzo { flex-direction: column; gap: 2px; }
-.imbuto-verticale .imbuto-riga-fase { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; padding: 2px 10px; min-width: 0; }
-.imbuto-verticale .imbuto-riga-fase span { font-size: 12.5px; }
-.imbuto-verticale .imbuto-riga-fase strong { font-size: 18px; }
-.imbuto-verticale .imbuto-riga-passaggio { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 6px; padding: 0 8px; font-size: 11px; align-self: center; text-align: center; }
+.imbuto-verticale .imbuto-riga-fase { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; padding: calc(var(--r, 30px) * .07) 10px; min-width: 0; }
+.imbuto-verticale .imbuto-riga-fase span { font-size: calc(var(--r, 30px) * .42); }
+.imbuto-verticale .imbuto-riga-fase strong { font-size: calc(var(--r, 30px) * .6); }
+.imbuto-verticale .imbuto-riga-passaggio { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 6px; padding: 0 8px; font-size: calc(var(--r, 30px) * .37); align-self: center; text-align: center; }
+.imbuto-verticale .imbuto-riga-passaggio strong { font-size: calc(var(--r, 30px) * .48); }
 .imbuto-verticale .imbuto-periodo { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--testo-3); }
-.imbuto-verticale .imbuto-riga-passaggio strong { font-size: 14px; }
 .imbuto-verticale .imbuto-riga-passaggio.vuoto i { transform: rotate(90deg); }
 .personale-dia { padding: 6px 14px 10px; overflow-x: auto; }
-.tabella-personale-dia { width: 100%; font-size: 15px; }
-.tabella.tabella-personale-dia thead th { font-size: 10.5px; padding: 3px 2px; }
-.tabella.tabella-personale-dia td, .tabella.tabella-personale-dia tbody th { padding: 1px 4px; height: 29px; }
+.tabella-personale-dia { width: 100%; font-size: calc(var(--r, 30px) * .52); }
+.tabella.tabella-personale-dia thead th { font-size: calc(var(--r, 30px) * .35); padding: 3px 2px; }
+.tabella.tabella-personale-dia td, .tabella.tabella-personale-dia tbody th { padding: 1px 4px; height: var(--r, 29px); }
 .tabella-personale-dia td { font-weight: 700; font-variant-numeric: tabular-nums; }
 .tabella.tabella-personale-dia tbody th.ufficio-fisso { min-width: 0; max-width: none; width: 1%; white-space: nowrap; }
 .tabella-personale-dia .nome-dia { font-weight: 700; }
-.tabella-personale-dia .ruolo-dia { font-size: 11.5px; font-weight: 600; color: var(--testo-3); }
+.tabella-personale-dia .ruolo-dia { font-size: calc(var(--r, 30px) * .38); font-weight: 600; color: var(--testo-3); }
 @media (max-width: 1150px) { .ufficio-mese-centro { grid-template-columns: 1fr; } }
 
 .classifiche { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 24px; }
@@ -766,6 +767,20 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .esito-scadenza p { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .esito-scadenza p i { align-self: center; }
 .esito-scadenza .in-ritardo { color: var(--secondario-900); background: var(--secondario-100); padding: 8px 12px; border-radius: 10px; }
+/* ordine delle pagine degli uffici nella presentazione del mese (020) */
+.ordine-scheda { margin-top: 28px; gap: 14px; }
+.ordine-comandi { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ordine-comandi .etichetta { font-size: 13px; font-weight: 700; color: var(--testo-2); }
+.ordine-voce { display: inline-flex; gap: 6px; align-items: center; }
+.ordine-voce select { min-height: 40px; }
+.ordine-uffici { list-style: none; margin: 0; padding: 0; columns: 3 280px; column-gap: 14px; }
+.ordine-uffici li { display: flex; align-items: center; gap: 6px; padding: 3px 6px; margin-bottom: 6px; border: 1px solid #E3E6EB; border-radius: 10px; background: #fff; break-inside: avoid; cursor: grab; }
+.ordine-uffici li:hover { border-color: var(--primario-300, #9DBEE0); }
+.ordine-uffici li.trascinato { opacity: .4; }
+.ordine-uffici .ordine-maniglia { color: var(--testo-3); font-size: 18px; }
+.ordine-uffici .ordine-nome { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ordine-uffici .btn-icona { width: 30px; height: 30px; min-height: 30px; }
+.ordine-numero { width: 46px; min-height: 30px; padding: 2px 6px; text-align: right; font-weight: 700; border: 1px solid var(--bordo-input); border-radius: 8px; }
 /* uffici che hanno inserito il rapportino del mese, con giorno e ora dell'ultimo salvataggio */
 .elenco-inseriti { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .elenco-inseriti ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 6px 12px; }

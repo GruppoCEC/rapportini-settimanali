@@ -4,7 +4,7 @@
 // se presentare una settimana (rapportini settimanali) o un mese (rapportini mensili, con lo
 // storico del file Excel annuale per i mesi compilati prima della piattaforma).
 // Si avanza con le frecce della tastiera (o i pulsanti), Esc per uscire.
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   inClassifica, classifica, classificaQuota, quotaDaTotali, raggiungimento, sommaTotali, statoCompilazionePeriodo,
   totaliPerPeriodi, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali, type TotaliCitta,
@@ -13,10 +13,10 @@ import { esito, formattaEsito, formattaPercentuale, OBIETTIVO_QUOTA } from '../l
 import { AREE_ATTIVE, MENSILE_ATTIVO, type Contesto, nomeArea, ufficiVisibili } from '../lib/contesto'
 import { nomeDaEmail } from '../lib/account'
 import {
-  CASELLE_NOTA, caricaNote, caricaPersone, caricaPosizioneCitta, caricaPosizioneMensileCitta, type PosizioniCitta, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
+  CASELLE_NOTA, caricaNote, caricaOrdinePresentazione, caricaPersone, caricaPosizioneCitta, caricaPosizioneMensileCitta, type PosizioniCitta, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
 } from '../lib/dati'
 import {
-  formattaNumero, indicatoriAccanto, inServizio, meseInCorso as meseAttuale, ordinaUfficiReport, righeDelMese, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
+  applicaOrdine, formattaNumero, indicatoriAccanto, inServizio, meseInCorso as meseAttuale, ordinaUfficiReport, righeDelMese, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
   type RiepilogoMensile, type TotaliMese,
 } from '../lib/mensile'
 import { isAffiliato, isAmministratore } from '../lib/permessi'
@@ -24,7 +24,7 @@ import {
   aggiungiMesi, aggiungiSettimane, intervalloSettimana, intervalloSettimane, meseDellaSettimana, nomeMeseBreve, settimaneDelMese,
   ultimaSettimanaConclusa,
 } from '../lib/settimane'
-import { type Metrica, type Persona, type Rilevazione, type Ufficio, type VoceMensile } from '../lib/tipi'
+import { type Metrica, type OrdinePresentazione, type Persona, type Rilevazione, type Ufficio, type VoceMensile } from '../lib/tipi'
 import { annotazioniIndicatori, classeMovimento, TestataVoci, ValoreConIndicatori } from '../componenti/TabellaMensile'
 import { useDati } from '../lib/useDati'
 import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../componenti/Celle'
@@ -79,6 +79,7 @@ export interface DatiMensili {
   }[]
   citta: RiepilogoMensile | null       // per un ufficio: tutta la sua città (solo le somme)
   posizione: PosizioniCitta | null     // per un ufficio: la sua posizione nella città (solo la sua riga)
+  ordine: OrdinePresentazione | null   // ordine delle pagine degli uffici scelto dall'amministratore generale (020)
 }
 
 /** Le persone del mese presentato (anche chi è entrato o uscito nel mese) e i loro numeri ("persona|voce" → valore) */
@@ -96,12 +97,14 @@ export async function caricaDatiMensili(mesi: string[], uffici: Ufficio[], soloU
   const [voci, persone, valori, storico] = await Promise.all([
     caricaVociMensili(), caricaPersone(ids), caricaValoriMesi(mesi, ids), conStorico ? caricaStorico(mesi, ids) : Promise.resolve([]),
   ])
-  const [citta, posizione] = soloUfficio
-    ? await Promise.all([caricaTotaliMensiliCitta(mesi, colonneMensili(voci)), caricaPosizioneMensileCitta(mesi.slice(-2))])
-    : [null, null]
   const ultimo = mesi[mesi.length - 1]
+  const [citta, posizione, ordine] = await Promise.all([
+    soloUfficio ? caricaTotaliMensiliCitta(mesi, colonneMensili(voci)) : null,
+    soloUfficio ? caricaPosizioneMensileCitta(mesi.slice(-2)) : null,
+    uffici.length > 1 ? caricaOrdinePresentazione(ultimo) : null,
+  ])
   return {
-    voci, mesi, citta, posizione,
+    voci, mesi, citta, posizione, ordine,
     uffici: uffici.map((ufficio) => {
       const suePersone = persone.filter((p) => p.ufficio_id === ufficio.id)
       const suoiValori = valori.filter((v) => v.ufficio_id === ufficio.id)
@@ -891,9 +894,10 @@ function deltaMensile(variazione: number | null, voce?: VoceMensile) {
   return { classe, testo }
 }
 
-export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, voci, mesi, uffici, citta, posizione, soloRapportini = false }: DatiMensili & {
+export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazione, nomeCitta, voci, mesi, uffici, citta, posizione, ordine, ordineUffici, soloRapportini = false }: DatiMensili & {
   periodo: Periodo; titolo: string; nomePresentazione: string; nomeCitta: string
   soloRapportini?: boolean      // dati caricati senza il file Excel annuale: lo dice la pagina dei totali
+  ordineUffici?: number[]       // ordine delle pagine degli uffici ancora da salvare (Report mensile → Presentazione)
 }): Diapositiva[] {
   const colonne = colonneMensili(voci)
   const etichette = mesi.map((m) => nomeMeseBreve(m.slice(0, 7)))
@@ -1035,8 +1039,9 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
 
   // 4. Una pagina per ufficio, come nella presentazione settimanale (richiesta di Davide del 02/11/2026).
   // Con un ufficio solo non serve: è già la pagina dei totali.
+  // L'ordine è quello scelto dall'amministratore generale per il mese (020); senza, quello del report di gruppo.
   if (uffici.length > 1) {
-    for (const u of uffici) {
+    for (const u of applicaOrdine(uffici, (x) => x.ufficio.id, ordineUffici ?? ordine?.uffici)) {
       out.push(paginaTotaliMensili({
         titolo: u.ufficio.nome, riepilogo: riepilogoMensile([u.totali], colonne), voci, colonne, etichette,
         nota: u.daStorico ? 'I numeri vengono dal file Excel annuale (solo il totale dell\'ufficio).' : '',
@@ -1087,7 +1092,8 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
   return {
     titolo,
     contenuto: (t) => (
-      <div className={`p-colonna ${ufficio ? 'pagina-ufficio-mese' : ''}`}>
+      <div className={`p-colonna ${ufficio ? 'pagina-ufficio-mese' : ''}`}
+        style={ufficio ? { '--n': ufficio.daStorico ? 1 : Math.max(1, ufficio.personale.righe.length) } as CSSProperties : undefined}>
         {ufficio ? (
           // pagina dell'ufficio: una striscia sottile al posto dei tre riquadri, per lasciare spazio al personale
           <div className="striscia-ufficio">

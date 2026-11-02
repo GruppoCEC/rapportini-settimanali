@@ -504,3 +504,17 @@ export function formattaVariazione(v: number | null): string {
   const testo = Math.abs(v * 100).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
   return v > 0 ? `+${testo}` : v < 0 ? `−${testo}` : testo
 }
+
+/**
+ * Uffici nell'ordine scelto per la presentazione del mese (020): prima quelli dell'elenco, nell'ordine dell'elenco;
+ * poi quelli che non ci sono (per esempio un ufficio nuovo), nell'ordine in cui arrivano. Gli id dell'elenco che non
+ * corrispondono a nessun ufficio (uffici chiusi, o di un'altra città) si ignorano.
+ */
+export function applicaOrdine<T>(elementi: T[], idDi: (x: T) => number, ordine: number[] | null | undefined): T[] {
+  if (!ordine || ordine.length === 0) return [...elementi]
+  const posto = new Map(ordine.map((id, i) => [Number(id), i]))
+  return elementi
+    .map((x, i) => ({ x, i, p: posto.get(idDi(x)) }))
+    .sort((a, b) => (a.p ?? Infinity) - (b.p ?? Infinity) || a.i - b.i)
+    .map((y) => y.x)
+}

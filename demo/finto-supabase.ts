@@ -251,7 +251,8 @@ const scadenze_mensili: any[] = [{ mese: meseDaCompilare, scadenza: fraUnaSettim
 // il mese prima è già chiuso con il blocco: gli uffici vedono il report del gruppo (018)
 scadenze_mensili.push({ mese: aggiungiMesi(meseDaCompilare, -1), scadenza: new Date(Date.now() - 2 * 86400000).toISOString(), blocca: true })
 
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati }
+const ordine_presentazione: any[] = []    // ordine delle pagine degli uffici nella presentazione del mese (020)
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati, ordine_presentazione }
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
 const CHIAVE = 'rapportini.demo.utente'
@@ -445,7 +446,7 @@ class Interrogazione {
             if (s && s.blocca && Date.now() > new Date(s.scadenza).getTime()) return { data: null, error: { message: 'Inserimento chiuso: la scadenza per questo mese è passata. Per correzioni contatta l\'amministratore' } }
           }
           if (this.tabella === 'valori_riservati') r.ufficio_id = persone.find((p) => p.id === r.persona_id)?.ufficio_id   // come il trigger (018)
-          if (['confronto_anno_prima', 'punti_mensili', 'scadenze_mensili', 'valori_riservati'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
+          if (['confronto_anno_prima', 'punti_mensili', 'scadenze_mensili', 'valori_riservati', 'ordine_presentazione'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
           if (['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella)) {
             if (!ufficiLeggibili().has(r.ufficio_id) || me.ruolo === 'responsabile' && r.ufficio_id !== me.ufficio_id) {
               return { data: null, error: { message: 'new row violates row-level security policy' } }

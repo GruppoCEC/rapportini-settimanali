@@ -15,11 +15,11 @@ import {
   aggiungiMesi, dataItaliana, formattaAnzianita, formattaNumero, formattaPunti, formattaVariazione, inServizio, leggiPunti, mesePredefinito, mesiDiServizio,
   punteggio, RUOLO_GARA, variazioneBuona, vociConPunti, mesiDellAnno, totaleAnnoUfficio, ultimoMeseReport, dataOra, lunediVicino, scadenzaPassata, scadenzaProposta, ultimoRitardo,
   indicatoriAccanto, ordinaPersone, ORDINE_RUOLI, turnoverAnno, ordinaUfficiReport, righeDelMese, sommaTotali, STAFF, statoMensile, titoloMese, totaleConStorico, variazione,
-  presenteNelMese, vociDelRapportino, vociRiservate, meseInCorso, type TotaliMese,
+  presenteNelMese, vociDelRapportino, vociRiservate, meseInCorso, applicaOrdine, type TotaliMese,
 } from '../lib/mensile'
 import { supabase } from '../lib/supabase'
 import { nomeDaEmail } from '../lib/account'
-import { NOMI_RUOLO_PERSONA, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
+import { NOMI_RUOLO_PERSONA, type OrdinePresentazione, type Persona, type RuoloPersona, type Scadenza, type Ufficio, type ValoreMensile, type VoceMensile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import type { StatoCompilazione } from '../lib/aggregazioni'
 import { BadgeStato, Caricamento } from '../componenti/Celle'
@@ -127,7 +127,7 @@ export default function ReportMensile({ ctx }: { ctx: Contesto }) {
       </div>
 
       {scheda === 'anno' && <RiepilogoAnno uffici={uffici} titolo={titolo} ctx={ctx} />}
-      {scheda === 'presentazione' && <PresentazioneMese uffici={uffici} mese={mese} titolo={titolo} affiliato={affiliato} />}
+      {scheda === 'presentazione' && <PresentazioneMese uffici={uffici} mese={mese} titolo={titolo} affiliato={affiliato} generale={generale} />}
       {/* scheda del collaboratore e curva dei nuovi: solo l'amministrazione (decisione di Davide del 21/10/2026) */}
       {scheda === 'collaboratori' && !affiliato && <Collaboratori uffici={uffici} mese={mese} />}
       {scheda !== 'anno' && scheda !== 'collaboratori' && scheda !== 'presentazione' && (!dati.dati ? <Caricamento errore={dati.errore} /> : (
@@ -153,8 +153,10 @@ const titoloPresentazione = (titolo: string) => titolo === 'Gruppo' ? 'Tutto il 
  * Pagine: copertina, totali, imbuto della vendita (anche ufficio per ufficio), classifiche, una pagina per ogni ufficio.
  * Le pagine sono quelle della Riunione → Mese, che resta com'è.
  */
-function PresentazioneMese({ uffici, mese, titolo, affiliato }: { uffici: Ufficio[]; mese: string; titolo: string; affiliato: boolean }) {
+function PresentazioneMese({ uffici, mese, titolo, affiliato, generale }: { uffici: Ufficio[]; mese: string; titolo: string; affiliato: boolean; generale: boolean }) {
   const [attiva, setAttiva] = useState(false)
+  // ordine delle pagine degli uffici (020): parte da quello salvato (del mese o dell'ultimo mese prima) e si può cambiare qui
+  const [bozza, setBozza] = useState<number[] | null>(null)
   const mesi = Array.from({ length: STORICO.mese }, (_, i) => aggiungiMesi(mese, i - STORICO.mese + 1))
   const futuro = mese > meseInCorso()
   const carico = useDati<DatiMensili | null>(async () => (futuro ? null : caricaDatiMensili(mesi, uffici, false, false)),
@@ -162,7 +164,12 @@ function PresentazioneMese({ uffici, mese, titolo, affiliato }: { uffici: Uffici
   const nome = titoloPresentazione(titolo)
   const nomePresentazione = affiliato ? 'Presentazione' : 'Riunione'
   const periodo = periodoDelMese(mese)
-  const diapositive = carico.dati ? costruisciDiapositiveMensili({ periodo, titolo: nome, nomePresentazione, nomeCitta: '', soloRapportini: true, ...carico.dati }) : []
+  useEffect(() => {
+    setBozza(carico.dati ? applicaOrdine(uffici, (u) => u.id, carico.dati.ordine?.uffici).map((u) => u.id) : null)
+  }, [carico.dati])   // eslint-disable-line react-hooks/exhaustive-deps
+  const diapositive = carico.dati
+    ? costruisciDiapositiveMensili({ periodo, titolo: nome, nomePresentazione, nomeCitta: '', soloRapportini: true, ...carico.dati, ordineUffici: bozza ?? undefined })
+    : []
   const compilati = carico.dati ? carico.dati.uffici.filter((u) => u.stato !== 'mancante').length : null
 
   function avvia() {
@@ -180,6 +187,7 @@ function PresentazioneMese({ uffici, mese, titolo, affiliato }: { uffici: Uffici
   }
 
   return (
+    <>
     <div className="due-colonne entra">
       <section className="scheda" style={{ gap: 18 }}>
         <span className="kicker">Riunione di fine mese</span>
@@ -219,6 +227,126 @@ function PresentazioneMese({ uffici, mese, titolo, affiliato }: { uffici: Uffici
         {carico.errore && <p className="errore">Impossibile caricare i dati: {carico.errore}</p>}
       </section>
     </div>
+    {/* l'ordine lo sceglie l'amministratore generale; gli altri vedono le pagine nell'ordine che ha salvato */}
+    {generale && carico.dati && bozza && uffici.length > 1 && (
+      <OrdineUffici uffici={uffici} mese={mese} bozza={bozza} onCambia={setBozza} salvato={carico.dati.ordine}
+        voci={carico.dati.voci} totali={new Map(carico.dati.uffici.map((u) => [u.ufficio.id, u.totali[u.totali.length - 1]]))} onSalvato={carico.ricarica} />
+    )}
+    </>
+  )
+}
+
+/** Casella con la posizione di un ufficio: scrivendo un altro numero (e premendo Invio o uscendo) l'ufficio si sposta lì */
+function CasellaPosizione({ posizione, massimo, nome, onSposta }: { posizione: number; massimo: number; nome: string; onSposta: (n: number) => void }) {
+  const [testo, setTesto] = useState(String(posizione))
+  useEffect(() => { setTesto(String(posizione)) }, [posizione])
+  const conferma = (scritto: string) => {
+    const n = Math.round(Number(scritto))
+    if (Number.isFinite(n) && n >= 1 && n !== posizione) onSposta(Math.min(n, massimo))
+    else setTesto(String(posizione))
+  }
+  return (
+    <input className="ordine-numero" inputMode="numeric" value={testo} aria-label={`Posizione di ${nome}`}
+      onChange={(e) => setTesto(e.target.value.replace(/\D/g, ''))} onBlur={(e) => conferma(e.target.value)}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} onFocus={(e) => e.target.select()} />
+  )
+}
+
+/**
+ * Ordine delle pagine degli uffici nella presentazione del mese (richiesta di Davide del 02/11/2026, 020): si cambia
+ * trascinando gli uffici, con le frecce o scrivendo la posizione; scorciatoie per l'ordine del report, alfabetico o dal
+ * più alto in una voce. Si salva mese per mese; la presentazione avviata da qui usa l'ordine anche prima di salvarlo.
+ */
+function OrdineUffici({ uffici, mese, bozza, onCambia, salvato, voci, totali, onSalvato }: {
+  uffici: Ufficio[]; mese: string; bozza: number[]; onCambia: (ordine: number[]) => void; salvato: OrdinePresentazione | null
+  voci: VoceMensile[]; totali: Map<number, TotaliMese>; onSalvato: () => void
+}) {
+  const [stato, setStato] = useState<'pronto' | 'salvataggio'>('pronto')
+  const [errore, setErrore] = useState<string | null>(null)
+  const [toast, mostraToast] = useToast()
+  const [trascinato, setTrascinato] = useState<number | null>(null)
+  const [voce, setVoce] = useState('vendite_effettuate')
+  const perId = new Map(uffici.map((u) => [u.id, u]))
+  const elenco = bozza.map((id) => perId.get(id)).filter((u): u is Ufficio => !!u)
+  const delMese = salvato?.mese === mese
+  const partenza = applicaOrdine(uffici, (u) => u.id, salvato?.uffici).map((u) => u.id)
+  const modificato = bozza.join(',') !== partenza.join(',')
+  const nomeMese = titoloMese(mese).toLowerCase()
+  const colonne = vociDelRapportino(voci)
+
+  const sposta = (da: number, a: number) => {
+    if (da === a) return
+    const nuovo = [...bozza]
+    const [x] = nuovo.splice(da, 1)
+    nuovo.splice(Math.max(0, Math.min(nuovo.length, a)), 0, x)
+    onCambia(nuovo)
+  }
+  const perVoce = () => [...uffici].sort((a, b) =>
+    (totali.get(b.id)?.get(voce) ?? -1) - (totali.get(a.id)?.get(voce) ?? -1) || a.nome.localeCompare(b.nome, 'it')).map((u) => u.id)
+
+  async function salva() {
+    setStato('salvataggio')
+    setErrore(null)
+    const { error } = await supabase.from('ordine_presentazione').upsert({ mese, uffici: bozza }, { onConflict: 'mese' })
+    setStato('pronto')
+    if (error) {
+      setErrore(/ordine_presentazione|does not exist|schema cache/i.test(error.message)
+        ? 'Non si può ancora salvare: prima va eseguito in Supabase il file supabase/migrations/020_ordine_presentazione.sql.'
+        : `Salvataggio non riuscito: ${error.message}`)
+      return
+    }
+    mostraToast(`Ordine di ${nomeMese} salvato.`)
+    onSalvato()
+  }
+
+  return (
+    <section className="scheda ordine-scheda entra entra-2">
+      <h2 className="titolo-icona"><span className="icona-quadrata"><Icona nome="list-numbers" /></span>Ordine delle pagine degli uffici · {titoloMese(mese)}</h2>
+      <p className="piccolo">
+        {delMese
+          ? `Ordine salvato per ${nomeMese}${salvato?.aggiornato_da ? ` da ${nomeDaEmail(salvato.aggiornato_da)}` : ''} il ${dataOra(salvato!.aggiornato_il)}.`
+          : salvato
+            ? `${titoloMese(mese)} non ha ancora un ordine suo: si parte da quello di ${titoloMese(salvato.mese).toLowerCase()}.`
+            : 'Nessun ordine salvato finora: si parte dall\'ordine del report di gruppo.'}
+        {' '}Trascina un ufficio, usa le frecce o scrivi il numero della posizione. Vale per la presentazione di questa pagina e per Riunione → Mese, su tutti i computer, una volta salvato.
+      </p>
+      <div className="ordine-comandi">
+        <span className="etichetta">Parti da:</span>
+        <button className="btn btn-secondario" onClick={() => onCambia(uffici.map((u) => u.id))}>Ordine del report</button>
+        <button className="btn btn-secondario" onClick={() => onCambia([...uffici].sort((a, b) => a.nome.localeCompare(b.nome, 'it')).map((u) => u.id))}>Alfabetico</button>
+        <span className="ordine-voce">
+          <button className="btn btn-secondario" onClick={() => onCambia(perVoce())}>Dal più alto in</button>
+          <select value={voce} onChange={(e) => setVoce(e.target.value)} aria-label="Voce per ordinare">
+            {colonne.map((v) => <option key={v.codice} value={v.codice}>{v.gruppo}{v.sotto ? ` ${v.sotto}` : ''}</option>)}
+          </select>
+        </span>
+        <button className="btn btn-secondario" onClick={() => onCambia([...bozza].reverse())}><Icona nome="arrows-down-up" />Inverti</button>
+      </div>
+      <ol className="ordine-uffici">
+        {elenco.map((u, i) => (
+          <li key={u.id} draggable className={trascinato === i ? 'trascinato' : ''}
+            onDragStart={(e) => { setTrascinato(i); e.dataTransfer.effectAllowed = 'move' }}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+            onDrop={(e) => { e.preventDefault(); if (trascinato !== null) sposta(trascinato, i); setTrascinato(null) }}
+            onDragEnd={() => setTrascinato(null)}>
+            <Icona nome="dots-six-vertical" className="ordine-maniglia" />
+            <CasellaPosizione posizione={i + 1} massimo={elenco.length} nome={u.nome} onSposta={(n) => sposta(i, n - 1)} />
+            <span className="ordine-nome" title={u.nome}>{u.nome}</span>
+            <button className="btn btn-icona" disabled={i === 0} onClick={() => sposta(i, i - 1)} aria-label={`Sposta ${u.nome} su`}><Icona nome="caret-up" /></button>
+            <button className="btn btn-icona" disabled={i === elenco.length - 1} onClick={() => sposta(i, i + 1)} aria-label={`Sposta ${u.nome} giù`}><Icona nome="caret-down" /></button>
+          </li>
+        ))}
+      </ol>
+      <div className="riga-modulo">
+        <button className="btn btn-primario" onClick={salva} disabled={stato !== 'pronto' || (delMese && !modificato)}>
+          <Icona nome="floppy-disk" />{stato === 'salvataggio' ? 'Salvataggio…' : `Salva l'ordine di ${nomeMese}`}
+        </button>
+        {modificato && <button className="btn btn-fantasma" onClick={() => onCambia(partenza)}>Annulla le modifiche</button>}
+        {modificato && <span className="piccolo">Modifiche non salvate: la presentazione avviata da questa pagina le usa già.</span>}
+      </div>
+      {errore && <p className="errore">{errore}</p>}
+      {toast}
+    </section>
   )
 }
 

@@ -1,5 +1,19 @@
 # Storia delle versioni
 
+## 0.33.0 — 2 novembre 2026
+
+**Ordine delle pagine degli uffici, mese per mese** (richiesta di Davide: l'ordine cambia ogni mese):
+- in **Report mensile → Presentazione**, sotto, c'è il riquadro **Ordine delle pagine degli uffici** (solo per l'amministratore generale). Un ufficio si sposta **trascinandolo**, con le **frecce** su/giù o **scrivendo il numero** della posizione (es. 1 per metterlo in cima). Per partire più in fretta: *Ordine del report*, *Alfabetico*, *Dal più alto in* una voce del mese (es. vendite effettuate) e *Inverti*;
+- con **Salva l'ordine di …** l'ordine resta per quel mese, su tutti i computer, e vale anche in **Riunione → Mese** e per gli altri che presentano (amministratori di città e affiliati vedono i loro uffici in quell'ordine). La presentazione avviata dalla pagina usa l'ordine anche prima di salvarlo;
+- un mese **senza un ordine suo** parte da quello dell'ultimo mese salvato (il riquadro lo dice); se non ce n'è nessuno, dall'ordine del report di gruppo. Un ufficio nuovo va in fondo;
+- cambia solo l'ordine delle pagine dei singoli uffici: copertina, totali, imbuto e classifiche restano come sono.
+
+**Caratteri più grandi nella pagina di ogni ufficio** (segnalato da Davide: restava molto spazio in basso):
+- righe e caratteri **crescono con lo spazio disponibile**: dipendono dall'altezza dello schermo e da quante persone ha l'ufficio. Su un proiettore Full HD (1920×1080) le righe vanno da 30 a 41 pixel (prima 30), su uno schermo 1600×1000 da 27 a 34. Un ufficio con 9 persone sta comunque in uno schermo;
+- provato nella demo su tutte le 47 pagine degli uffici: nessuna esce dallo schermo né taglia i nomi delle voci a 1920×1080 e 1600×1000. Su un portatile piccolo (1366×768) le ultime righe vanno scorse, come prima.
+
+**Da fare una volta in Supabase**: eseguire `supabase/migrations/020_ordine_presentazione.sql`, poi pubblicare (Push). Senza la 020 le presentazioni funzionano lo stesso, con l'ordine del report; solo il salvataggio dell'ordine dà un avviso. Provato con le prove automatiche (219) e nella demo.
+
 ## 0.32.0 — 2 novembre 2026
 
 **Pagina dell'ufficio nella presentazione del mese: anche il personale** (idea di Davide: imbuto in verticale e tabelle più strette, per fare spazio):
