@@ -583,17 +583,47 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabellone-mensile .tabellone-riga .valori strong { font-size: 26px; }
 .tabellone-mensile .tabellone-riga.testa { padding: 10px 0 4px; }
 /* pagina del singolo ufficio nella presentazione mensile: righe più strette, così l'imbuto sta nello schermo */
-.pagina-ufficio-mese { gap: 14px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga svg { max-height: 30px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .valori strong { font-size: 23px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .delta { padding: 1px 9px; }
-.pagina-ufficio-mese .sintesi .tag-grande { align-self: flex-start; }
-.pagina-ufficio-mese .imbuto-riga, .pagina-ufficio-mese .imbuto-riga-pezzo { gap: 6px; }
-.pagina-ufficio-mese .imbuto-riga-fase { padding: 6px 10px; min-width: 0; }
-.pagina-ufficio-mese .imbuto-riga-fase span { font-size: 12px; }
-.pagina-ufficio-mese .imbuto-riga-fase strong { font-size: 20px; }
-.pagina-ufficio-mese .imbuto-riga-passaggio { padding: 4px 8px; font-size: 11px; }
-.pagina-ufficio-mese .imbuto-riga-passaggio strong { font-size: 15px; }
+.pagina-ufficio-mese { gap: 12px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .delta { padding: 0 8px; font-size: 13px; }
+/* tabelle più strette e imbuto in verticale a destra; sotto, il personale */
+.striscia-ufficio { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: center; padding: 8px 16px; border-radius: 12px; background: #fff; font-size: 15px; font-weight: 600; color: var(--testo-2, #3A4250); }
+.striscia-voce { display: inline-flex; align-items: center; gap: 8px; }
+.striscia-voce i { font-size: 20px; color: var(--primario); }
+.striscia-voce strong { font: 800 20px/1 var(--font-titoli); color: var(--primario-900); }
+.ufficio-mese-centro { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 14px; align-items: start; }
+.pagina-ufficio-mese .tabellone-mensile { grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); gap: 16px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone { padding: 2px 14px 6px; gap: 2px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga { grid-template-columns: minmax(0, 1fr) 48px 70px 104px; gap: 10px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .nome { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga .valori strong { font-size: 20px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga svg { max-height: 22px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga { padding: 0; height: 30px; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga.testa { height: auto; }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga.testa { font-size: 10.5px; padding: 8px 0 2px; }
+.pagina-ufficio-mese .sintesi { padding: 8px 18px; }
+.pagina-ufficio-mese .sintesi strong { font-size: 24px; }
+.pagina-ufficio-mese .sintesi > span { width: 38px; height: 38px; }
+.pagina-ufficio-mese .sintesi > span i { font-size: 20px; }
+.pagina-ufficio-mese .sintesi .tag-grande { font-size: 14px; padding: 2px 10px; }
+.imbuto-verticale { gap: 0; padding: 10px 12px; }
+.imbuto-verticale .imbuto-riga { flex-direction: column; flex-wrap: nowrap; gap: 2px; margin-top: 4px; }
+.imbuto-verticale .imbuto-riga-pezzo { flex-direction: column; gap: 2px; }
+.imbuto-verticale .imbuto-riga-fase { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; padding: 2px 10px; min-width: 0; }
+.imbuto-verticale .imbuto-riga-fase span { font-size: 12.5px; }
+.imbuto-verticale .imbuto-riga-fase strong { font-size: 18px; }
+.imbuto-verticale .imbuto-riga-passaggio { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 6px; padding: 0 8px; font-size: 11px; align-self: center; text-align: center; }
+.imbuto-verticale .imbuto-periodo { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--testo-3); }
+.imbuto-verticale .imbuto-riga-passaggio strong { font-size: 14px; }
+.imbuto-verticale .imbuto-riga-passaggio.vuoto i { transform: rotate(90deg); }
+.personale-dia { padding: 6px 14px 10px; overflow-x: auto; }
+.tabella-personale-dia { width: 100%; font-size: 15px; }
+.tabella.tabella-personale-dia thead th { font-size: 10.5px; padding: 3px 2px; }
+.tabella.tabella-personale-dia td, .tabella.tabella-personale-dia tbody th { padding: 1px 4px; height: 29px; }
+.tabella-personale-dia td { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tabella.tabella-personale-dia tbody th.ufficio-fisso { min-width: 0; max-width: none; width: 1%; white-space: nowrap; }
+.tabella-personale-dia .nome-dia { font-weight: 700; }
+.tabella-personale-dia .ruolo-dia { font-size: 11.5px; font-weight: 600; color: var(--testo-3); }
+@media (max-width: 1150px) { .ufficio-mese-centro { grid-template-columns: 1fr; } }
 
 .classifiche { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 24px; }
 .p-card h3 { font-size: 28px; color: var(--primario-900); margin-bottom: 12px; }

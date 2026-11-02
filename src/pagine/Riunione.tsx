@@ -16,7 +16,7 @@ import {
   CASELLE_NOTA, caricaNote, caricaPersone, caricaPosizioneCitta, caricaPosizioneMensileCitta, type PosizioniCitta, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
 } from '../lib/dati'
 import {
-  formattaNumero, inServizio, meseInCorso as meseAttuale, ordinaUfficiReport, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
+  formattaNumero, indicatoriAccanto, inServizio, meseInCorso as meseAttuale, ordinaUfficiReport, righeDelMese, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
   type RiepilogoMensile, type TotaliMese,
 } from '../lib/mensile'
 import { isAffiliato, isAmministratore } from '../lib/permessi'
@@ -24,7 +24,8 @@ import {
   aggiungiMesi, aggiungiSettimane, intervalloSettimana, intervalloSettimane, meseDellaSettimana, nomeMeseBreve, settimaneDelMese,
   ultimaSettimanaConclusa,
 } from '../lib/settimane'
-import type { Metrica, Rilevazione, Ufficio, VoceMensile } from '../lib/tipi'
+import { type Metrica, type Persona, type Rilevazione, type Ufficio, type VoceMensile } from '../lib/tipi'
+import { annotazioniIndicatori, classeMovimento, TestataVoci, ValoreConIndicatori } from '../componenti/TabellaMensile'
 import { useDati } from '../lib/useDati'
 import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../componenti/Celle'
 import { GraficoAndamento } from '../componenti/Grafici'
@@ -72,10 +73,16 @@ interface DatiRiunione { dati: Rilevazione[]; note: Nota[]; citta: TotaliCitta |
 export interface DatiMensili {
   voci: VoceMensile[]
   mesi: string[]                       // 'AAAA-MM-01', dal più vecchio; l'ultimo è quello presentato
-  uffici: { ufficio: Ufficio; totali: TotaliMese[]; stato: Stato; daStorico: boolean; inserito: { il: string; da: string | null } | null }[]
+  uffici: {
+    ufficio: Ufficio; totali: TotaliMese[]; stato: Stato; daStorico: boolean; inserito: { il: string; da: string | null } | null
+    personale: PersonaleMese                                    // il rapportino del mese presentato, persona per persona
+  }[]
   citta: RiepilogoMensile | null       // per un ufficio: tutta la sua città (solo le somme)
   posizione: PosizioniCitta | null     // per un ufficio: la sua posizione nella città (solo la sua riga)
 }
+
+/** Le persone del mese presentato (anche chi è entrato o uscito nel mese) e i loro numeri ("persona|voce" → valore) */
+interface PersonaleMese { righe: Persona[]; valori: Map<string, number | null> }
 
 /** Staff e colonne del rapportino mensile (l'indicatore delle coordinatrici resta fuori) */
 const colonneMensili = (voci: VoceMensile[]) => [STAFF, ...vociDelRapportino(voci).map((v) => v.codice)]
@@ -106,6 +113,10 @@ export async function caricaDatiMensili(mesi: string[], uffici: Ufficio[], soloU
       return {
         ufficio, daStorico, totali: perMese.map((x) => x.totale),
         inserito: ultimoValore ? { il: ultimoValore.aggiornato_il!, da: ultimoValore.aggiornato_da ?? null } : null,
+        personale: {
+          righe: righeDelMese(suePersone, ultimo),
+          valori: new Map(suoiValori.filter((v) => v.mese === ultimo).map((v) => [`${v.persona_id}|${v.voce}`, v.valore])),
+        },
         stato: daStorico ? 'completo' : statoMensile(suePersone.filter((p) => inServizio(p, ultimo)), suoiValori.filter((v) => v.mese === ultimo), voci),
       }
     }),
@@ -972,7 +983,7 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
   const codici = codiciImbuto(IMBUTO_MENSILE)
   const mesiImbuto = mesi.slice(-MESI_IMBUTO)
   const ultimiMesi = (andamento: TotaliMese[]) => sommaPeriodi(andamento.slice(-MESI_IMBUTO), codici)
-  const periodoImbutoMese = `ultimi ${mesiImbuto.length} mesi (${titoloMese(mesiImbuto[0]).toLowerCase()} – ${titoloMese(mesiImbuto[mesiImbuto.length - 1]).toLowerCase()})`
+  const periodoImbutoMese = `ultimi ${mesiImbuto.length} mesi, ${nomeMeseBreve(mesiImbuto[0].slice(0, 7))} – ${nomeMeseBreve(mesiImbuto[mesiImbuto.length - 1].slice(0, 7))}`
   const imbutoGruppo = calcolaImbuto(IMBUTO_MENSILE, ultimiMesi(gruppo.andamento))
   out.push(...pagineImbuto({
     def: IMBUTO_MENSILE, nomeGruppo: titolo,
@@ -1030,7 +1041,7 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
         titolo: u.ufficio.nome, riepilogo: riepilogoMensile([u.totali], colonne), voci, colonne, etichette,
         nota: u.daStorico ? 'I numeri vengono dal file Excel annuale (solo il totale dell\'ufficio).' : '',
         ufficio: {
-          stato: u.stato, inserito: u.inserito,
+          stato: u.stato, inserito: u.inserito, personale: u.personale, mese: mesi[mesi.length - 1], daStorico: u.daStorico,
           imbuto: calcolaImbuto(IMBUTO_MENSILE, ultimiMesi(u.totali)), riferimento: imbutoGruppo, nomeRiferimento: titolo, periodoImbuto: periodoImbutoMese,
         },
       }))
@@ -1043,7 +1054,10 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
 function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota, ufficio }: {
   titolo: string; riepilogo: RiepilogoMensile; voci: VoceMensile[]; colonne: string[]; etichette: string[]; nota: string
   /** pagina di un singolo ufficio: stato del rapportino al posto del conteggio, e il suo imbuto in fondo */
-  ufficio?: { stato: Stato; inserito: { il: string; da: string | null } | null; imbuto: Imbuto; riferimento: Imbuto; nomeRiferimento: string; periodoImbuto: string }
+  ufficio?: {
+    stato: Stato; inserito: { il: string; da: string | null } | null; imbuto: Imbuto; riferimento: Imbuto; nomeRiferimento: string; periodoImbuto: string
+    personale: PersonaleMese; mese: string; daStorico: boolean
+  }
 }): Diapositiva {
   const totale = riepilogo.andamento[riepilogo.andamento.length - 1]
   let su = 0, giu = 0
@@ -1074,50 +1088,103 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
     titolo,
     contenuto: (t) => (
       <div className={`p-colonna ${ufficio ? 'pagina-ufficio-mese' : ''}`}>
+        {ufficio ? (
+          // pagina dell'ufficio: una striscia sottile al posto dei tre riquadri, per lasciare spazio al personale
+          <div className="striscia-ufficio">
+            <span className="striscia-voce"><BadgeStato stato={ufficio.stato} />
+              <span>{ufficio.inserito
+                ? `salvato ${new Date(ufficio.inserito.il).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}${ufficio.inserito.da ? ` da ${nomeDaEmail(ufficio.inserito.da)}` : ''}`
+                : ufficio.stato === 'mancante' ? 'nessun numero inserito' : ''}</span>
+            </span>
+            <span className="striscia-voce"><Icona nome="users-three" /><strong>{totale.get(STAFF) == null ? '—' : conta(totale.get(STAFF)!, t)}</strong> persone in servizio</span>
+            <span className="striscia-voce"><Icona nome="trend-up" /><strong>{su} ▲ · {giu} ▼</strong> voci rispetto al mese prima</span>
+          </div>
+        ) : (
         <div className="sintesi-griglia sintesi-compatta">
           <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
             <span><Icona nome="users-three" /></span>
             <div><span className="p-etichetta">Staff</span><strong>{totale.get(STAFF) == null ? '—' : conta(totale.get(STAFF)!, t)}</strong><span>persone in servizio nel mese</span></div>
           </div>
-          {ufficio ? (
-            <div className="sintesi" style={{ background: ufficio.stato === 'completo' ? 'var(--ok-bg)' : 'var(--ko-bg)', color: ufficio.stato === 'completo' ? 'var(--ok-fg)' : 'var(--ko-fg)' }}>
-              <span><Icona nome="clipboard-text" /></span>
-              <div style={{ gap: 6 }}>
-                <span className="p-etichetta">Rapportino del mese</span>
-                <BadgeStato stato={ufficio.stato} grande />
-                <span>{ufficio.inserito
-                  ? `Salvato ${new Date(ufficio.inserito.il).toLocaleString('it-IT', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}${ufficio.inserito.da ? ` da ${nomeDaEmail(ufficio.inserito.da)}` : ''}`
-                  : ufficio.stato === 'mancante' ? 'Nessun numero inserito' : ''}</span>
-              </div>
-            </div>
-          ) : (
             <div className="sintesi" style={{ background: 'var(--ok-bg)', color: 'var(--ok-fg)' }}>
               <span><Icona nome="clipboard-text" /></span>
               <div><span className="p-etichetta">Rapportini inseriti</span><strong>{riepilogo.ufficiConDati} su {riepilogo.ufficiTotali}</strong><span>{riepilogo.ufficiTotali === 1 ? 'ufficio' : 'uffici'} con i numeri del mese</span></div>
             </div>
-          )}
           <div className="sintesi" style={{ background: 'var(--primario-100)', color: 'var(--primario-700)' }}>
             <span><Icona nome="trend-up" /></span>
             <div><span className="p-etichetta">Rispetto al mese prima</span><strong>{su} ▲ · {giu} ▼</strong><span>{su} voci migliorate, {giu} peggiorate</span></div>
           </div>
         </div>
-        <div className="tabellone-mensile">
-          {colonna(righe.slice(0, meta), t)}
-          {colonna(righe.slice(meta), t)}
-        </div>
-        {ufficio && (
-          <div className="p-card">
-            <span className="p-etichetta">Imbuto della vendita · {ufficio.periodoImbuto}</span>
-            <ImbutoInRiga imbuto={ufficio.imbuto} riferimento={ufficio.riferimento} nomeRiferimento={ufficio.nomeRiferimento} />
+        )}
+        {ufficio ? (
+          <>
+            {/* pagina dell'ufficio: tabelle più strette e imbuto in verticale a destra, sotto il personale (idea di Davide) */}
+            <div className="ufficio-mese-centro">
+              <div className="tabellone-mensile">
+                {colonna(righe.slice(0, meta), t)}
+                {colonna(righe.slice(meta), t)}
+              </div>
+              <div className="p-card imbuto-verticale">
+                <span className="p-etichetta">Imbuto della vendita <span className="imbuto-periodo">· {ufficio.periodoImbuto}</span></span>
+                <ImbutoInRiga imbuto={ufficio.imbuto} riferimento={ufficio.riferimento} nomeRiferimento={ufficio.nomeRiferimento} />
+              </div>
+            </div>
+            <div className="p-card personale-dia">
+              <TabellaPersonaleDia voci={voci} mese={ufficio.mese} personale={ufficio.personale} daStorico={ufficio.daStorico} />
+            </div>
+          </>
+        ) : (
+          <div className="tabellone-mensile">
+            {colonna(righe.slice(0, meta), t)}
+            {colonna(righe.slice(meta), t)}
           </div>
         )}
         <p className="piccolo">
           Numeri dei rapportini mensili.
           {parziale && ' Il confronto con il mese prima conta solo gli uffici che hanno la voce in entrambi i mesi.'}
           {' Incarichi scaduti: se aumentano è in rosso.'}
+          {ufficio && ' Personale: riga verde = entrato nel mese, rossa = ha lasciato l\'ufficio nel mese; "fix" = appuntamenti fix delle coordinatrici.'}
           {nota && ` ${nota}`}
         </p>
       </div>
     ),
   }
+}
+
+/**
+ * Il personale dell'ufficio nella sua pagina del mese: una riga per persona con i suoi numeri, come il rapportino
+ * (verde chi è entrato nel mese, rosso chi è uscito; per le coordinatrici il fix in alto, come esponente).
+ */
+const RUOLO_BREVE: Record<Persona['ruolo'], string> = { responsabile: 'resp.', collaboratore: 'coll.', coordinatrice: 'coord.', marketer: 'mkt', da_definire: 'ruolo da definire' }
+
+function TabellaPersonaleDia({ voci, mese, personale, daStorico }: { voci: VoceMensile[]; mese: string; personale: PersonaleMese; daStorico: boolean }) {
+  const colonne = vociDelRapportino(voci)
+  const { righe, valori } = personale
+  if (daStorico || righe.length === 0) {
+    return <p className="piccolo">{daStorico ? 'Per questo mese c\'è solo il totale dell\'ufficio (file Excel annuale): niente numeri persona per persona.' : 'Nessuna persona nel personale dell\'ufficio in questo mese.'}</p>
+  }
+  const { annotazioni } = annotazioniIndicatori(voci, righe)
+  const valore = (p: Persona, codice: string) => valori.get(`${p.id}|${codice}`) ?? null
+  return (
+    <table className="tabella tabella-mensile tabella-personale-dia">
+      <TestataVoci voci={colonne} prime={['Personale']} annotazioni={annotazioni} />
+      <tbody>
+        {righe.map((p) => (
+          <tr key={p.id} className={classeMovimento(p, mese)}>
+            <th scope="row" className="ufficio-fisso">
+              <span className="nome-dia">{p.nome}</span> <span className="ruolo-dia">{RUOLO_BREVE[p.ruolo]}</span>
+            </th>
+            {colonne.map((v) => {
+              const accanto = indicatoriAccanto(voci, v.codice, p.ruolo)
+              const x = valore(p, v.codice)
+              return (
+                <td key={v.codice} className={`destra ${x === null && !accanto.length ? 'cella-vuota' : ''}`}>
+                  <ValoreConIndicatori valore={x} tra={accanto.map((a) => valore(p, a.codice))} />
+                </td>
+              )
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 }

@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.32.0 — 2 novembre 2026
+
+**Pagina dell'ufficio nella presentazione del mese: anche il personale** (idea di Davide: imbuto in verticale e tabelle più strette, per fare spazio):
+- in alto una **striscia sottile** al posto dei tre riquadri: stato del rapportino con giorno, ora e chi l'ha salvato, persone in servizio, voci migliorate e peggiorate rispetto al mese prima;
+- al centro le **voci del mese** in due tabelle più strette (mese, mese prima, ultimi 6 mesi) e, a destra, l'**imbuto della vendita in verticale** (ultimi 3 mesi, confrontato con il totale);
+- sotto, il **personale**: una riga per persona con il ruolo e tutti i suoi numeri del mese, come nel rapportino; **verde** chi è entrato nel mese, **rossa** chi ha lasciato l'ufficio nel mese; per le coordinatrici il *fix* in alto accanto agli appuntamenti. Niente punteggio della gara;
+- tutto sta in **uno schermo** senza scorrere fino a 9 persone (il massimo di oggi, a ottobre: da 2 a 9 per ufficio, di solito 5) anche su uno schermo 1600×1000; su un proiettore Full HD avanza spazio;
+- vale in **Report mensile → Presentazione** e **Riunione → Mese**; la pagina dei totali non cambia;
+- nessuna modifica al database: basta pubblicare (Push). Provato con le prove automatiche (215) e nella demo.
+
 ## 0.31.0 — 2 novembre 2026
 
 **Chi ha inserito il rapportino mensile, con giorno e ora** (richiesta di Davide: finora la Panoramica diceva solo chi mancava):
