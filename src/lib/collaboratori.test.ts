@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrivatoDaTrasferimento, curvaCrescita, daSeguire, media, mediaIndicatoreRuolo, mediaRuolo, meseDiServizio, nuoviEntrati, numeriPersona, rispettoAllaMedia } from './collaboratori'
+import { arrivatoDaTrasferimento, compilazione, curvaCrescita, daSeguire, media, mediaIndicatoreRuolo, mediaRuolo, meseDiServizio, nuoviEntrati, numeriPerMedia, numeriPersona, rispettoAllaMedia, valorePerMedia } from './collaboratori'
 import type { Persona, ValoreMensile, VoceMensile } from './tipi'
 
 const voci: VoceMensile[] = [
@@ -28,19 +28,40 @@ describe('scheda del collaboratore', () => {
     expect([...numeriPersona(valori, 1, '2026-07-01', voci)]).toEqual([['incarichi_vendita', null], ['incarichi_scaduti', null]])
   })
 
-  it('la media è tra i colleghi dello stesso ruolo in servizio, solo dove il numero c\'è', () => {
+  it('la media è tra i colleghi dello stesso ruolo in servizio, con la casella vuota a 0', () => {
     const m = mediaRuolo(persone, valori, 'collaboratore', '2026-08-01', voci)
     expect(m.get('incarichi_vendita')).toBe(3)          // (4 + 2) ÷ 2: né chi è uscito né la coordinatrice
-    expect(m.get('incarichi_scaduti')).toBe(1)
+    expect(m.get('incarichi_scaduti')).toBe(0.5)        // (0 + 1) ÷ 2: Persona 1 non ha scritto lo 0, ma vale 0
     expect(media([], ['incarichi_vendita']).get('incarichi_vendita')).toBeNull()
+  })
+
+  it('casella vuota = 0 solo se l\'ufficio ha compilato il mese e la voce era in uso', () => {
+    const altroUfficio: Persona = { ...persona(9, 'collaboratore', '2020-01-01'), ufficio_id: 2 }
+    const vociConVendite: VoceMensile[] = [...voci, { codice: 'vendite_effettuate', gruppo: 'Vendite effettuate', sotto: null, ordine: 3 }]
+    const c = compilazione(valori, vociConVendite)
+    // ufficio 1 ha compilato agosto: la casella vuota vale 0
+    expect(valorePerMedia(c, persone[0], '2026-08-01', 'incarichi_scaduti', null)).toBe(0)
+    // la voce non l'ha scritta nessuno ad agosto (es. vendite effettuate prima di aprile): resta fuori
+    expect(valorePerMedia(c, persone[0], '2026-08-01', 'vendite_effettuate', null)).toBeNull()
+    // l'ufficio 2 non ha compilato: non è uno 0, il mese non conta
+    expect(valorePerMedia(c, altroUfficio, '2026-08-01', 'incarichi_scaduti', null)).toBeNull()
+    expect(valorePerMedia(c, persone[0], '2026-07-01', 'incarichi_vendita', null)).toBeNull()
+    // il numero scritto resta quello
+    expect(valorePerMedia(c, persone[0], '2026-08-01', 'incarichi_vendita', 4)).toBe(4)
+    // chi ha la riga tutta vuota in un ufficio che ha compilato conta con tutti 0
+    const vuoto = persona(10, 'collaboratore', '2020-01-01')
+    expect([...numeriPerMedia(c, valori, vuoto, '2026-08-01', vociConVendite)]).toEqual([['incarichi_vendita', 0], ['incarichi_scaduti', 0], ['vendite_effettuate', null]])
+    const m = mediaRuolo([...persone, vuoto, altroUfficio], valori, 'collaboratore', '2026-08-01', voci)
+    expect(m.get('incarichi_vendita')).toBe(2)          // (4 + 2 + 0) ÷ 3: l'ufficio 2 non ha compilato, resta fuori
   })
 
   it('media del fix tra le coordinatrici in servizio che l\'hanno scritto', () => {
     const coord = [...persone, persona(5, 'coordinatrice', '2021-01-01'), persona(6, 'coordinatrice', '2021-01-01'), persona(7, 'coordinatrice', '2021-01-01', '2026-08-10')]
     const fix = [val(4, '2026-08-01', 'appuntamenti_vendita_fix', 10), val(5, '2026-08-01', 'appuntamenti_vendita_fix', 20),
       val(6, '2026-08-01', 'appuntamenti_vendita_fix', null), val(7, '2026-08-01', 'appuntamenti_vendita_fix', 90), val(1, '2026-08-01', 'appuntamenti_vendita_fix', 70)]
-    expect(mediaIndicatoreRuolo(coord, fix, 'coordinatrice', '2026-08-01', 'appuntamenti_vendita_fix')).toBe(15)   // (10 + 20) ÷ 2
-    expect(mediaIndicatoreRuolo(coord, fix, 'coordinatrice', '2026-07-01', 'appuntamenti_vendita_fix')).toBeNull()
+    const c = compilazione([...valori, ...fix], voci)
+    expect(mediaIndicatoreRuolo(coord, fix, 'coordinatrice', '2026-08-01', 'appuntamenti_vendita_fix', c)).toBe(10)   // (10 + 20 + 0) ÷ 3: la casella vuota vale 0
+    expect(mediaIndicatoreRuolo(coord, fix, 'coordinatrice', '2026-07-01', 'appuntamenti_vendita_fix', c)).toBeNull()
   })
 
   it('confronta con la media, al contrario per le voci "meglio se scende"', () => {
@@ -72,10 +93,18 @@ describe('curva dei nuovi', () => {
   })
 
   it('fa la media per mese di servizio, solo con almeno 3 persone', () => {
-    const c = curvaCrescita(persone, valori, mesi, 'collaboratore', 'incarichi_vendita', 4)
+    const c = curvaCrescita(persone, valori, mesi, 'collaboratore', 'incarichi_vendita', compilazione(valori, voci), 4)
     expect(c[0]).toEqual({ persone: 4, valore: (1 + 2 + 3 + 9) / 4 })
-    expect(c[1].persone).toBe(3)
-    expect(c[2]).toEqual({ persone: 0, valore: null })
+    // 2° mese: 2, 4, 6 di agosto + Persona 3 e Persona 4 a settembre, che non hanno scritto il numero: l'ufficio
+    // ha compilato settembre (Persona 5), quindi valgono 0
+    expect(c[1]).toEqual({ persone: 5, valore: (2 + 4 + 6 + 0 + 0) / 5 })
+    expect(c[2]).toEqual({ persone: 2, valore: null })   // meno di 3 persone: il punto resta vuoto
+  })
+
+  it('nella curva conta come 0 chi è in servizio ma ha lasciato la casella vuota', () => {
+    const conVuoto = valori.filter((v) => !(v.persona_id === 3 && v.mese === '2026-07-01'))
+    const c = curvaCrescita(persone, conVuoto, mesi, 'collaboratore', 'incarichi_vendita', compilazione(conVuoto, voci), 4)
+    expect(c[0]).toEqual({ persone: 4, valore: (1 + 2 + 0 + 9) / 4 })
   })
 
   it('elenca i nuovi entrati e segnala chi è sotto la metà della media', () => {
@@ -94,7 +123,9 @@ describe('curva dei nuovi', () => {
     expect(arrivatoDaTrasferimento(dopo, tutti)).toBe(true)
     expect(arrivatoDaTrasferimento(omonimo, tutti)).toBe(false)
     expect(nuoviEntrati(tutti, 'collaboratore', '2026-09-01', 12).map((p) => p.id)).toEqual([4, 9, 3, 2, 1])
-    const c = curvaCrescita([...tutti], [...valori, val(8, '2026-08-01', 'incarichi_vendita', 50)], mesi, 'collaboratore', 'incarichi_vendita', 4)
-    expect(c[0]).toEqual({ persone: 4, valore: (1 + 2 + 3 + 9) / 4 })   // i 50 di chi è arrivato col trasferimento non contano
+    const conTrasferito = [...valori, val(8, '2026-08-01', 'incarichi_vendita', 50)]
+    const c = curvaCrescita([...tutti], conTrasferito, mesi, 'collaboratore', 'incarichi_vendita', compilazione(conTrasferito, voci), 4)
+    // i 50 di chi è arrivato col trasferimento non contano; l'omonimo è un nuovo vero, senza numero = 0
+    expect(c[0]).toEqual({ persone: 5, valore: (1 + 2 + 3 + 9 + 0) / 5 })
   })
 })

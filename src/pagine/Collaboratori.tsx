@@ -6,8 +6,8 @@
 // Usa solo i numeri inseriti persona per persona sulla piattaforma (src/lib/collaboratori.ts).
 import { useMemo, useState } from 'react'
 import {
-  curvaCrescita, daSeguire, formattaMedia, haNumeri, media, mediaIndicatoreRuolo, mediaRuolo, MESI_CURVA, meseDiServizio, MINIMO_PERSONE, nuoviEntrati,
-  numeriPersona, rispettoAllaMedia, SOGLIA_DA_SEGUIRE,
+  compilazione, curvaCrescita, daSeguire, formattaMedia, haNumeri, media, mediaIndicatoreRuolo, mediaRuolo, MESI_CURVA, meseDiServizio, MINIMO_PERSONE,
+  nuoviEntrati, numeriPerMedia, numeriPersona, rispettoAllaMedia, SOGLIA_DA_SEGUIRE, ufficioHaCompilato, valorePerMedia,
 } from '../lib/collaboratori'
 import { caricaPersone, caricaPunti, caricaValoriMesi, caricaValoriRiservati, caricaVociMensili } from '../lib/dati'
 import {
@@ -117,26 +117,34 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
   const plurale = PLURALI[p.ruolo]
   const mesiPersona = mesi.filter((m) => presenteNelMese(p, m))   // anche il mese in cui ha lasciato l'ufficio
   const indicatoriRuolo = colonne.flatMap((v) => indicatoriAccanto(dati.voci, v.codice, p.ruolo))
+  const c = compilazione(dati.valori, dati.voci)
   const tutteLeRighe = mesiPersona.map((m) => {
-    const numeri = numeriPersona(dati.valori, p.id, m, dati.voci)
+    const scritti = numeriPersona(dati.valori, p.id, m, dati.voci)
+    // il mese conta se l'ufficio l'ha compilato: allora le caselle vuote valgono 0 (Davide, 03/11/2026).
+    // Nel mese in cui lascia l'ufficio conta solo se ha scritto qualcosa (c'è stato solo una parte del mese).
+    const conta = ufficioHaCompilato(c, p, m) && (inServizio(p, m) || haNumeri(scritti))
+    const numeri = conta ? numeriPerMedia(c, dati.valori, p, m, dati.voci) : scritti
     const valoriMese = dati.valori.filter((v) => v.mese === m)
     // punteggio più alto del mese tra tutti i collaboratori in servizio (quello va in giallo, come nelle liste)
     const migliore = gara ? Math.max(-Infinity, ...dati.persone.filter((x) => x.ruolo === RUOLO_GARA && inServizio(x, m))
       .map((x) => punteggio(valoriMese.filter((v) => v.persona_id === x.id), dati.punti)).filter((x): x is number => x !== null)) : -Infinity
     return {
-      mese: m, numeri, migliore,
-      mediaGruppo: mediaRuolo(dati.persone, dati.valori, p.ruolo, m, dati.voci) as TotaliMese,
+      mese: m, numeri, conta, migliore,
+      mediaGruppo: mediaRuolo(dati.persone, dati.valori, p.ruolo, m, dati.voci, c) as TotaliMese,
       // indicatori del ruolo (es. App. vendita fix delle coordinatrici): media dei colleghi nel mese
-      mediaIndicatori: new Map(indicatoriRuolo.map((a) => [a.codice, mediaIndicatoreRuolo(dati.persone, dati.valori, p.ruolo, m, a.codice)])),
+      mediaIndicatori: new Map(indicatoriRuolo.map((a) => [a.codice, mediaIndicatoreRuolo(dati.persone, dati.valori, p.ruolo, m, a.codice, c)])),
       // nel mese in cui lascia l'ufficio non partecipa alla gara (Davide, 26/10/2026)
       punti: gara && inServizio(p, m) ? punteggio(valoriMese.filter((v) => v.persona_id === p.id), dati.punti) : null,
-      valoreDi: (voce: string) => valoriMese.find((v) => v.persona_id === p.id && v.voce === voce)?.valore ?? null,
+      valoreDi: (voce: string) => {
+        const v = valoriMese.find((x) => x.persona_id === p.id && x.voce === voce)?.valore ?? null
+        return conta ? valorePerMedia(c, p, m, voce, v) : v
+      },
     }
   })
-  // si parte dal primo mese con numeri: i mesi prima della piattaforma sarebbero solo righe vuote
-  const primo = tutteLeRighe.findIndex((r) => haNumeri(r.numeri))
+  // si parte dal primo mese compilato: i mesi prima della piattaforma sarebbero solo righe vuote
+  const primo = tutteLeRighe.findIndex((r) => r.conta)
   const righe = primo < 0 ? [] : tutteLeRighe.slice(primo)
-  const compilati = righe.filter((r) => haNumeri(r.numeri))
+  const compilati = righe.filter((r) => r.conta)
   // Totale dei mesi: le attività si sommano; portafoglio e staff dicono "quanti ce ne sono", quindi vale l'ultimo mese
   const totale = new Map(codici.map((c) => {
     if (VOCI_CONSISTENZA.includes(c)) return [c, [...compilati].reverse().find((r) => r.numeri.get(c) != null)?.numeri.get(c) ?? null]
@@ -184,7 +192,7 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
                   info={`${titoloMese(righe[0]?.mese ?? ultimo)} – ${titoloMese(ultimo)}`} />} />
               <tbody>
                 {righe.map((r) => (
-                  <tr key={r.mese} className={haNumeri(r.numeri) ? '' : 'riga-vuota'}>
+                  <tr key={r.mese} className={r.conta ? '' : 'riga-vuota'}>
                     <th scope="row" className="ufficio-fisso">{titoloMese(r.mese)}{meseDiServizio(p, r.mese) <= MESI_CURVA && <span className="piccolo">{meseDiServizio(p, r.mese)}° mese di servizio</span>}</th>
                     {colonne.map((v) => (
                       <td key={v.codice} className={`destra ${r.numeri.get(v.codice) === null ? 'cella-vuota' : ''}`}>
@@ -226,7 +234,8 @@ function SchedaPersona({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; 
         <p className="piccolo">
           Media al mese: in <span className="t-verde">verde</span> se è almeno come la media degli altri {plurale} negli stessi mesi,
           in <span className="t-rosso">rosso</span> se è sotto (per gli incarichi scaduti al contrario).
-          Nel totale, staff e portafoglio sono quelli dell'ultimo mese inserito.{gara && ' Punteggio in giallo: il più alto del mese tra tutti i collaboratori.'}
+          Nel totale, staff e portafoglio sono quelli dell'ultimo mese inserito.
+          Nei mesi in cui l'ufficio ha compilato il rapportino una casella lasciata vuota vale 0, anche nelle medie dei colleghi.{gara && ' Punteggio in giallo: il più alto del mese tra tutti i collaboratori.'}
           {indicatoriRuolo.map((a) => ` Il numero piccolo in alto (${a.gruppo.toLowerCase()}) nel totale è la somma dei mesi, nelle medie è la media al mese.`).join('')}
         </p>
       </section>
@@ -257,10 +266,12 @@ function CurvaNuovi({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; mes
   const colonne = vociDelRapportino(dati.voci).filter((v) => !VOCI_CONSISTENZA.includes(v.codice))
   const [voce, setVoce] = useState('incarichi_vendita')
   const v = colonne.find((x) => x.codice === voce) ?? colonne[0]
-  const curva = curvaCrescita(dati.persone, dati.valori, mesi, RUOLO_GARA, v.codice)
+  const c = useMemo(() => compilazione(dati.valori, dati.voci), [dati])
+  const curva = curvaCrescita(dati.persone, dati.valori, mesi, RUOLO_GARA, v.codice, c)
   const nuovi = nuoviEntrati(dati.persone, RUOLO_GARA, ultimo)
   const ufficioDi = new Map(uffici.map((u) => [u.id, u.nome]))
-  const valore = (p: Persona, m: string) => dati.valori.find((x) => x.persona_id === p.id && x.mese === m && x.voce === v.codice)?.valore ?? null
+  // casella vuota = 0 se l'ufficio ha compilato il mese (come nella media)
+  const valore = (p: Persona, m: string) => valorePerMedia(c, p, m, v.codice, dati.valori.find((x) => x.persona_id === p.id && x.mese === m && x.voce === v.codice)?.valore ?? null)
   const nomeVoce = (x: VoceMensile) => `${x.gruppo}${x.sotto ? ` ${x.sotto}` : ''}`
   const etichette = curva.map((_, i) => `${i + 1}°`)
   const puntiConDati = curva.filter((c) => c.valore !== null).length
@@ -277,7 +288,7 @@ function CurvaNuovi({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; mes
           </select>
         </div>
         <p className="piccolo">Per ogni mese di servizio (1° = il mese in cui hanno iniziato) la media di <strong>{nomeVoce(v).toLowerCase()}</strong> dei
-          collaboratori che in quel mese di servizio hanno il numero inserito. Un punto compare solo con almeno {MINIMO_PERSONE} persone.</p>
+          collaboratori in servizio negli uffici che hanno compilato il mese (una casella lasciata vuota vale 0). Un punto compare solo con almeno {MINIMO_PERSONE} persone.</p>
         {puntiConDati === 0 ? (
           <p className="avviso"><Icona nome="hourglass-medium" /><span>Non ci sono ancora abbastanza dati: servono almeno {MINIMO_PERSONE} collaboratori nello stesso
             mese di servizio con i numeri inseriti persona per persona. La curva si riempie con i prossimi rapportini mensili.</span></p>
@@ -338,7 +349,7 @@ function CurvaNuovi({ dati, uffici, mesi }: { dati: Dati; uffici: Ufficio[]; mes
           </div>
         )}
         <p className="piccolo">In <span className="testo-arancio">arancio</span> i mesi "da seguire": sotto il {Math.round(SOGLIA_DA_SEGUIRE * 100)}% della media dei
-          collaboratori nello stesso mese di servizio. Casella vuota: numero non inserito o mese prima della piattaforma.</p>
+          collaboratori nello stesso mese di servizio. Casella vuota: l'ufficio non ha compilato quel mese, oppure mese prima della piattaforma.</p>
       </section>
     </>
   )

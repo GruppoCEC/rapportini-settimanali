@@ -23,7 +23,45 @@ export function numeriPersona(valori: ValoreMensile[], personaId: number, mese: 
 /** La persona ha inserito almeno un numero in quel mese? */
 export const haNumeri = (t: TotaliMese) => [...t.values()].some((v) => v !== null)
 
-/** Media voce per voce di più mesi o persone: conta solo dove il numero c'è */
+/**
+ * Regola delle medie del personale (decisione di Davide del 03/11/2026): una casella lasciata vuota vale 0,
+ * altrimenti chi non scrive lo 0 alza la media. Vale solo quando il numero "poteva esserci":
+ * - l'ufficio della persona ha compilato il rapportino di quel mese (almeno un numero, di chiunque);
+ * - la voce era in uso nel mese, cioè almeno un ufficio del gruppo l'ha scritta (es. "Vendite effettuate"
+ *   c'è solo da aprile 2026: a gennaio-marzo resta fuori, non è uno 0).
+ */
+export interface Compilazione {
+  uffici: Set<string>   // 'ufficio|mese' con il rapportino compilato
+  voci: Set<string>     // 'mese|voce' scritte da almeno un ufficio
+}
+
+export function compilazione(valori: ValoreMensile[], voci: VoceMensile[]): Compilazione {
+  const delRapportino = new Set(vociDelRapportino(voci).map((v) => v.codice))
+  const c: Compilazione = { uffici: new Set(), voci: new Set() }
+  for (const v of valori) {
+    if (v.valore === null) continue
+    c.voci.add(`${v.mese}|${v.voce}`)
+    if (delRapportino.has(v.voce)) c.uffici.add(`${v.ufficio_id}|${v.mese}`)   // i numeri riservati (018) non contano come compilazione
+  }
+  return c
+}
+
+/** L'ufficio della persona ha compilato il rapportino di quel mese? */
+export const ufficioHaCompilato = (c: Compilazione, p: Persona, mese: string) => c.uffici.has(`${p.ufficio_id}|${mese}`)
+
+/** Il numero che conta nelle medie: quello scritto, oppure 0 se la casella è vuota ma il numero poteva esserci */
+export function valorePerMedia(c: Compilazione, p: Persona, mese: string, voce: string, valore: number | null): number | null {
+  if (valore !== null) return valore
+  return ufficioHaCompilato(c, p, mese) && c.voci.has(`${mese}|${voce}`) ? 0 : null
+}
+
+/** I numeri di una persona in un mese con le caselle vuote a 0 (vedi Compilazione) */
+export function numeriPerMedia(c: Compilazione, valori: ValoreMensile[], p: Persona, mese: string, voci: VoceMensile[]): TotaliMese {
+  const numeri = numeriPersona(valori, p.id, mese, voci)
+  return new Map([...numeri].map(([voce, v]) => [voce, valorePerMedia(c, p, mese, voce, v)]))
+}
+
+/** Media voce per voce di più mesi o persone: conta dove il numero c'è (le caselle vuote da contare come 0 vanno riempite prima) */
 export function media(elenco: TotaliMese[], codici: string[]): Map<string, number | null> {
   return new Map(codici.map((c) => {
     const presenti = elenco.map((t) => t.get(c) ?? null).filter((v): v is number => v !== null)
@@ -32,13 +70,14 @@ export function media(elenco: TotaliMese[], codici: string[]): Map<string, numbe
 }
 
 /**
- * Media dei colleghi con lo stesso ruolo in un mese: tra chi era in servizio e ha inserito numeri.
- * Serve per il confronto nella scheda della persona (la persona stessa è compresa, come in una media di gruppo).
+ * Media dei colleghi con lo stesso ruolo in un mese: tra chi era in servizio in un ufficio che ha compilato il mese,
+ * con le caselle vuote a 0. Serve per il confronto nella scheda della persona (la persona stessa è compresa).
  */
-export function mediaRuolo(persone: Persona[], valori: ValoreMensile[], ruolo: RuoloPersona, mese: string, voci: VoceMensile[]): Map<string, number | null> {
+export function mediaRuolo(persone: Persona[], valori: ValoreMensile[], ruolo: RuoloPersona, mese: string, voci: VoceMensile[],
+  c: Compilazione = compilazione(valori, voci)): Map<string, number | null> {
   const codici = vociDelRapportino(voci).map((v) => v.codice)
-  const numeri = persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese))
-    .map((p) => numeriPersona(valori, p.id, mese, voci)).filter(haNumeri)
+  const numeri = persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese) && ufficioHaCompilato(c, p, mese))
+    .map((p) => numeriPerMedia(c, valori, p, mese, voci))
   return media(numeri, codici)
 }
 
@@ -60,27 +99,30 @@ export interface PuntoCurva { valore: number | null; persone: number }
 
 /**
  * Media di un indicatore (es. "App. vendita fix" delle coordinatrici) tra i colleghi con lo stesso ruolo in un mese:
- * tra chi era in servizio e l'ha scritto. Gli indicatori non sono colonne del rapportino, quindi mediaRuolo non li ha.
+ * tra chi era in servizio, con la casella vuota a 0 (vedi Compilazione). Gli indicatori non sono colonne del rapportino,
+ * quindi mediaRuolo non li ha.
  */
-export function mediaIndicatoreRuolo(persone: Persona[], valori: ValoreMensile[], ruolo: RuoloPersona, mese: string, codice: string): number | null {
-  const ids = new Set(persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese)).map((p) => p.id))
-  const presenti = valori.filter((v) => v.mese === mese && v.voce === codice && v.valore !== null && ids.has(v.persona_id)).map((v) => v.valore!)
+export function mediaIndicatoreRuolo(persone: Persona[], valori: ValoreMensile[], ruolo: RuoloPersona, mese: string, codice: string, c: Compilazione): number | null {
+  const scritti = new Map(valori.filter((v) => v.mese === mese && v.voce === codice && v.valore !== null).map((v) => [v.persona_id, v.valore!]))
+  const presenti = persone.filter((p) => p.ruolo === ruolo && inServizio(p, mese))
+    .map((p) => valorePerMedia(c, p, mese, codice, scritti.get(p.id) ?? null)).filter((v): v is number => v !== null)
   return presenti.length === 0 ? null : presenti.reduce((s, v) => s + v, 0) / presenti.length
 }
 
 /**
  * Curva di crescita: per il 1°, 2°… mese di servizio, la media di una voce tra le persone del ruolo
- * che in quel mese di servizio hanno il numero inserito. Con meno di MINIMO_PERSONE il punto resta vuoto.
+ * in servizio in un ufficio che ha compilato il mese (casella vuota = 0). Con meno di MINIMO_PERSONE il punto resta vuoto.
  */
-export function curvaCrescita(persone: Persona[], valori: ValoreMensile[], mesi: string[], ruolo: RuoloPersona, voce: string, maxMesi = MESI_CURVA): PuntoCurva[] {
+export function curvaCrescita(persone: Persona[], valori: ValoreMensile[], mesi: string[], ruolo: RuoloPersona, voce: string, c: Compilazione,
+  maxMesi = MESI_CURVA): PuntoCurva[] {
   const perMese: number[][] = Array.from({ length: maxMesi }, () => [])
   const indice = new Map(valori.filter((v) => v.voce === voce && v.valore !== null).map((v) => [`${v.persona_id}|${v.mese}`, v.valore!]))
   for (const p of persone.filter((x) => x.ruolo === ruolo && !arrivatoDaTrasferimento(x, persone))) {
     for (const m of mesi) {
       if (!inServizio(p, m)) continue
       const k = meseDiServizio(p, m)
-      const v = indice.get(`${p.id}|${m}`)
-      if (k <= maxMesi && v !== undefined) perMese[k - 1].push(v)
+      const v = valorePerMedia(c, p, m, voce, indice.get(`${p.id}|${m}`) ?? null)
+      if (k <= maxMesi && v !== null) perMese[k - 1].push(v)
     }
   }
   return perMese.map((elenco) => ({

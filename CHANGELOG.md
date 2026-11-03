@@ -1,5 +1,17 @@
 # Storia delle versioni
 
+## 0.33.1 — 3 novembre 2026
+
+**Medie del personale: una casella lasciata vuota vale 0** (segnalato da Davide: chi non scrive lo 0 alzava le medie):
+- vale in **Report mensile → Collaboratori**: nella **scheda della persona** (media al mese, media dei colleghi dello stesso ruolo, grafico, *fix* delle coordinatrici) e nella **curva dei nuovi** (media per mese di servizio e tabella dei nuovi entrati);
+- prima la media si faceva solo sulle caselle con un numero: chi lasciava vuoto non contava. Ora conta come 0, e conta anche chi ha la riga tutta vuota;
+- lo 0 vale solo quando il numero **poteva esserci**: se l'ufficio **non ha compilato** il rapportino di quel mese, il mese resta fuori (non è uno 0); se una voce **non esisteva ancora** (es. *Vendite effettuate* c'è solo da aprile 2026), a gennaio-marzo resta fuori;
+- nel mese in cui una persona lascia l'ufficio, la sua riga conta solo se ha scritto qualcosa (c'è stata solo una parte del mese);
+- nella scheda della persona i mesi compilati dall'ufficio mostrano 0 dove la casella era vuota, così tabella, totale e medie tornano;
+- quanto cambia con i dati veri (copia del 23 ottobre), media dei collaboratori a settembre: incarichi vendita da 1,6 a 0,7; appuntamenti vendita da 23,5 a 18,7; richieste vendita da 3,8 a 0,2. Per le coordinatrici, appuntamenti vendita da 10,1 a 4,5;
+- non cambiano i totali degli uffici, i report, la gara a punti e le classifiche (già prima una casella vuota non aggiungeva nulla);
+- nessuna modifica al database: basta pubblicare (Push). Provato con le prove automatiche (221).
+
 ## 0.33.0 — 2 novembre 2026
 
 **Ordine delle pagine degli uffici, mese per mese** (richiesta di Davide: l'ordine cambia ogni mese):
