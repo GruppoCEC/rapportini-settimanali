@@ -914,7 +914,8 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
     const d = deltaMensile(v.variazione, voci.find((x) => x.codice === c))
     return {
       nome: nomeVoceMensile(voci, c), valore: totale.get(c) ?? null,
-      sotto: v.variazione === null ? 'nessun confronto con il mese prima' : `${d.testo} rispetto al mese prima${v.confrontati < v.conDato ? ` (su ${v.confrontati} uffici)` : ''}`,
+      // senza "(su N uffici)": è un'informazione per l'amministrazione, non per la sala (Davide, 03/11/2026)
+      sotto: v.variazione === null ? 'nessun confronto con il mese prima' : `${d.testo} rispetto al mese prima`,
       colore: d.classe === 'su' ? VERDE_CHIARO : d.classe === 'giu' ? ROSA : '#AFC0D4',
     }
   })

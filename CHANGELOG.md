@@ -1,5 +1,12 @@
 # Storia delle versioni
 
+## 0.33.2 — 3 novembre 2026
+
+**Copertina della presentazione del mese senza "(su N uffici)"** (richiesta di Davide: è un'informazione che serve solo all'amministrazione):
+- sotto i numeri della prima pagina resta solo la variazione rispetto al mese prima (es. *+12% rispetto al mese prima*);
+- il calcolo non cambia: la variazione confronta ancora solo gli uffici che hanno la voce in tutti e due i mesi;
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.33.1 — 3 novembre 2026
 
 **Medie del personale: una casella lasciata vuota vale 0** (segnalato da Davide: chi non scrive lo 0 alzava le medie):
