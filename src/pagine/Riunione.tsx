@@ -948,12 +948,16 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
           </div>
           {uffici.length > 1 && (
             <div className="mosaico">
-              {uffici.map((u) => <div key={u.ufficio.id} className={CLASSE_MOSAICO[u.stato]} title={u.ufficio.nome}><span>{u.ufficio.nome}</span><span>{SIMBOLO_MOSAICO[u.stato]}</span></div>)}
+              {/* solo due colori: verde se l'ha inserito, anche in parte; rosso se non l'ha inserito (Davide, 04/11/2026) */}
+              {uffici.map((u) => {
+                const s: Stato = u.stato === 'mancante' ? 'mancante' : 'completo'
+                return <div key={u.ufficio.id} className={CLASSE_MOSAICO[s]} title={u.ufficio.nome}><span>{u.ufficio.nome}</span><span>{SIMBOLO_MOSAICO[s]}</span></div>
+              })}
             </div>
           )}
           {uffici.length > 1 && (
             <div style={{ display: 'flex', gap: 18, fontSize: 13, fontWeight: 600, color: '#AFC0D4' }}>
-              <span>✓ completo</span><span>◐ parziale</span><span>✗ mancante</span>
+              <span>✓ inserito</span><span>✗ non inserito</span>
             </div>
           )}
         </div>

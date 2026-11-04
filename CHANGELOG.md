@@ -1,5 +1,13 @@
 # Storia delle versioni
 
+## 0.33.3 — 4 novembre 2026
+
+**Copertina della presentazione del mese: uffici solo in verde o in rosso** (richiesta di Davide):
+- nel riquadro con i nomi degli uffici non c'è più il **giallo** per chi ha lasciato vuota qualche casella: **verde** (✓) se l'ufficio ha inserito il rapportino, anche solo in parte, **rosso** (✗) se non l'ha inserito;
+- la legenda sotto dice *✓ inserito · ✗ non inserito*. Il conteggio "N su M uffici hanno inserito il rapportino" e l'elenco *Mancano* erano già così;
+- non cambiano la presentazione settimanale, la pagina di ogni ufficio e Report mensile → Panoramica, dove "parziale" resta;
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.33.2 — 3 novembre 2026
 
 **Copertina della presentazione del mese senza "(su N uffici)"** (richiesta di Davide: è un'informazione che serve solo all'amministrazione):
