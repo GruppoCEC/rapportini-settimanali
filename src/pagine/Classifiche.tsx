@@ -4,7 +4,7 @@
 // da quel momento tutti gli account del sito le aprono e le stampano da qui. Pubblicando può far
 // partire un'email di avviso con il collegamento diretto a questa pagina (scripts/promemoria.mjs).
 // Prima della pubblicazione le vede solo lui, per controllarle.
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import type { Contesto } from '../lib/contesto'
 import { caricaClassifiche, CONTENITORE_CLASSIFICHE, indirizzoClassifica, scaricaClassifica } from '../lib/dati'
 import { aggiungiMesi, meseInCorso, mesePredefinito, titoloMese } from '../lib/mensile'
@@ -14,6 +14,7 @@ import { useDati } from '../lib/useDati'
 import { AnteprimaPdf } from '../componenti/AnteprimaPdf'
 import { Caricamento } from '../componenti/Celle'
 import { EmailClassifiche } from '../componenti/EmailClassifiche'
+import { MiglioriPerUfficio } from '../componenti/MiglioriPerUfficio'
 import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 
 /** PDF più grandi di così il database li rifiuta (021: file_size_limit) */
@@ -56,8 +57,25 @@ export default function Classifiche({ ctx, meseLink }: { ctx: Contesto; meseLink
 
   const stato = dati.mesi.find((m) => m.mese === mese) ?? null
   const fileDi = (c: CategoriaClassifica) => dati.file.find((f) => f.mese === mese && f.categoria === c)
-  const caricati = CATEGORIE_CLASSIFICHE.filter((c) => fileDi(c.codice))
+  // il miglior collaboratore di ogni ufficio (scelto dall'amministratore generale): agli uffici arrivano solo i loro
+  const miglioriMese = dati.migliori.filter((b) => b.mese === mese)
+  const nomeUfficio = (id: number) => ctx.uffici.find((u) => u.id === id)?.nome ?? ''
+  const miglioriVisti = miglioriMese.map((b) => ({ ufficio: nomeUfficio(b.ufficio_id), nome: dati.nomi.get(b.persona_id) ?? '—' }))
+    .sort((a, b) => a.ufficio.localeCompare(b.ufficio))
+  // classifiche presenti nel mese: con il PDF, e il miglior collaboratore anche solo con l'elenco ufficio per ufficio
+  const caricati = CATEGORIE_CLASSIFICHE.filter((c) => fileDi(c.codice) || (c.codice === 'miglior_collaboratore' && miglioriMese.length > 0))
   const categorie = generale ? CATEGORIE_CLASSIFICHE : caricati
+  const attivi = ctx.uffici.filter((u) => u.attivo).length
+  const extra = (c: CategoriaClassifica): ReactNode => {
+    if (c !== 'miglior_collaboratore') return null
+    if (generale) return <p className="piccolo migliori-riepilogo"><Icona nome="users-three" />Scelto in <strong>{miglioriMese.length} uffici su {attivi}</strong>: lo scegli più sotto, ufficio per ufficio.</p>
+    if (miglioriVisti.length === 0) return null
+    return (
+      <ul className="migliori-elenco">
+        {miglioriVisti.map((x) => <li key={x.ufficio}><span className="piccolo">{miglioriVisti.length === 1 ? `Il miglior collaboratore di ${x.ufficio}` : x.ufficio}</span><strong>{x.nome}</strong></li>)}
+      </ul>
+    )
+  }
 
   async function carica(categoria: CategoriaClassifica, file: File) {
     setMessaggio(null)
@@ -160,10 +178,11 @@ export default function Classifiche({ ctx, meseLink }: { ctx: Contesto; meseLink
 
       <div className="griglia-classifiche entra entra-1">
         {categorie.map((c) => (
-          <SchedaClassifica key={c.codice} nome={c.nome} icona={c.icona} file={fileDi(c.codice)} generale={generale} occupato={attesa === c.codice} bloccato={attesa !== null}
+          <SchedaClassifica key={c.codice} nome={c.nome} icona={c.icona} file={fileDi(c.codice)} extra={extra(c.codice)} generale={generale} occupato={attesa === c.codice} bloccato={attesa !== null}
             onCarica={(f) => carica(c.codice, f)} onTogli={togli} onErrore={setMessaggio} />
         ))}
       </div>
+      {generale && <MiglioriPerUfficio mese={mese} uffici={ctx.uffici} citta={ctx.citta} scelti={dati.migliori} onSalvato={ricarica} />}
       {generale && <EmailClassifiche mese={mese} categorie={caricati.map((c) => c.codice)} />}
       {!generale && caricati.length > 0 && (
         <p className="piccolo non-stampa">Con <strong>Stampa</strong> si apre la finestra di stampa del PDF; con <strong>Apri</strong> il PDF si apre in una nuova scheda, da dove si può anche scaricare.</p>
@@ -176,8 +195,8 @@ export default function Classifiche({ ctx, meseLink }: { ctx: Contesto; meseLink
 
 const nomeCategoria = (c: CategoriaClassifica) => CATEGORIE_CLASSIFICHE.find((x) => x.codice === c)!.nome
 
-function SchedaClassifica({ nome, icona, file, generale, occupato, bloccato, onCarica, onTogli, onErrore }: {
-  nome: string; icona: string; file: ClassificaFile | undefined; generale: boolean; occupato: boolean; bloccato: boolean
+function SchedaClassifica({ nome, icona, file, extra, generale, occupato, bloccato, onCarica, onTogli, onErrore }: {
+  nome: string; icona: string; file: ClassificaFile | undefined; extra: ReactNode; generale: boolean; occupato: boolean; bloccato: boolean
   onCarica: (f: File) => void; onTogli: (f: ClassificaFile) => void; onErrore: (testo: string) => void
 }) {
   const scelta = useRef<HTMLInputElement>(null)
@@ -218,15 +237,16 @@ function SchedaClassifica({ nome, icona, file, generale, occupato, bloccato, onC
   }
 
   return (
-    <article className={`scheda scheda-classifica ${file ? '' : 'vuota'}`}>
+    <article className={`scheda scheda-classifica ${file || (extra && !generale) ? '' : 'vuota'}`}>
       {file && <AnteprimaPdf chiave={file.percorso} titolo={nome} carica={() => scaricaClassifica(file.percorso)} onClick={() => apri(file)} />}
       <div className="classifica-testa">
         <span className="classifica-icona"><Icona nome={icona} /></span>
         <h2>{nome}</h2>
       </div>
+      {extra}
       {file ? (
         <p className="piccolo classifica-file"><Icona nome="file-pdf" />{file.nome_file}{file.dimensione ? ` · ${dimensione(file.dimensione)}` : ''}{generale && ` · caricato ${quando(file.caricato_il)}`}</p>
-      ) : (
+      ) : (generale || !extra) && (
         <p className="piccolo">Nessun PDF caricato.</p>
       )}
       {file && (

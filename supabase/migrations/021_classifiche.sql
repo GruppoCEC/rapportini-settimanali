@@ -8,6 +8,8 @@
 --
 -- - classifiche_mesi: un mese pubblicato o no, e lo stato dell'email di avviso;
 -- - classifiche_file: un PDF per mese e classifica (il file sta nello Storage, contenitore "classifiche");
+-- - classifiche_migliori: il miglior collaboratore di ogni ufficio nel mese (lo sceglie l'amministratore generale);
+--   dopo la pubblicazione ogni ufficio vede il suo (chi segue più uffici, es. un affiliato, vede quelli dei suoi);
 -- - testi_email: oggetto, testo e pulsante dell'email di avviso, che l'amministratore generale cambia dal sito;
 -- - pubblica_classifiche(): pubblica il mese e, se richiesto, avvia subito l'invio delle email
 --   (lo stesso workflow dei promemoria, scripts/promemoria.mjs). Se l'avvio immediato non riesce
@@ -87,6 +89,46 @@ create policy classifiche_file_gestione on classifiche_file for all to authentic
 revoke all on classifiche_mesi, classifiche_file from anon;
 grant select, insert, update, delete on classifiche_mesi, classifiche_file to authenticated;
 
+-- Il miglior collaboratore di ogni ufficio (richiesta di Davide del 04/11/2026: nell'email di una volta c'era
+-- l'elenco degli uffici, ciascuno con il suo miglior collaboratore). Una riga per mese e ufficio.
+create table if not exists classifiche_migliori (
+  mese          date not null check (extract(day from mese) = 1),
+  ufficio_id    bigint not null references uffici on delete cascade,
+  persona_id    bigint not null references persone on delete cascade,
+  aggiornato_da text,
+  aggiornato_il timestamptz not null default now(),
+  primary key (mese, ufficio_id)
+);
+
+comment on table classifiche_migliori is
+  'Miglior collaboratore di ogni ufficio nel mese, scelto dall''amministratore generale (021)';
+
+create or replace function classifiche_migliori_prima() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from persone where id = new.persona_id and ufficio_id = new.ufficio_id) then
+    raise exception 'La persona scelta non è del personale di questo ufficio';
+  end if;
+  new.aggiornato_da := nullif(email_corrente(), '');
+  new.aggiornato_il := now();
+  return new;
+end $$;
+
+drop trigger if exists classifiche_migliori_prima on classifiche_migliori;
+create trigger classifiche_migliori_prima before insert or update on classifiche_migliori
+for each row execute function classifiche_migliori_prima();
+
+-- l'amministratore generale vede e cambia tutto; gli altri, dopo la pubblicazione, solo gli uffici che possono vedere
+alter table classifiche_migliori enable row level security;
+drop policy if exists classifiche_migliori_lettura on classifiche_migliori;
+create policy classifiche_migliori_lettura on classifiche_migliori for select to authenticated
+  using (sono_admin_generale() or (posso_leggere_ufficio(ufficio_id) and classifiche_pubblicate(mese)));
+drop policy if exists classifiche_migliori_gestione on classifiche_migliori;
+create policy classifiche_migliori_gestione on classifiche_migliori for all to authenticated
+  using (sono_admin_generale()) with check (sono_admin_generale());
+revoke all on classifiche_migliori from anon;
+grant select, insert, update, delete on classifiche_migliori to authenticated;
+
 -- Testo dell'email di avviso, scritto dall'amministratore generale dal sito (Classifiche → Email di avviso).
 -- Una riga per email (per ora solo 'classifiche'); senza riga vale il testo di partenza (scripts/testo-classifiche.mjs).
 create table if not exists testi_email (
@@ -129,7 +171,8 @@ begin
   if not sono_admin_generale() then
     raise exception 'Solo l''amministratore generale può pubblicare le classifiche';
   end if;
-  if not exists (select 1 from classifiche_file where mese = p_mese) then
+  if not exists (select 1 from classifiche_file where mese = p_mese)
+     and not exists (select 1 from classifiche_migliori where mese = p_mese) then
     raise exception 'Nessuna classifica caricata per questo mese';
   end if;
   insert into classifiche_mesi (mese, pubblicato_il, pubblicato_da, avviso_richiesto_il)

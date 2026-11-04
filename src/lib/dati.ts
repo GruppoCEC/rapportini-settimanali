@@ -3,7 +3,7 @@
 import { supabase } from './supabase'
 import { posizioniDaRighe, totaliCittaDaRighe, type Posizione, type RigaPosizione, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
 import { riepilogoDaRighe, type RiepilogoMensile, type RigaTotaliMensiliCitta, type TotaliMese } from './mensile'
-import type { ClassificaFile, ClassificheMese, Metrica, OrdinePresentazione, Persona, Rilevazione, Scadenza, StoricoMensile, Ufficio, Utente, ValoreMensile, VoceMensile } from './tipi'
+import type { ClassificaFile, ClassificheMese, Metrica, MigliorCollaboratore, OrdinePresentazione, Persona, Rilevazione, Scadenza, StoricoMensile, Ufficio, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
 
@@ -319,15 +319,27 @@ export async function caricaMensilePerBackup() {
 /** Contenitore dello Storage con i PDF delle classifiche */
 export const CONTENITORE_CLASSIFICHE = 'classifiche'
 
-/** I mesi con classifiche e i loro PDF (agli uffici il database manda solo i mesi pubblicati) */
-export async function caricaClassifiche(): Promise<{ mesi: ClassificheMese[]; file: ClassificaFile[] }> {
-  const [m, f] = await Promise.all([
+/**
+ * I mesi con classifiche, i loro PDF e il miglior collaboratore di ogni ufficio, con i nomi delle persone
+ * (agli uffici il database manda solo i mesi pubblicati e solo i propri uffici)
+ */
+export async function caricaClassifiche(): Promise<{ mesi: ClassificheMese[]; file: ClassificaFile[]; migliori: MigliorCollaboratore[]; nomi: Map<number, string> }> {
+  const [m, f, b] = await Promise.all([
     supabase.from('classifiche_mesi').select('mese, pubblicato_il, avviso_richiesto_il, avviso_inviato_il').order('mese', { ascending: false }),
     supabase.from('classifiche_file').select('mese, categoria, percorso, nome_file, dimensione, caricato_il').order('mese', { ascending: false }),
+    supabase.from('classifiche_migliori').select('mese, ufficio_id, persona_id'),
   ])
-  const errore = m.error ?? f.error
+  const errore = m.error ?? f.error ?? b.error
   if (errore) throw new Error(errore.message)
-  return { mesi: (m.data ?? []) as ClassificheMese[], file: (f.data ?? []) as ClassificaFile[] }
+  const migliori = (b.data ?? []) as MigliorCollaboratore[]
+  const ids = [...new Set(migliori.map((x) => x.persona_id))]
+  const nomi = new Map<number, string>()
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await supabase.from('persone').select('id, nome').in('id', ids.slice(i, i + 200))
+    if (error) throw new Error(error.message)
+    for (const p of data as { id: number; nome: string }[]) nomi.set(p.id, p.nome)
+  }
+  return { mesi: (m.data ?? []) as ClassificheMese[], file: (f.data ?? []) as ClassificaFile[], migliori, nomi }
 }
 
 /** Indirizzo temporaneo (1 ora) per aprire un PDF delle classifiche */

@@ -830,6 +830,21 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .classifica-file { display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
 .classifica-file i { font-size: 18px; color: var(--ko); flex: none; }
 .classifica-azioni { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+/* miglior collaboratore di ogni ufficio: il nome nella scheda (uffici) e la scelta ufficio per ufficio (amministratore generale) */
+.migliori-elenco { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
+.migliori-elenco li { display: flex; flex-direction: column; padding: 10px 12px; border-radius: 10px; background: var(--secondario-100); }
+.migliori-elenco li strong { font: 800 22px/1.2 var(--font-titoli); color: var(--secondario-800); }
+.migliori-riepilogo { display: flex; align-items: center; gap: 6px; }
+.migliori-riepilogo i { font-size: 18px; color: var(--secondario-700); }
+.migliori-uffici { margin-top: 18px; gap: 16px; }
+.migliori-uffici h2 { font-size: 22px; margin: 0 0 4px; }
+.migliori-citta h3 { font-size: 16px; margin: 4px 0 10px; color: var(--testo-2); }
+.migliori-griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 8px 16px; }
+.migliore-riga { display: grid; grid-template-columns: minmax(110px, 34%) 1fr auto; align-items: center; gap: 4px 10px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--bordo-card); }
+.migliore-riga.scelto { background: var(--ok-bg); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+.migliore-ufficio { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.migliore-riga select { min-width: 0; width: 100%; }
+.migliore-proposta { grid-column: 2 / -1; color: var(--quasi-fg); }
 /* anteprima della prima pagina del PDF: si clicca per aprirlo */
 .anteprima-pdf { position: relative; display: grid; place-items: center; height: 240px; margin: -6px -6px 0; padding: 10px; border: 1px solid var(--bordo-card); border-radius: 12px;
   background: var(--fondo-barra); cursor: zoom-in; overflow: hidden; font: inherit; color: var(--testo-tenue); }

@@ -886,6 +886,25 @@ describe('Classifiche del mese in PDF (021)', () => {
     await db.exec(`delete from classifiche_file; delete from classifiche_mesi;`)
   })
 
+  it('miglior collaboratore di ogni ufficio: lo sceglie l\'amministratore generale, ogni ufficio vede il suo dopo la pubblicazione', async () => {
+    const pA = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaA}, 'Mario Rossi', 'collaboratore', '2026-01-01') returning id`)
+    const pB = await id(`insert into persone (ufficio_id, nome, ruolo, data_inizio) values (${romaB}, 'Anna Bianchi', 'collaboratore', '2026-01-01') returning id`)
+    const scelta = (ufficio: number, persona: number) => `insert into classifiche_migliori (mese, ufficio_id, persona_id) values ('2026-10-01', ${ufficio}, ${persona})`
+    await rifiutata('a@test.it', scelta(romaA, pA))
+    await rifiutata('davide@test.it', scelta(romaA, pB))           // persona di un altro ufficio
+    await come('davide@test.it', scelta(romaA, pA))
+    await come('davide@test.it', scelta(romaB, pB))
+    expect(await come('a@test.it', `select * from classifiche_migliori`)).toHaveLength(0)      // non ancora pubblicato
+    await come('davide@test.it', `select pubblica_classifiche('2026-10-01', false)`)           // basta l'elenco dei migliori, anche senza PDF
+    const visti = async (email: string) => (await come<{ ufficio_id: number }>(email, `select ufficio_id from classifiche_migliori order by ufficio_id`)).map((r) => Number(r.ufficio_id))
+    expect(await visti('a@test.it')).toEqual([romaA])
+    expect(await visti('b@test.it')).toEqual([romaB])
+    expect(await visti('m@test.it')).toEqual([])
+    expect(await visti('resp@test.it')).toEqual([romaA, romaB])    // il responsabile d'area vede gli uffici della sua area
+    expect(await come('a@test.it', `delete from classifiche_migliori returning *`)).toHaveLength(0)
+    await db.exec(`delete from classifiche_migliori; delete from classifiche_mesi; delete from persone where id in (${pA}, ${pB});`)
+  })
+
   it('il testo dell\'email di avviso lo legge e lo cambia solo l\'amministratore generale', async () => {
     const testo = `insert into testi_email (chiave, oggetto, testo, pulsante) values ('classifiche', 'Classifiche di {mese}', 'Ciao', 'Apri')`
     await rifiutata('a@test.it', testo)

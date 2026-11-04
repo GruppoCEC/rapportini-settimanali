@@ -319,10 +319,15 @@ async function classificheDaAvvisare() {
 
 /** Email di avviso delle classifiche di un mese: una per indirizzo (chi ha più account la riceve una volta) */
 async function classifiche(mese) {
-  const { data: file, error } = await db.from('classifiche_file').select('categoria').eq('mese', mese)
+  const [{ data: file, error }, { count: migliori }] = await Promise.all([
+    db.from('classifiche_file').select('categoria').eq('mese', mese),
+    db.from('classifiche_migliori').select('ufficio_id', { count: 'exact', head: true }).eq('mese', mese),
+  ])
   if (error) throw new Error(error.message)
-  if (file.length === 0) { console.log(`Classifiche di ${nomeMese(mese)}: nessun PDF, nessuna email`); return }
-  const nomi = elencoClassifiche(file.map((f) => f.categoria))
+  // il miglior collaboratore c'è anche solo con l'elenco ufficio per ufficio, senza PDF
+  const categorie = [...file.map((f) => f.categoria), ...(migliori ? ['miglior_collaboratore'] : [])]
+  if (categorie.length === 0) { console.log(`Classifiche di ${nomeMese(mese)}: niente da mandare`); return }
+  const nomi = elencoClassifiche(categorie)
   // il testo scritto dall'amministratore generale (se non c'è, o prima della tabella, vale quello di partenza)
   const { data: testi, error: errTesti } = await db.from('testi_email').select('oggetto, testo, pulsante').eq('chiave', 'classifiche').maybeSingle()
   if (errTesti) console.log(`Testo dell'email non letto (${errTesti.message}): uso quello di partenza`)

@@ -291,7 +291,12 @@ const classifiche_file: any[] = ([
   archivio.set(percorso, blob)
   return { mese: meseClassifiche, categoria, percorso, nome_file: `${nome} ${nomeMeseDemo}.pdf`, dimensione: blob.size, caricato_da: 'davide@demo', caricato_il: `${meseDaCompilare.slice(0, 8)}06T18:20:00Z` }
 })
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati, ordine_presentazione, classifiche_mesi, classifiche_file, testi_email: [] }
+// miglior collaboratore di ogni ufficio nel mese di esempio: il primo collaboratore in servizio
+const classifiche_migliori: any[] = uffici.flatMap((u) => {
+  const p = persone.find((x) => x.ufficio_id === u.id && x.ruolo === 'collaboratore' && inServizio(x, meseClassifiche))
+  return p ? [{ mese: meseClassifiche, ufficio_id: u.id, persona_id: p.id }] : []
+})
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati, ordine_presentazione, classifiche_mesi, classifiche_file, testi_email: [], classifiche_migliori }
 const classifichePubblicate = (mese: string) => classifiche_mesi.some((m) => m.mese === mese && m.pubblicato_il)
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
@@ -325,6 +330,7 @@ function visibile(tabella: string, riga: any): boolean {
     case 'valori_riservati': return gestisce(uffici.find((u) => u.id === riga.ufficio_id)?.citta_id ?? -1)
     case 'classifiche_mesi': return me.ruolo === 'admin_generale' || !!riga.pubblicato_il
     case 'testi_email': return me.ruolo === 'admin_generale'
+    case 'classifiche_migliori': return me.ruolo === 'admin_generale' || (ufficiLeggibili().has(riga.ufficio_id) && classifichePubblicate(riga.mese))
     case 'classifiche_file': return me.ruolo === 'admin_generale' || classifichePubblicate(riga.mese)
     default: return true
   }
@@ -465,7 +471,7 @@ class Interrogazione {
     if (op) {
       if (!me) return { data: null, error: { message: 'permission denied' } }
       // affiliato: scrive solo i dati dei suoi uffici (controllati sotto); gli uffici agli affiliati li assegna solo l'amministratore generale
-      if (['classifiche_mesi', 'classifiche_file', 'testi_email'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
+      if (['classifiche_mesi', 'classifiche_file', 'testi_email', 'classifiche_migliori'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
       if ((me.ruolo === 'affiliato' && !['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella))
         || (this.tabella === 'uffici_affiliato' && me.ruolo !== 'admin_generale')) {
         return { data: null, error: { message: 'new row violates row-level security policy' } }
@@ -560,7 +566,7 @@ export const supabase: any = {
     if (nome === 'report_gruppo_mensile') return { data: reportGruppoMensile(args.p_mese), error: null }
     if (nome === 'pubblica_classifiche') {      // come 021: nella demo nessuna email vera, l'avviso risulta inviato dopo 5 secondi
       if (io()?.ruolo !== 'admin_generale') return { data: null, error: { message: 'Solo l\'amministratore generale può pubblicare le classifiche' } }
-      if (!classifiche_file.some((f) => f.mese === args.p_mese)) return { data: null, error: { message: 'Nessuna classifica caricata per questo mese' } }
+      if (!classifiche_file.some((f) => f.mese === args.p_mese) && !classifiche_migliori.some((f) => f.mese === args.p_mese)) return { data: null, error: { message: 'Nessuna classifica caricata per questo mese' } }
       const ora = new Date().toISOString()
       let m = classifiche_mesi.find((x) => x.mese === args.p_mese)
       if (!m) classifiche_mesi.push(m = { mese: args.p_mese, avviso_richiesto_il: null, avviso_inviato_il: null })

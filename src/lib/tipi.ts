@@ -167,3 +167,10 @@ export interface ClassificheMese {
   avviso_richiesto_il: string | null
   avviso_inviato_il: string | null
 }
+
+/** Il miglior collaboratore di un ufficio nel mese (021), scelto dall'amministratore generale */
+export interface MigliorCollaboratore {
+  mese: string
+  ufficio_id: number
+  persona_id: number
+}
