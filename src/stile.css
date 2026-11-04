@@ -583,13 +583,14 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .tabellone-mensile .tabellone-riga .valori strong { font-size: 26px; }
 .tabellone-mensile .tabellone-riga.testa { padding: 10px 0 4px; }
 /* pagina del singolo ufficio nella presentazione mensile: righe più strette, così l'imbuto sta nello schermo */
-/* Pagina del singolo ufficio nella presentazione del mese: striscia, totali stretti, imbuto in verticale, personale.
-   Righe e caratteri crescono con lo spazio disponibile (richiesta di Davide): --r è l'altezza di una riga, calcolata
-   dall'altezza dello schermo e dal numero di persone dell'ufficio (--n), e limitata dalla larghezza perché i nomi
-   delle voci stiano nella colonna. Con 9 persone su uno schermo 1600×1000 vale circa 27px, con 5 persone su un
-   proiettore Full HD circa 39px. */
+/* Pagina del singolo ufficio nella presentazione del mese: striscia, totali stretti, imbuto in verticale.
+   Righe e caratteri crescono con lo spazio disponibile (richiesta di Davide): --h è l'altezza di una riga, dall'altezza
+   dello schermo; --r è la misura dei caratteri, limitata anche dalla larghezza perché i nomi delle voci stiano nella colonna.
+   Il personale persona per persona è stato tolto il 04/11/2026 (troppi numeri da seguire in riunione): le righe
+   si allungano fino a riempire lo schermo. */
 .pagina-ufficio-mese {
-  --r: clamp(27px, min(calc((100vh - 510px) / (10 + var(--n, 6))), 2.15vw), 52px);
+  --h: clamp(27px, calc((100vh - 380px) / 11), 64px);
+  --r: min(var(--h), clamp(27px, 2.15vw, 52px));
   gap: calc(var(--r) * .4);
 }
 .striscia-ufficio { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: center; padding: calc(var(--r, 30px) * .25) 16px; border-radius: 12px; background: #fff; font-size: calc(var(--r, 30px) * .5); font-weight: 600; color: var(--testo-2); }
@@ -600,30 +601,22 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .ufficio-mese-centro { display: grid; grid-template-columns: minmax(0, 1fr) clamp(270px, calc(var(--r, 30px) * 8.6), 390px); gap: 14px; align-items: start; }
 .pagina-ufficio-mese .tabellone-mensile { grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); gap: 16px; }
 .pagina-ufficio-mese .tabellone-mensile .tabellone { padding: 2px 14px 6px; gap: 2px; }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga { grid-template-columns: minmax(0, 1fr) calc(var(--r) * 1.7) calc(var(--r) * 2.35) calc(var(--r) * 3.4); gap: 10px; padding: 0; height: var(--r); }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga { grid-template-columns: minmax(0, 1fr) calc(var(--r) * 1.7) calc(var(--r) * 2.35) calc(var(--r) * 3.4); gap: 10px; padding: 0; height: var(--h); }
 .pagina-ufficio-mese .tabellone-mensile .tabellone-riga.testa { height: auto; font-size: calc(var(--r) * .35); padding: 8px 0 2px; }
 .pagina-ufficio-mese .tabellone-mensile .tabellone-riga .nome { font-size: calc(var(--r) * .48); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pagina-ufficio-mese .tabellone-mensile .tabellone-riga .valori strong { font-size: calc(var(--r) * .68); }
 .pagina-ufficio-mese .tabellone-mensile .tabellone-riga .delta { padding: 0 8px; font-size: calc(var(--r) * .43); }
-.pagina-ufficio-mese .tabellone-mensile .tabellone-riga svg { max-height: calc(var(--r) - 8px); }
+.pagina-ufficio-mese .tabellone-mensile .tabellone-riga svg { max-height: calc(var(--h) - 12px); }
 .imbuto-verticale { gap: 0; padding: 10px 12px; }
 .imbuto-verticale .imbuto-riga { flex-direction: column; flex-wrap: nowrap; gap: 2px; margin-top: 4px; }
 .imbuto-verticale .imbuto-riga-pezzo { flex-direction: column; gap: 2px; }
-.imbuto-verticale .imbuto-riga-fase { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; padding: calc(var(--r, 30px) * .07) 10px; min-width: 0; }
+.imbuto-verticale .imbuto-riga-fase { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; padding: calc(var(--h, 30px) * .2) 10px; min-width: 0; }
 .imbuto-verticale .imbuto-riga-fase span { font-size: calc(var(--r, 30px) * .42); }
 .imbuto-verticale .imbuto-riga-fase strong { font-size: calc(var(--r, 30px) * .6); }
 .imbuto-verticale .imbuto-riga-passaggio { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 6px; padding: 0 8px; font-size: calc(var(--r, 30px) * .37); align-self: center; text-align: center; }
 .imbuto-verticale .imbuto-riga-passaggio strong { font-size: calc(var(--r, 30px) * .48); }
 .imbuto-verticale .imbuto-periodo { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--testo-3); }
 .imbuto-verticale .imbuto-riga-passaggio.vuoto i { transform: rotate(90deg); }
-.personale-dia { padding: 6px 14px 10px; overflow-x: auto; }
-.tabella-personale-dia { width: 100%; font-size: calc(var(--r, 30px) * .52); }
-.tabella.tabella-personale-dia thead th { font-size: calc(var(--r, 30px) * .35); padding: 3px 2px; }
-.tabella.tabella-personale-dia td, .tabella.tabella-personale-dia tbody th { padding: 1px 4px; height: var(--r, 29px); }
-.tabella-personale-dia td { font-weight: 700; font-variant-numeric: tabular-nums; }
-.tabella.tabella-personale-dia tbody th.ufficio-fisso { min-width: 0; max-width: none; width: 1%; white-space: nowrap; }
-.tabella-personale-dia .nome-dia { font-weight: 700; }
-.tabella-personale-dia .ruolo-dia { font-size: calc(var(--r, 30px) * .38); font-weight: 600; color: var(--testo-3); }
 @media (max-width: 1150px) { .ufficio-mese-centro { grid-template-columns: 1fr; } }
 
 .classifiche { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 24px; }

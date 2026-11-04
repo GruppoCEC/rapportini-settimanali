@@ -4,7 +4,7 @@
 // se presentare una settimana (rapportini settimanali) o un mese (rapportini mensili, con lo
 // storico del file Excel annuale per i mesi compilati prima della piattaforma).
 // Si avanza con le frecce della tastiera (o i pulsanti), Esc per uscire.
-import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   inClassifica, classifica, classificaQuota, quotaDaTotali, raggiungimento, sommaTotali, statoCompilazionePeriodo,
   totaliPerPeriodi, totaliPerUfficio, variazioneZona, type StatoCompilazione as Stato, type Totali, type TotaliCitta,
@@ -16,7 +16,7 @@ import {
   CASELLE_NOTA, caricaNote, caricaOrdinePresentazione, caricaPersone, caricaPosizioneCitta, caricaPosizioneMensileCitta, type PosizioniCitta, caricaRilevazioni, caricaStorico, caricaTotaliCitta, caricaTotaliMensiliCitta, caricaValoriMesi, caricaVociMensili, type Nota,
 } from '../lib/dati'
 import {
-  applicaOrdine, formattaNumero, indicatoriAccanto, inServizio, meseInCorso as meseAttuale, ordinaUfficiReport, righeDelMese, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
+  applicaOrdine, formattaNumero, inServizio, meseInCorso as meseAttuale, ordinaUfficiReport, titoloMese, mesePredefinito, riepilogoMensile, STAFF, statoMensile, totaleConStorico, variazioneBuona, vociDelRapportino,
   type RiepilogoMensile, type TotaliMese,
 } from '../lib/mensile'
 import { isAffiliato, isAmministratore } from '../lib/permessi'
@@ -24,8 +24,7 @@ import {
   aggiungiMesi, aggiungiSettimane, intervalloSettimana, intervalloSettimane, meseDellaSettimana, nomeMeseBreve, settimaneDelMese,
   ultimaSettimanaConclusa,
 } from '../lib/settimane'
-import { type Metrica, type OrdinePresentazione, type Persona, type Rilevazione, type Ufficio, type VoceMensile } from '../lib/tipi'
-import { annotazioniIndicatori, classeMovimento, TestataVoci, ValoreConIndicatori } from '../componenti/TabellaMensile'
+import { type Metrica, type OrdinePresentazione, type Rilevazione, type Ufficio, type VoceMensile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
 import { BadgeStato, CellaQuota, CellaRisultato, coloreRapporto } from '../componenti/Celle'
 import { GraficoAndamento } from '../componenti/Grafici'
@@ -75,15 +74,11 @@ export interface DatiMensili {
   mesi: string[]                       // 'AAAA-MM-01', dal più vecchio; l'ultimo è quello presentato
   uffici: {
     ufficio: Ufficio; totali: TotaliMese[]; stato: Stato; daStorico: boolean; inserito: { il: string; da: string | null } | null
-    personale: PersonaleMese                                    // il rapportino del mese presentato, persona per persona
   }[]
   citta: RiepilogoMensile | null       // per un ufficio: tutta la sua città (solo le somme)
   posizione: PosizioniCitta | null     // per un ufficio: la sua posizione nella città (solo la sua riga)
   ordine: OrdinePresentazione | null   // ordine delle pagine degli uffici scelto dall'amministratore generale (020)
 }
-
-/** Le persone del mese presentato (anche chi è entrato o uscito nel mese) e i loro numeri ("persona|voce" → valore) */
-interface PersonaleMese { righe: Persona[]; valori: Map<string, number | null> }
 
 /** Staff e colonne del rapportino mensile (l'indicatore delle coordinatrici resta fuori) */
 const colonneMensili = (voci: VoceMensile[]) => [STAFF, ...vociDelRapportino(voci).map((v) => v.codice)]
@@ -116,10 +111,6 @@ export async function caricaDatiMensili(mesi: string[], uffici: Ufficio[], soloU
       return {
         ufficio, daStorico, totali: perMese.map((x) => x.totale),
         inserito: ultimoValore ? { il: ultimoValore.aggiornato_il!, da: ultimoValore.aggiornato_da ?? null } : null,
-        personale: {
-          righe: righeDelMese(suePersone, ultimo),
-          valori: new Map(suoiValori.filter((v) => v.mese === ultimo).map((v) => [`${v.persona_id}|${v.voce}`, v.valore])),
-        },
         stato: daStorico ? 'completo' : statoMensile(suePersone.filter((p) => inServizio(p, ultimo)), suoiValori.filter((v) => v.mese === ultimo), voci),
       }
     }),
@@ -1051,7 +1042,7 @@ export function costruisciDiapositiveMensili({ periodo, titolo, nomePresentazion
         titolo: u.ufficio.nome, riepilogo: riepilogoMensile([u.totali], colonne), voci, colonne, etichette,
         nota: u.daStorico ? 'I numeri vengono dal file Excel annuale (solo il totale dell\'ufficio).' : '',
         ufficio: {
-          stato: u.stato, inserito: u.inserito, personale: u.personale, mese: mesi[mesi.length - 1], daStorico: u.daStorico,
+          stato: u.stato, inserito: u.inserito,
           imbuto: calcolaImbuto(IMBUTO_MENSILE, ultimiMesi(u.totali)), riferimento: imbutoGruppo, nomeRiferimento: titolo, periodoImbuto: periodoImbutoMese,
         },
       }))
@@ -1066,7 +1057,6 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
   /** pagina di un singolo ufficio: stato del rapportino al posto del conteggio, e il suo imbuto in fondo */
   ufficio?: {
     stato: Stato; inserito: { il: string; da: string | null } | null; imbuto: Imbuto; riferimento: Imbuto; nomeRiferimento: string; periodoImbuto: string
-    personale: PersonaleMese; mese: string; daStorico: boolean
   }
 }): Diapositiva {
   const totale = riepilogo.andamento[riepilogo.andamento.length - 1]
@@ -1097,10 +1087,9 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
   return {
     titolo,
     contenuto: (t) => (
-      <div className={`p-colonna ${ufficio ? 'pagina-ufficio-mese' : ''}`}
-        style={ufficio ? { '--n': ufficio.daStorico ? 1 : Math.max(1, ufficio.personale.righe.length) } as CSSProperties : undefined}>
+      <div className={`p-colonna ${ufficio ? 'pagina-ufficio-mese' : ''}`}>
         {ufficio ? (
-          // pagina dell'ufficio: una striscia sottile al posto dei tre riquadri, per lasciare spazio al personale
+          // pagina dell'ufficio: una striscia sottile al posto dei tre riquadri
           <div className="striscia-ufficio">
             <span className="striscia-voce"><BadgeStato stato={ufficio.stato} />
               <span>{ufficio.inserito
@@ -1128,7 +1117,8 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
         )}
         {ufficio ? (
           <>
-            {/* pagina dell'ufficio: tabelle più strette e imbuto in verticale a destra, sotto il personale (idea di Davide) */}
+            {/* pagina dell'ufficio: tabelle e imbuto in verticale a destra (idea di Davide). Il personale persona per persona
+                è stato tolto il 04/11/2026: troppi numeri da seguire in riunione */}
             <div className="ufficio-mese-centro">
               <div className="tabellone-mensile">
                 {colonna(righe.slice(0, meta), t)}
@@ -1138,9 +1128,6 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
                 <span className="p-etichetta">Imbuto della vendita <span className="imbuto-periodo">· {ufficio.periodoImbuto}</span></span>
                 <ImbutoInRiga imbuto={ufficio.imbuto} riferimento={ufficio.riferimento} nomeRiferimento={ufficio.nomeRiferimento} />
               </div>
-            </div>
-            <div className="p-card personale-dia">
-              <TabellaPersonaleDia voci={voci} mese={ufficio.mese} personale={ufficio.personale} daStorico={ufficio.daStorico} />
             </div>
           </>
         ) : (
@@ -1153,49 +1140,9 @@ function paginaTotaliMensili({ titolo, riepilogo, voci, colonne, etichette, nota
           Numeri dei rapportini mensili.
           {parziale && ' Il confronto con il mese prima conta solo gli uffici che hanno la voce in entrambi i mesi.'}
           {' Incarichi scaduti: se aumentano è in rosso.'}
-          {ufficio && ' Personale: riga verde = entrato nel mese, rossa = ha lasciato l\'ufficio nel mese; "fix" = appuntamenti fix delle coordinatrici.'}
           {nota && ` ${nota}`}
         </p>
       </div>
     ),
   }
-}
-
-/**
- * Il personale dell'ufficio nella sua pagina del mese: una riga per persona con i suoi numeri, come il rapportino
- * (verde chi è entrato nel mese, rosso chi è uscito; per le coordinatrici il fix in alto, come esponente).
- */
-const RUOLO_BREVE: Record<Persona['ruolo'], string> = { responsabile: 'resp.', collaboratore: 'coll.', coordinatrice: 'coord.', marketer: 'mkt', da_definire: 'ruolo da definire' }
-
-function TabellaPersonaleDia({ voci, mese, personale, daStorico }: { voci: VoceMensile[]; mese: string; personale: PersonaleMese; daStorico: boolean }) {
-  const colonne = vociDelRapportino(voci)
-  const { righe, valori } = personale
-  if (daStorico || righe.length === 0) {
-    return <p className="piccolo">{daStorico ? 'Per questo mese c\'è solo il totale dell\'ufficio (file Excel annuale): niente numeri persona per persona.' : 'Nessuna persona nel personale dell\'ufficio in questo mese.'}</p>
-  }
-  const { annotazioni } = annotazioniIndicatori(voci, righe)
-  const valore = (p: Persona, codice: string) => valori.get(`${p.id}|${codice}`) ?? null
-  return (
-    <table className="tabella tabella-mensile tabella-personale-dia">
-      <TestataVoci voci={colonne} prime={['Personale']} annotazioni={annotazioni} />
-      <tbody>
-        {righe.map((p) => (
-          <tr key={p.id} className={classeMovimento(p, mese)}>
-            <th scope="row" className="ufficio-fisso">
-              <span className="nome-dia">{p.nome}</span> <span className="ruolo-dia">{RUOLO_BREVE[p.ruolo]}</span>
-            </th>
-            {colonne.map((v) => {
-              const accanto = indicatoriAccanto(voci, v.codice, p.ruolo)
-              const x = valore(p, v.codice)
-              return (
-                <td key={v.codice} className={`destra ${x === null && !accanto.length ? 'cella-vuota' : ''}`}>
-                  <ValoreConIndicatori valore={x} tra={accanto.map((a) => valore(p, a.codice))} />
-                </td>
-              )
-            })}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
 }

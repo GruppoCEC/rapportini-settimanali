@@ -1,5 +1,15 @@
 # Storia delle versioni
 
+## 0.34.0 — 4 novembre 2026
+
+**Presentazione del mese: tolto il personale dalla pagina di ogni ufficio** (richiesta di Davide: troppi numeri, in riunione non si seguono):
+- nella pagina di ogni ufficio restano la striscia in alto (stato del rapportino, persone in servizio, voci migliorate e peggiorate), le voci del mese con il mese prima e gli ultimi 6 mesi, e l'imbuto della vendita;
+- tolta la tabella persona per persona (aggiunta nella 0.32.0). I numeri delle singole persone restano dove erano: Inserisci mese, Report mensile → Singoli rapportini, Personale e Collaboratori;
+- le righe ora si **allungano fino a riempire lo schermo** (su un proiettore Full HD 64 pixel invece di 41, su uno schermo 1600×1000 56 pixel); i caratteri restano grandi quanto prima, così i nomi delle voci non si tagliano;
+- vale in **Report mensile → Presentazione** e **Riunione → Mese**;
+- provato nella demo su tutte le 47 pagine degli uffici a 1920×1080, 1600×1000 e 1366×768: nessuna esce dallo schermo;
+- nessuna modifica al database: basta pubblicare (Push).
+
 ## 0.33.3 — 4 novembre 2026
 
 **Copertina della presentazione del mese: uffici solo in verde o in rosso** (richiesta di Davide):
