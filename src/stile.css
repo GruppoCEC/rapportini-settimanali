@@ -812,6 +812,27 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
   @bottom-right { content: "Pagina " counter(page) " di " counter(pages); font: 8pt 'Manrope', system-ui, sans-serif; color: #6B6F78; }
 }
 @page verticale { size: A4 portrait; margin: 10mm 10mm 14mm; }
+/* Classifiche del mese in PDF (021): stato della pubblicazione e una scheda per classifica */
+.scheda-titolo > .titolo-classifiche { margin-right: auto; }
+.stato-classifiche { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 16px; border-radius: 12px; background: var(--quasi-bg); color: var(--quasi-fg); }
+.stato-classifiche.pubblicate { background: var(--ok-bg); color: var(--ok-fg); }
+.stato-classifiche p { display: flex; align-items: flex-start; gap: 10px; flex: 1 1 320px; margin: 0; }
+.stato-classifiche p i { font-size: 22px; flex: none; }
+.azioni-classifiche { display: flex; flex-wrap: wrap; gap: 8px; }
+.griglia-classifiche { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; margin-top: 18px; }
+.griglia-classifiche + .piccolo { margin-top: 14px; }
+.scheda-classifica { gap: 12px; }
+.scheda-classifica.vuota { border-style: dashed; background: color-mix(in srgb, var(--superficie) 60%, var(--sfondo)); }
+.classifica-testa { display: flex; align-items: center; gap: 12px; }
+.classifica-testa h2 { font-size: 20px; margin: 0; }
+.classifica-icona { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--secondario-100); color: var(--secondario-700); font-size: 24px; flex: none; }
+.scheda-classifica.vuota .classifica-icona { background: var(--fondo-barra); color: var(--testo-tenue); }
+.classifica-file { display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.classifica-file i { font-size: 18px; color: var(--ko); flex: none; }
+.classifica-azioni { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.classifica-gestione { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 10px; border-top: 1px solid var(--divisore); }
+.classifica-gestione.sola { margin-top: auto; border-top: 0; padding-top: 0; }
+
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; transition: none !important; }
   body { background: #fff; }

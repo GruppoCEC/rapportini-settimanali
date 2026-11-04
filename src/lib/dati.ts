@@ -3,7 +3,7 @@
 import { supabase } from './supabase'
 import { posizioniDaRighe, totaliCittaDaRighe, type Posizione, type RigaPosizione, type RigaTotaliCitta, type TotaliCitta } from './aggregazioni'
 import { riepilogoDaRighe, type RiepilogoMensile, type RigaTotaliMensiliCitta, type TotaliMese } from './mensile'
-import type { Metrica, OrdinePresentazione, Persona, Rilevazione, Scadenza, StoricoMensile, Ufficio, Utente, ValoreMensile, VoceMensile } from './tipi'
+import type { ClassificaFile, ClassificheMese, Metrica, OrdinePresentazione, Persona, Rilevazione, Scadenza, StoricoMensile, Ufficio, Utente, ValoreMensile, VoceMensile } from './tipi'
 
 const PAGINA = 1000   // Supabase restituisce al massimo 1000 righe per richiesta
 
@@ -312,4 +312,34 @@ export async function caricaMensilePerBackup() {
   } catch {
     return null
   }
+}
+
+// ---------------------------------------------------------------- Classifiche del mese in PDF (021)
+
+/** Contenitore dello Storage con i PDF delle classifiche */
+export const CONTENITORE_CLASSIFICHE = 'classifiche'
+
+/** I mesi con classifiche e i loro PDF (agli uffici il database manda solo i mesi pubblicati) */
+export async function caricaClassifiche(): Promise<{ mesi: ClassificheMese[]; file: ClassificaFile[] }> {
+  const [m, f] = await Promise.all([
+    supabase.from('classifiche_mesi').select('mese, pubblicato_il, avviso_richiesto_il, avviso_inviato_il').order('mese', { ascending: false }),
+    supabase.from('classifiche_file').select('mese, categoria, percorso, nome_file, dimensione, caricato_il').order('mese', { ascending: false }),
+  ])
+  const errore = m.error ?? f.error
+  if (errore) throw new Error(errore.message)
+  return { mesi: (m.data ?? []) as ClassificheMese[], file: (f.data ?? []) as ClassificaFile[] }
+}
+
+/** Indirizzo temporaneo (1 ora) per aprire un PDF delle classifiche */
+export async function indirizzoClassifica(percorso: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(CONTENITORE_CLASSIFICHE).createSignedUrl(percorso, 3600)
+  if (error || !data) throw new Error(error?.message ?? 'File non trovato')
+  return data.signedUrl
+}
+
+/** Il PDF come file, per stamparlo dalla pagina */
+export async function scaricaClassifica(percorso: string): Promise<Blob> {
+  const { data, error } = await supabase.storage.from(CONTENITORE_CLASSIFICHE).download(percorso)
+  if (error || !data) throw new Error(error?.message ?? 'File non trovato')
+  return data
 }

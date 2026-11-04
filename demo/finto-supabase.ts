@@ -252,7 +252,47 @@ const scadenze_mensili: any[] = [{ mese: meseDaCompilare, scadenza: fraUnaSettim
 scadenze_mensili.push({ mese: aggiungiMesi(meseDaCompilare, -1), scadenza: new Date(Date.now() - 2 * 86400000).toISOString(), blocca: true })
 
 const ordine_presentazione: any[] = []    // ordine delle pagine degli uffici nella presentazione del mese (020)
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati, ordine_presentazione }
+
+// Classifiche del mese in PDF (021): il mese prima di quello da compilare è già pubblicato, con PDF di esempio;
+// quello da compilare è vuoto, per provare a caricare e pubblicare. I file stanno in memoria (finto Storage).
+const archivio = new Map<string, Blob>()
+/** Un PDF di una pagina con un titolo e qualche riga, scritto a mano (niente librerie) */
+function pdfDiProva(titolo: string, righe: string[]): Blob {
+  const testo = (t: string) => t.replace(/[\\()]/g, (c) => `\\${c}`)
+  const flusso = ['BT', '/F1 26 Tf', '72 760 Td', `(${testo(titolo)}) Tj`, '/F1 13 Tf', '0 -24 Td', '(PDF di esempio della demo: al suo posto ci sarà quello che carichi tu) Tj', '/F1 16 Tf',
+    ...righe.flatMap((r) => ['0 -30 Td', `(${testo(r)}) Tj`]), 'ET'].join('\n')
+  const oggetti = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${flusso.length} >>\nstream\n${flusso}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+  ]
+  let pdf = '%PDF-1.4\n'
+  const posizioni = oggetti.map((o, i) => { const p = pdf.length; pdf += `${i + 1} 0 obj\n${o}\nendobj\n`; return p })
+  const xref = pdf.length
+  pdf += `xref\n0 ${oggetti.length + 1}\n0000000000 65535 f \n${posizioni.map((p) => `${String(p).padStart(10, '0')} 00000 n \n`).join('')}`
+  pdf += `trailer\n<< /Size ${oggetti.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`
+  return new Blob([Uint8Array.from(pdf, (c) => c.charCodeAt(0) & 255)], { type: 'application/pdf' })
+}
+const meseClassifiche = aggiungiMesi(meseDaCompilare, -1)
+const nomeMeseDemo = new Date(`${meseClassifiche}T12:00:00`).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
+const classifiche_mesi: any[] = [{ mese: meseClassifiche, pubblicato_il: `${meseDaCompilare.slice(0, 8)}06T18:30:00Z`, pubblicato_da: 'davide@demo',
+  avviso_richiesto_il: `${meseDaCompilare.slice(0, 8)}06T18:30:00Z`, avviso_inviato_il: `${meseDaCompilare.slice(0, 8)}06T18:32:00Z` }]
+const classifiche_file: any[] = ([
+  ['uffici', 'Classifica uffici', ['1. Trieste', '2. Prati', '3. Brera']],
+  ['collaboratori', 'Classifica collaboratori', ['1. Collaboratore A (Trieste)', '2. Collaboratore B (Brera)', '3. Collaboratore C (Monti)']],
+  ['miglior_collaboratore', 'Miglior collaboratore', ['Collaboratore A, ufficio di Trieste']],
+  ['miglior_coordinatrice', 'Miglior coordinatrice', ['Coordinatrice A, ufficio di Prati']],
+  ['miglior_coordinatore', 'Miglior coordinatore', ['Coordinatore A']],
+] as [string, string, string[]][]).map(([categoria, nome, righe]) => {
+  const percorso = `${meseClassifiche.slice(0, 7)}/${categoria}-1.pdf`
+  const blob = pdfDiProva(`${nome} - ${nomeMeseDemo}`, righe)
+  archivio.set(percorso, blob)
+  return { mese: meseClassifiche, categoria, percorso, nome_file: `${nome} ${nomeMeseDemo}.pdf`, dimensione: blob.size, caricato_da: 'davide@demo', caricato_il: `${meseDaCompilare.slice(0, 8)}06T18:20:00Z` }
+})
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati, ordine_presentazione, classifiche_mesi, classifiche_file }
+const classifichePubblicate = (mese: string) => classifiche_mesi.some((m) => m.mese === mese && m.pubblicato_il)
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
 const CHIAVE = 'rapportini.demo.utente'
@@ -283,6 +323,8 @@ function visibile(tabella: string, riga: any): boolean {
     case 'confronto_anno_prima': return me.ruolo === 'admin_generale'
     case 'punti_mensili': return me.ruolo === 'admin_generale' || me.ruolo === 'admin_citta'
     case 'valori_riservati': return gestisce(uffici.find((u) => u.id === riga.ufficio_id)?.citta_id ?? -1)
+    case 'classifiche_mesi': return me.ruolo === 'admin_generale' || !!riga.pubblicato_il
+    case 'classifiche_file': return me.ruolo === 'admin_generale' || classifichePubblicate(riga.mese)
     default: return true
   }
 }
@@ -422,6 +464,7 @@ class Interrogazione {
     if (op) {
       if (!me) return { data: null, error: { message: 'permission denied' } }
       // affiliato: scrive solo i dati dei suoi uffici (controllati sotto); gli uffici agli affiliati li assegna solo l'amministratore generale
+      if (['classifiche_mesi', 'classifiche_file'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
       if ((me.ruolo === 'affiliato' && !['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella))
         || (this.tabella === 'uffici_affiliato' && me.ruolo !== 'admin_generale')) {
         return { data: null, error: { message: 'new row violates row-level security policy' } }
@@ -452,6 +495,7 @@ class Interrogazione {
               return { data: null, error: { message: 'new row violates row-level security policy' } }
             }
           }
+          if (this.tabella === 'classifiche_file') Object.assign(r, { caricato_da: me.email, caricato_il: ora })   // come il trigger (021)
           const nuova = { id: prossimoId++, attivo: true, ...r, aggiornato_da: me.email, aggiornato_il: ora }
           if (this.tabella === 'uffici' && t.some((x) => x.nome === r.nome && x.citta_id === r.citta_id)) return { data: null, error: { message: 'duplicate key' } }
           const i = op.chiavi ? t.findIndex((x) => op.chiavi!.every((k) => x[k] === r[k])) : -1
@@ -513,6 +557,20 @@ export const supabase: any = {
     if (nome === 'posizione_mia_citta') return { data: posizioneMiaCitta(args.p_inizi, args.p_fini), error: null }
     if (nome === 'posizione_mensile_mia_citta') return { data: posizioneMensileMiaCitta(args.p_mesi), error: null }
     if (nome === 'report_gruppo_mensile') return { data: reportGruppoMensile(args.p_mese), error: null }
+    if (nome === 'pubblica_classifiche') {      // come 021: nella demo nessuna email vera, l'avviso risulta inviato dopo 5 secondi
+      if (io()?.ruolo !== 'admin_generale') return { data: null, error: { message: 'Solo l\'amministratore generale può pubblicare le classifiche' } }
+      if (!classifiche_file.some((f) => f.mese === args.p_mese)) return { data: null, error: { message: 'Nessuna classifica caricata per questo mese' } }
+      const ora = new Date().toISOString()
+      let m = classifiche_mesi.find((x) => x.mese === args.p_mese)
+      if (!m) classifiche_mesi.push(m = { mese: args.p_mese, avviso_richiesto_il: null, avviso_inviato_il: null })
+      Object.assign(m, { pubblicato_il: ora, pubblicato_da: io().email, avviso_richiesto_il: m.avviso_richiesto_il ?? (args.p_avvisa ? ora : null) })
+      if (args.p_avvisa && !m.avviso_inviato_il) {
+        const destinatari = utenti.filter((u) => u.attivo && u.email_promemoria).length
+        console.info(`[demo] classifiche ${args.p_mese.slice(0, 7)}: avviso a ${destinatari} account con l'email per i promemoria (nella demo non parte nessuna email)`)
+        setTimeout(() => { m.avviso_inviato_il = new Date().toISOString() }, 5000)
+      }
+      return { data: null, error: null }
+    }
     return { data: null, error: { message: `funzione ${nome} non disponibile nella demo` } }
   },
   functions: {
@@ -539,6 +597,36 @@ export const supabase: any = {
     },
   },
   from: (tabella: string) => new Interrogazione(tabella),
+  // finto Storage: solo il contenitore "classifiche" (021), con le stesse regole delle tabelle
+  storage: {
+    from: (_contenitore: string) => {
+      const leggibile = (percorso: string) => io()?.ruolo === 'admin_generale' || (!!io() && classifichePubblicate(`${percorso.slice(0, 7)}-01`))
+      const negato = { data: null, error: { message: 'Object not found' } }
+      return {
+        upload: async (percorso: string, file: Blob) => {
+          await attesa(500)
+          if (io()?.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
+          archivio.set(percorso, file)
+          return { data: { path: percorso }, error: null }
+        },
+        remove: async (percorsi: string[]) => {
+          await attesa()
+          if (io()?.ruolo === 'admin_generale') percorsi.forEach((x) => archivio.delete(x))
+          return { data: [], error: null }
+        },
+        createSignedUrl: async (percorso: string) => {
+          await attesa()
+          const blob = leggibile(percorso) && archivio.get(percorso)
+          return blob ? { data: { signedUrl: URL.createObjectURL(blob) }, error: null } : negato
+        },
+        download: async (percorso: string) => {
+          await attesa()
+          const blob = leggibile(percorso) && archivio.get(percorso)
+          return blob ? { data: blob, error: null } : negato
+        },
+      }
+    },
+  },
 }
 
 // Per la console del browser: quale settimana è "da compilare" nella demo

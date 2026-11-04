@@ -11,13 +11,16 @@
 //   il giorno prima               → ultimo promemoria agli uffici ancora mancanti
 //   30 minuti prima della scadenza → "ultima chiamata", solo se la scadenza ha il blocco (Davide, 26/10/2026)
 //   il giorno dopo                → all'amministratore generale, chi manca, chi è incompleto e chi è in ritardo
+// Classifiche del mese (021): quando l'amministratore generale le pubblica con l'avviso, a ogni giro
+// (anche quello avviato subito dalla pubblicazione) parte un'email a tutti gli indirizzi per i promemoria,
+// con il collegamento diretto alla pagina Classifiche. Una volta sola per mese.
 // Le regole del calendario sono in scripts/promemoria-calendario.mjs.
 // Le email partono dal Gmail indicato in GMAIL_UTENTE. Ogni email viene inviata una volta
 // sola (tabella promemoria_inviati); se Gmail è occupato lo script aspetta e riprova.
 //
 // Variabili richieste: SUPABASE_URL, SUPABASE_SERVICE_KEY, GMAIL_UTENTE,
 // GMAIL_PASSWORD_APP, SITO_URL. Facoltative: TIPO (forza sabato | lunedi |
-// mensile_3giorni | mensile_vigilia | mensile_ultima_chiamata | mensile_riepilogo; "automatico" = come l'orario
+// mensile_3giorni | mensile_vigilia | mensile_ultima_chiamata | mensile_riepilogo | classifiche; "automatico" = come l'orario
 // programmato: è quello che manda l'orologio di Supabase, supabase/PROMEMORIA_PUNTUALI.sql), MESE (AAAA-MM, per i tipi
 // mensili forzati; se manca, il mese appena concluso), EMAIL_PROVA (manda tutto solo
 // a questo indirizzo, senza registrare l'invio).
@@ -40,7 +43,7 @@ const adesso = inItalia(new Date())
 const oggi = adesso.data
 // "automatico" (avvio dall'orologio di Supabase) vale come l'esecuzione programmata: decide l'orario
 const tipoForzato = env('TIPO', false) === 'automatico' ? null : env('TIPO', false)
-if (tipoForzato && ![...TIPI_SETTIMANALI, ...TIPI_MENSILI].includes(tipoForzato)) throw new Error(`TIPO non valido: ${tipoForzato}`)
+if (tipoForzato && ![...TIPI_SETTIMANALI, ...TIPI_MENSILI, 'classifiche'].includes(tipoForzato)) throw new Error(`TIPO non valido: ${tipoForzato}`)
 
 // Finché i segreti non sono inseriti su GitHub (passo 8 di docs/GUIDA_SETUP.md), le esecuzioni
 // programmate si fermano senza errore, così GitHub non manda email di errore ogni giorno.
@@ -145,7 +148,7 @@ const perUfficio = (u) => ({ id: `ufficio-${u.id}`, chi: u.nome })
 // =====================================================================
 const MITTENTE = 'Rapportini Gruppo CEC'
 
-const pulsante = (testo) => `<p style="margin:24px 0"><a href="${sito}" style="display:inline-block;background:#0057A3;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">${testo}</a></p>`
+const pulsante = (testo, link = sito) => `<p style="margin:24px 0"><a href="${link}" style="display:inline-block;background:#0057A3;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">${testo}</a></p>`
 const aiuto = '<p style="color:#666;font-size:13px">Avete difficoltà a inserire i dati? Rispondete pure a questa email.</p>'
 const pagina = (contenuto) => `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#222;max-width:600px">${contenuto}</div>`
 
@@ -189,6 +192,16 @@ const TESTI = {
       <p>Avete ancora <strong>${ULTIMA_CHIAMATA_MINUTI} minuti</strong>: inseritelo <strong>entro le ${orario}</strong>. Dopo, l'inserimento dei dati sarà bloccato.</p>
       <p>Lo trovate nel menu <strong>Inserisci mese</strong>.</p>
       ${pulsante('Inserisci il rapportino del mese')}${aiuto}`),
+  }),
+
+  // Classifiche del mese pubblicate (021): a tutti gli indirizzi per i promemoria, con il collegamento diretto
+  classifiche: ({ mese, nomi, link }) => ({
+    oggetto: `Classifiche di ${mese}`,
+    html: pagina(`
+      <p>Buongiorno,</p>
+      <p>sono disponibili le <strong>classifiche di ${mese}</strong>: ${nomi}.</p>
+      <p>Potete consultarle e stamparle dal sito, nel menu <strong>Classifiche</strong>.</p>
+      ${pulsante('Apri le classifiche', link)}`),
   }),
 
   // Mensile: il giorno dopo la scadenza, solo all'amministratore generale
@@ -296,6 +309,44 @@ async function mensile({ tipo, mese, scadenza }) {
   if (await inviaUnaVolta(chiave, { id: 'riepilogo', chi: 'Riepilogo' }, admin, oggetto, html)) console.log(`✓ Riepilogo mensile ${titolo} → ${admin.join(', ')}`)
 }
 
+// ---------- Classifiche del mese (021) ----------
+const CATEGORIE_CLASSIFICHE = ['uffici', 'collaboratori', 'miglior_collaboratore', 'miglior_coordinatrice', 'miglior_coordinatore']
+const NOMI_CLASSIFICHE = { uffici: 'classifica uffici', collaboratori: 'classifica collaboratori', miglior_collaboratore: 'miglior collaboratore', miglior_coordinatrice: 'miglior coordinatrice', miglior_coordinatore: 'miglior coordinatore' }
+
+/** Mesi pubblicati con l'avviso chiesto e non ancora inviato; prima della 021 la tabella non c'è: nessuno */
+async function classificheDaAvvisare() {
+  const { data, error } = await db.from('classifiche_mesi').select('mese')
+    .not('pubblicato_il', 'is', null).not('avviso_richiesto_il', 'is', null).is('avviso_inviato_il', null).order('mese')
+  if (error) { console.log(`Classifiche non controllate: ${error.message}`); return [] }
+  return data.map((r) => r.mese)
+}
+
+/** Email di avviso delle classifiche di un mese: una per indirizzo (chi ha più account la riceve una volta) */
+async function classifiche(mese) {
+  const { data: file, error } = await db.from('classifiche_file').select('categoria').eq('mese', mese)
+  if (error) throw new Error(error.message)
+  const presenti = CATEGORIE_CLASSIFICHE.filter((c) => file.some((f) => f.categoria === c))
+  if (presenti.length === 0) { console.log(`Classifiche di ${nomeMese(mese)}: nessun PDF, nessuna email`); return }
+  const elenco = presenti.map((c) => NOMI_CLASSIFICHE[c])
+  const nomi = elenco.length === 1 ? elenco[0] : `${elenco.slice(0, -1).join(', ')} e ${elenco.at(-1)}`
+  const link = new URL(sito)
+  link.searchParams.set('pagina', 'classifiche')
+  link.searchParams.set('mese', mese.slice(0, 7))
+  const { oggetto, html } = TESTI.classifiche({ mese: nomeMese(mese), nomi, link: link.toString() })
+  const destinatari = indirizzi(utenti)
+  // in prova una sola email all'indirizzo di prova, non una per ogni destinatario
+  if (emailProva) {
+    await inviaConPazienza([`${destinatari.length} indirizzi`], oggetto, html)
+    console.log(`✓ Prova: classifiche di ${nomeMese(mese)} → ${emailProva} (in realtà a ${destinatari.length} indirizzi)`)
+    return
+  }
+  for (const indirizzo of destinatari) {
+    if (await inviaUnaVolta({ tipo: 'classifiche', settimana: mese }, { id: indirizzo, chi: indirizzo }, [indirizzo], oggetto, html)) console.log(`✓ Classifiche di ${nomeMese(mese)} → ${indirizzo}`)
+  }
+  const { error: e } = await db.from('classifiche_mesi').update({ avviso_inviato_il: new Date().toISOString() }).eq('mese', mese)
+  if (e) throw new Error(e.message)
+}
+
 /** Scadenza del mese per un invio forzato a mano; nelle prove, se manca, si usa la proposta (il 5 del mese dopo alle 23:59) */
 async function scadenzaPerProva(mese) {
   const { data, error } = await db.from('scadenze_mensili').select('mese, scadenza, blocca').eq('mese', mese).maybeSingle()
@@ -333,7 +384,14 @@ function promemoriaSettimanale(tipo, scadenze, forzato = false) {
   if (salta && tipo === 'lunedi' && !forzato) console.log(`Oggi la riunione settimanale non c'è (riunione di fine mese): nessun promemoria settimanale.`)
   else daFare.push(() => settimanale(tipo, salta ? lunedi : null))
 }
-if (tipoForzato) {
+if (tipoForzato === 'classifiche') {
+  // a mano: i mesi in attesa di avviso; in prova (o con MESE) quel mese, anche se l'avviso è già partito
+  const scelto = env('MESE', false) ? `${env('MESE', false).slice(0, 7)}-01` : null
+  if (scelto && !/^\d{4}-\d{2}-01$/.test(scelto)) throw new Error(`MESE non valido: ${env('MESE', false)} (scrivi AAAA-MM, es. 2026-10)`)
+  const mesi = scelto ? [scelto] : await classificheDaAvvisare()
+  if (mesi.length === 0) console.log('Nessuna classifica in attesa di avviso.')
+  for (const m of mesi) daFare.push(() => classifiche(m))
+} else if (tipoForzato) {
   if (TIPI_SETTIMANALI.includes(tipoForzato)) promemoriaSettimanale(tipoForzato, await scadenzeVicine(), true)
   else {
     const mese = env('MESE', false) ? `${env('MESE', false).slice(0, 7)}-01` : aggiungiMesi(`${oggi.slice(0, 7)}-01`, -1)
@@ -354,6 +412,8 @@ if (tipoForzato) {
       for (const p of ultimaChiamata) daFare.push(() => mensile(p))      // mezz'ora prima della scadenza con il blocco
     } else console.log('Rapportino mensile non ancora aperto agli uffici: nessun promemoria mensile.')
   }
+  // classifiche pubblicate con l'avviso: a qualsiasi ora (la pubblicazione avvia subito questo giro)
+  for (const m of await classificheDaAvvisare()) daFare.push(() => classifiche(m))
 }
 
 if (daFare.length === 0) {

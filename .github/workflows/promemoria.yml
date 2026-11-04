@@ -22,9 +22,9 @@ on:
         required: true
         default: sabato
         type: choice
-        options: [sabato, lunedi, mensile_3giorni, mensile_vigilia, mensile_ultima_chiamata, mensile_riepilogo, automatico]
+        options: [sabato, lunedi, mensile_3giorni, mensile_vigilia, mensile_ultima_chiamata, mensile_riepilogo, classifiche, automatico]
       mese:
-        description: 'Solo per i promemoria mensili: il mese, es. 2026-09 (vuoto = il mese appena concluso)'
+        description: 'Solo per i promemoria mensili e le classifiche: il mese, es. 2026-09 (vuoto = il mese appena concluso; per le classifiche: quelle in attesa di avviso)'
         required: false
       email_prova:
         description: 'Prova: se compilato, TUTTE le email vanno solo a questo indirizzo'

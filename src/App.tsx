@@ -10,6 +10,7 @@ import Accesso from './pagine/Accesso'
 import Account from './pagine/Account'
 import Amministrazione from './pagine/Amministrazione'
 import AndamentoUfficio from './pagine/AndamentoUfficio'
+import Classifiche from './pagine/Classifiche'
 import Cruscotto from './pagine/Cruscotto'
 import InserisciSettimana from './pagine/InserisciSettimana'
 import RapportinoMensile from './pagine/RapportinoMensile'
@@ -18,7 +19,7 @@ import Riunione from './pagine/Riunione'
 import StatoCompilazione from './pagine/StatoCompilazione'
 import Testata, { type VoceMenu } from './componenti/Testata'
 
-type Pagina = 'inserisci' | 'mensile' | 'andamento' | 'cruscotto' | 'compilazione' | 'riunione' | 'report-mensile' | 'amministrazione' | 'account'
+type Pagina = 'inserisci' | 'mensile' | 'andamento' | 'cruscotto' | 'compilazione' | 'riunione' | 'report-mensile' | 'classifiche' | 'amministrazione' | 'account'
 
 interface DatiBase {
   utente: Utente | null
@@ -30,12 +31,31 @@ interface DatiBase {
 
 const CHIAVE_PAGINA = 'rapportini.pagina'
 
+/**
+ * Collegamento diretto dall'email delle classifiche: …/?pagina=classifiche&mese=2026-10.
+ * Si legge una volta all'apertura (resta valido anche se prima bisogna entrare con nome utente e password)
+ * e si toglie dalla barra degli indirizzi.
+ */
+const collegamento = (() => {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    const pagina = q.get('pagina')
+    const mese = q.get('mese')
+    if (!pagina) return null
+    const pulito = new URL(window.location.href)
+    pulito.searchParams.delete('pagina'); pulito.searchParams.delete('mese')
+    window.history.replaceState(null, '', pulito.toString())
+    return { pagina, mese: mese && /^\d{4}-\d{2}$/.test(mese) ? `${mese}-01` : null }
+  } catch { return null }
+})()
+
 export default function App() {
   const [sessione, setSessione] = useState<Session | null | undefined>(undefined)
   const [dati, setDati] = useState<DatiBase | null>(null)
   const [errore, setErrore] = useState<string | null>(null)
   const [cittaScelta, setCittaScelta] = useState<number | null>(null)
   const [pagina, setPagina] = useState<Pagina>(() => {
+    if (collegamento?.pagina === 'classifiche') return 'classifiche'
     try { return (localStorage.getItem(CHIAVE_PAGINA) as Pagina) || 'inserisci' } catch { return 'inserisci' }
   })
   const [versioneBase, setVersioneBase] = useState(0)
@@ -147,6 +167,8 @@ export default function App() {
     // per uffici e affiliati (solo i propri uffici)
     { id: 'riunione', etichetta: isAmministratore(utente) || utente.ruolo === 'responsabile' ? 'Riunione' : 'Presentazione', icona: 'presentation-chart' },
     ...((isAmministratore(utente) || affiliato) && MENSILE_ATTIVO ? [{ id: 'report-mensile' as Pagina, etichetta: 'Report mensile', icona: 'printer' }] : []),
+    // PDF delle classifiche del mese, per tutti (021, Davide 04/11/2026)
+    { id: 'classifiche', etichetta: 'Classifiche', icona: 'trophy' },
     ...(isAmministratore(utente) ? [{ id: 'amministrazione' as Pagina, etichetta: 'Amministrazione', icona: 'gear-six' }] : []),
   ]
   const attiva: Pagina = pagina === 'account' || menu.some((v) => v.id === pagina) ? pagina : menu[0].id
@@ -165,6 +187,7 @@ export default function App() {
         {attiva === 'compilazione' && <StatoCompilazione ctx={ctx} />}
         {attiva === 'riunione' && <Riunione ctx={ctx} />}
         {attiva === 'report-mensile' && <ReportMensile ctx={ctx} />}
+        {attiva === 'classifiche' && <Classifiche ctx={ctx} meseLink={collegamento?.pagina === 'classifiche' ? collegamento.mese : null} />}
         {attiva === 'amministrazione' && <Amministrazione ctx={ctx} />}
         {attiva === 'account' && <Account ctx={ctx} />}
       </main>

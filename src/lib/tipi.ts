@@ -141,3 +141,29 @@ export interface OrdinePresentazione {
   aggiornato_da: string | null
   aggiornato_il: string
 }
+
+/** Le classifiche del mese in PDF (021): una per categoria, caricate dall'amministratore generale */
+export const CATEGORIE_CLASSIFICHE = [
+  { codice: 'uffici', nome: 'Classifica uffici', icona: 'storefront' },
+  { codice: 'collaboratori', nome: 'Classifica collaboratori', icona: 'users-three' },
+  { codice: 'miglior_collaboratore', nome: 'Miglior collaboratore', icona: 'medal' },
+  { codice: 'miglior_coordinatrice', nome: 'Miglior coordinatrice', icona: 'medal' },
+  { codice: 'miglior_coordinatore', nome: 'Miglior coordinatore', icona: 'crown-simple' },
+] as const
+export type CategoriaClassifica = typeof CATEGORIE_CLASSIFICHE[number]['codice']
+
+export interface ClassificaFile {
+  mese: string                 // 'AAAA-MM-01'
+  categoria: CategoriaClassifica
+  percorso: string             // nel contenitore "classifiche" dello Storage
+  nome_file: string
+  dimensione: number | null
+  caricato_il: string
+}
+
+export interface ClassificheMese {
+  mese: string
+  pubblicato_il: string | null        // null = non pubblicato (lo vede solo l'amministratore generale)
+  avviso_richiesto_il: string | null
+  avviso_inviato_il: string | null
+}

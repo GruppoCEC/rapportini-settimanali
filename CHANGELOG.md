@@ -1,5 +1,18 @@
 # Storia delle versioni
 
+## 0.35.0 — 4 novembre 2026
+
+**Classifiche del mese in PDF, con email di avviso** (richiesta di Davide: dopo la riunione di fine mese le classifiche si mandavano per email):
+- nuova voce di menu **Classifiche**, per tutti gli account (uffici, affiliati, responsabili, amministratori);
+- per ogni mese l'amministratore generale carica un **PDF per ciascuna classifica**: classifica uffici, classifica collaboratori, miglior collaboratore, miglior coordinatrice, miglior coordinatore. Un PDF si può sostituire o togliere; al massimo 20 MB;
+- finché non le **pubblica** le vede solo lui, per controllarle. Con **Pubblica e manda l'avviso** le vedono tutti e parte, entro pochi minuti, un'email a tutti gli indirizzi per i promemoria (una per indirizzo) con il pulsante **Apri le classifiche**, che porta direttamente alla pagina del mese (dopo l'accesso, se serve). C'è anche **Pubblica senza avviso**; l'avviso di un mese parte una volta sola. **Togli dalla pubblicazione** le nasconde di nuovo;
+- chi apre la pagina trova le classifiche dell'ultimo mese pubblicato (e può scegliere i mesi prima): **Stampa** apre subito la finestra di stampa del PDF, **Apri** lo apre in una nuova scheda;
+- i PDF stanno nello Storage di Supabase, in un contenitore privato: senza account non si aprono;
+- l'email parte dallo stesso sistema dei promemoria: la pubblicazione avvia subito il workflow (come l'orologio di Supabase). Se l'avvio immediato non riesce, l'email parte al primo giro automatico dei promemoria (alle 10). Per una prova: GitHub → Actions → Promemoria → Run workflow, tipo *classifiche*, mese e *email_prova*;
+- nella demo il mese prima di quello appena concluso ha già 5 PDF di esempio pubblicati; il mese appena concluso è vuoto, per provare a caricare e pubblicare (l'email nella demo non parte).
+
+**Da fare una volta in Supabase**: eseguire `supabase/migrations/021_classifiche.sql` (crea anche il contenitore dei PDF), poi pubblicare (Push). Provato con le prove automatiche (222) e nella demo.
+
 ## 0.34.0 — 4 novembre 2026
 
 **Presentazione del mese: tolto il personale dalla pagina di ogni ufficio** (richiesta di Davide: troppi numeri, in riunione non si seguono):

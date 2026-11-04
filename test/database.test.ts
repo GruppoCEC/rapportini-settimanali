@@ -849,11 +849,49 @@ describe('Ordine degli uffici nella presentazione del mese (020)', () => {
   })
 })
 
+describe('Classifiche del mese in PDF (021)', () => {
+  it('le carica e le pubblica solo l\'amministratore generale; gli altri le vedono solo pubblicate', async () => {
+    const file = `insert into classifiche_file (mese, categoria, percorso, nome_file) values ('2026-10-01', 'uffici', '2026-10/uffici-1.pdf', 'Classifica uffici.pdf')`
+    await rifiutata('a@test.it', file)
+    await rifiutata('adminmi@test.it', file)
+    // niente da pubblicare: errore
+    await rifiutata('davide@test.it', `select pubblica_classifiche('2026-10-01', true)`)
+    await come('davide@test.it', file)
+    const caricato = await come<{ caricato_da: string }>('davide@test.it', `select caricato_da from classifiche_file`)
+    expect(caricato[0].caricato_da).toBe('davide@test.it')
+    // prima della pubblicazione: le vede solo l'amministratore generale
+    expect(await come('a@test.it', `select * from classifiche_file`)).toHaveLength(0)
+    expect(await come('adminmi@test.it', `select * from classifiche_file`)).toHaveLength(0)
+    expect(await come<{ p: boolean }>('a@test.it', `select classifiche_percorso_pubblicato('2026-10/uffici-1.pdf') as p`)).toEqual([{ p: false }])
+    // un ufficio non può pubblicare
+    await rifiutata('a@test.it', `select pubblica_classifiche('2026-10-01', true)`)
+    // l'amministratore generale pubblica e chiede l'avviso (nei test l'avvio immediato non c'è: nessun errore)
+    await come('davide@test.it', `select pubblica_classifiche('2026-10-01', true)`)
+    expect(await come('a@test.it', `select categoria from classifiche_file`)).toEqual([{ categoria: 'uffici' }])
+    expect(await come<{ p: boolean }>('a@test.it', `select classifiche_percorso_pubblicato('2026-10/uffici-1.pdf') as p`)).toEqual([{ p: true }])
+    expect(await come<{ p: boolean }>('a@test.it', `select classifiche_percorso_pubblicato('altro/x.pdf') as p`)).toEqual([{ p: false }])
+    const mese = await come<{ pubblicato_da: string; avviso: boolean; inviato: unknown }>('m@test.it',
+      `select pubblicato_da, avviso_richiesto_il is not null as avviso, avviso_inviato_il as inviato from classifiche_mesi`)
+    expect(mese).toEqual([{ pubblicato_da: 'davide@test.it', avviso: true, inviato: null }])
+    // gli altri non possono cambiare né togliere
+    expect(await come('a@test.it', `delete from classifiche_file returning *`)).toHaveLength(0)
+    expect(await come('a@test.it', `update classifiche_mesi set pubblicato_il = null returning *`)).toHaveLength(0)
+    // ripubblicare senza avviso non cancella la richiesta di avviso
+    await come('davide@test.it', `select pubblica_classifiche('2026-10-01', false)`)
+    expect(await come<{ avviso: boolean }>('davide@test.it', `select avviso_richiesto_il is not null as avviso from classifiche_mesi`)).toEqual([{ avviso: true }])
+    // tolte dalla pubblicazione: spariscono per gli uffici
+    await come('davide@test.it', `update classifiche_mesi set pubblicato_il = null where mese = '2026-10-01'`)
+    expect(await come('a@test.it', `select * from classifiche_file`)).toHaveLength(0)
+    await rifiutata('davide@test.it', `insert into classifiche_file (mese, categoria, percorso, nome_file) values ('2026-10-01', 'altro', 'x', 'x')`)
+    await db.exec(`delete from classifiche_file; delete from classifiche_mesi;`)
+  })
+})
+
 describe('Migrazioni rieseguite', () => {
-  it('006–020 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
+  it('006–021 si possono eseguire di nuovo senza errori né perdita di dati', async () => {
     const prima = (await db.query(`select * from uffici_affiliato order by 1, 2`)).rows
     const note = (await db.query(`select * from note_settimana order by 1, 2`)).rows
-    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql', '016_storico_voce_per_voce.sql', '017_ruolo_da_definire_trasferimenti.sql', '018_uscite_nel_mese_report_uffici_locazioni.sql', '019_salta_riunione_settimanale.sql', '020_ordine_presentazione.sql']) {
+    for (const file of ['006_affiliati.sql', '007_quota_mercato.sql', '008_totali_citta.sql', '009_storico_mensile.sql', '010_totali_mensili_citta.sql', '011_settimane_dal_mensile.sql', '012_affiliati_compilano.sql', '013_nota_tre_caselle.sql', '014_posizione_citta.sql', '015_motivo_fine.sql', '016_storico_voce_per_voce.sql', '017_ruolo_da_definire_trasferimenti.sql', '018_uscite_nel_mese_report_uffici_locazioni.sql', '019_salta_riunione_settimanale.sql', '020_ordine_presentazione.sql', '021_classifiche.sql']) {
       await db.exec(readFileSync(join(CARTELLA_MIGRAZIONI, file), 'utf8'))
     }
     expect((await db.query(`select * from uffici_affiliato order by 1, 2`)).rows).toEqual(prima)
