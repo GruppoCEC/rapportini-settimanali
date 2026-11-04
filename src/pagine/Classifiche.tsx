@@ -11,7 +11,9 @@ import { aggiungiMesi, meseInCorso, mesePredefinito, titoloMese } from '../lib/m
 import { supabase } from '../lib/supabase'
 import { CATEGORIE_CLASSIFICHE, type CategoriaClassifica, type ClassificaFile } from '../lib/tipi'
 import { useDati } from '../lib/useDati'
+import { AnteprimaPdf } from '../componenti/AnteprimaPdf'
 import { Caricamento } from '../componenti/Celle'
+import { EmailClassifiche } from '../componenti/EmailClassifiche'
 import { Icona, useConferma, useToast } from '../componenti/Interfaccia'
 
 /** PDF più grandi di così il database li rifiuta (021: file_size_limit) */
@@ -162,6 +164,7 @@ export default function Classifiche({ ctx, meseLink }: { ctx: Contesto; meseLink
             onCarica={(f) => carica(c.codice, f)} onTogli={togli} onErrore={setMessaggio} />
         ))}
       </div>
+      {generale && <EmailClassifiche mese={mese} categorie={caricati.map((c) => c.codice)} />}
       {!generale && caricati.length > 0 && (
         <p className="piccolo non-stampa">Con <strong>Stampa</strong> si apre la finestra di stampa del PDF; con <strong>Apri</strong> il PDF si apre in una nuova scheda, da dove si può anche scaricare.</p>
       )}
@@ -216,6 +219,7 @@ function SchedaClassifica({ nome, icona, file, generale, occupato, bloccato, onC
 
   return (
     <article className={`scheda scheda-classifica ${file ? '' : 'vuota'}`}>
+      {file && <AnteprimaPdf chiave={file.percorso} titolo={nome} carica={() => scaricaClassifica(file.percorso)} onClick={() => apri(file)} />}
       <div className="classifica-testa">
         <span className="classifica-icona"><Icona nome={icona} /></span>
         <h2>{nome}</h2>

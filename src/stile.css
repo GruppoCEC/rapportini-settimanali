@@ -830,6 +830,30 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .classifica-file { display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
 .classifica-file i { font-size: 18px; color: var(--ko); flex: none; }
 .classifica-azioni { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+/* anteprima della prima pagina del PDF: si clicca per aprirlo */
+.anteprima-pdf { position: relative; display: grid; place-items: center; height: 240px; margin: -6px -6px 0; padding: 10px; border: 1px solid var(--bordo-card); border-radius: 12px;
+  background: var(--fondo-barra); cursor: zoom-in; overflow: hidden; font: inherit; color: var(--testo-tenue); }
+.anteprima-pdf:hover { border-color: var(--primario-300); }
+.anteprima-pdf:focus-visible { outline: 3px solid var(--primario-300); outline-offset: 2px; }
+.anteprima-pdf canvas { max-width: 100%; max-height: 218px; width: auto; height: auto; background: #fff; box-shadow: 0 2px 10px rgba(32, 30, 29, .14); border-radius: 2px; }
+.anteprima-pdf:not(.pronta) canvas { display: none; }
+.anteprima-avviso { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.anteprima-avviso i { font-size: 30px; }
+.anteprima-pagine { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(32, 30, 29, .72); color: #fff; font-size: 12px; font-weight: 700; }
+/* email di avviso: modifica a sinistra, anteprima a destra */
+.email-classifiche { margin-top: 18px; gap: 16px; }
+.email-classifiche h2 { font-size: 22px; margin: 0 0 4px; }
+.email-classifiche-corpo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 20px; align-items: start; }
+.email-modulo { display: flex; flex-direction: column; gap: 14px; }
+.email-modulo textarea { width: 100%; resize: vertical; font: inherit; line-height: 1.5; }
+.segnaposto { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.segnaposto code { font-weight: 700; color: var(--primario-700); }
+.email-anteprima { border: 1px solid var(--bordo-card); border-radius: 12px; background: #fff; overflow: hidden; font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.5; color: #222; }
+.email-testa { display: grid; gap: 2px; padding: 12px 16px; background: var(--fondo-barra); border-bottom: 1px solid var(--bordo-card); font-family: var(--font-testo); font-size: 14px; }
+.email-testa .piccolo { display: inline-block; min-width: 62px; }
+.email-corpo { padding: 14px 18px 0; }
+.email-corpo p { margin: 0 0 12px; }
+.email-pulsante { display: inline-block; margin: 12px 18px 22px; padding: 12px 22px; border-radius: 8px; background: #0057A3; color: #fff; font-weight: 600; }
 .classifica-gestione { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 10px; border-top: 1px solid var(--divisore); }
 .classifica-gestione.sola { margin-top: auto; border-top: 0; padding-top: 0; }
 

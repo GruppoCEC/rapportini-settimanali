@@ -6,12 +6,13 @@
 - nuova voce di menu **Classifiche**, per tutti gli account (uffici, affiliati, responsabili, amministratori);
 - per ogni mese l'amministratore generale carica un **PDF per ciascuna classifica**: classifica uffici, classifica collaboratori, miglior collaboratore, miglior coordinatrice, miglior coordinatore. Un PDF si può sostituire o togliere; al massimo 20 MB;
 - finché non le **pubblica** le vede solo lui, per controllarle. Con **Pubblica e manda l'avviso** le vedono tutti e parte, entro pochi minuti, un'email a tutti gli indirizzi per i promemoria (una per indirizzo) con il pulsante **Apri le classifiche**, che porta direttamente alla pagina del mese (dopo l'accesso, se serve). C'è anche **Pubblica senza avviso**; l'avviso di un mese parte una volta sola. **Togli dalla pubblicazione** le nasconde di nuovo;
-- chi apre la pagina trova le classifiche dell'ultimo mese pubblicato (e può scegliere i mesi prima): **Stampa** apre subito la finestra di stampa del PDF, **Apri** lo apre in una nuova scheda;
+- chi apre la pagina trova le classifiche dell'ultimo mese pubblicato (e può scegliere i mesi prima). Ogni classifica ha l'**anteprima della prima pagina** del PDF (cliccandola si apre); **Stampa** apre subito la finestra di stampa del PDF, **Apri** lo apre in una nuova scheda. L'anteprima usa pdf.js (la libreria di Mozilla per leggere i PDF), che si scarica solo in questa pagina;
+- **Email di avviso** (in fondo alla pagina, solo per l'amministratore generale): si cambiano **oggetto, testo e scritta del pulsante**, con l'anteprima di come arriverà. `{mese}` e `{classifiche}` si sostituiscono da sole; una riga vuota = nuovo paragrafo. Il testo vale per tutti i mesi; **Testo iniziale** riporta quello di partenza. L'email va a **tutti** gli indirizzi per i promemoria (il numero è scritto sopra il testo);
 - i PDF stanno nello Storage di Supabase, in un contenitore privato: senza account non si aprono;
 - l'email parte dallo stesso sistema dei promemoria: la pubblicazione avvia subito il workflow (come l'orologio di Supabase). Se l'avvio immediato non riesce, l'email parte al primo giro automatico dei promemoria (alle 10). Per una prova: GitHub → Actions → Promemoria → Run workflow, tipo *classifiche*, mese e *email_prova*;
 - nella demo il mese prima di quello appena concluso ha già 5 PDF di esempio pubblicati; il mese appena concluso è vuoto, per provare a caricare e pubblicare (l'email nella demo non parte).
 
-**Da fare una volta in Supabase**: eseguire `supabase/migrations/021_classifiche.sql` (crea anche il contenitore dei PDF), poi pubblicare (Push). Provato con le prove automatiche (222) e nella demo.
+**Da fare una volta in Supabase**: eseguire `supabase/migrations/021_classifiche.sql` (crea anche il contenitore dei PDF), poi pubblicare (Push). Provato con le prove automatiche (227) e nella demo.
 
 ## 0.34.0 — 4 novembre 2026
 

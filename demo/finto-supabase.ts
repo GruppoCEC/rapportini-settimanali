@@ -291,7 +291,7 @@ const classifiche_file: any[] = ([
   archivio.set(percorso, blob)
   return { mese: meseClassifiche, categoria, percorso, nome_file: `${nome} ${nomeMeseDemo}.pdf`, dimensione: blob.size, caricato_da: 'davide@demo', caricato_il: `${meseDaCompilare.slice(0, 8)}06T18:20:00Z` }
 })
-const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati, ordine_presentazione, classifiche_mesi, classifiche_file }
+const tabelle: Record<string, any[]> = { citta, aree, uffici, utenti, uffici_affiliato, metriche, rilevazioni, note_settimana: note, persone, voci_mensili, valori_mensili, confronto_anno_prima, punti_mensili, scadenze_mensili, totali_mensili_storico, valori_riservati, ordine_presentazione, classifiche_mesi, classifiche_file, testi_email: [] }
 const classifichePubblicate = (mese: string) => classifiche_mesi.some((m) => m.mese === mese && m.pubblicato_il)
 
 // ---------------------------------------------------------------- sessione e "regole di accesso"
@@ -324,6 +324,7 @@ function visibile(tabella: string, riga: any): boolean {
     case 'punti_mensili': return me.ruolo === 'admin_generale' || me.ruolo === 'admin_citta'
     case 'valori_riservati': return gestisce(uffici.find((u) => u.id === riga.ufficio_id)?.citta_id ?? -1)
     case 'classifiche_mesi': return me.ruolo === 'admin_generale' || !!riga.pubblicato_il
+    case 'testi_email': return me.ruolo === 'admin_generale'
     case 'classifiche_file': return me.ruolo === 'admin_generale' || classifichePubblicate(riga.mese)
     default: return true
   }
@@ -464,7 +465,7 @@ class Interrogazione {
     if (op) {
       if (!me) return { data: null, error: { message: 'permission denied' } }
       // affiliato: scrive solo i dati dei suoi uffici (controllati sotto); gli uffici agli affiliati li assegna solo l'amministratore generale
-      if (['classifiche_mesi', 'classifiche_file'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
+      if (['classifiche_mesi', 'classifiche_file', 'testi_email'].includes(this.tabella) && me.ruolo !== 'admin_generale') return { data: null, error: { message: 'new row violates row-level security policy' } }
       if ((me.ruolo === 'affiliato' && !['rilevazioni', 'note_settimana', 'persone', 'valori_mensili'].includes(this.tabella))
         || (this.tabella === 'uffici_affiliato' && me.ruolo !== 'admin_generale')) {
         return { data: null, error: { message: 'new row violates row-level security policy' } }

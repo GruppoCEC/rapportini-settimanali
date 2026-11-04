@@ -8,6 +8,7 @@
 --
 -- - classifiche_mesi: un mese pubblicato o no, e lo stato dell'email di avviso;
 -- - classifiche_file: un PDF per mese e classifica (il file sta nello Storage, contenitore "classifiche");
+-- - testi_email: oggetto, testo e pulsante dell'email di avviso, che l'amministratore generale cambia dal sito;
 -- - pubblica_classifiche(): pubblica il mese e, se richiesto, avvia subito l'invio delle email
 --   (lo stesso workflow dei promemoria, scripts/promemoria.mjs). Se l'avvio immediato non riesce
 --   (es. manca la chiave di GitHub nel Vault), le email partono al primo giro automatico dei promemoria.
@@ -85,6 +86,39 @@ create policy classifiche_file_gestione on classifiche_file for all to authentic
 
 revoke all on classifiche_mesi, classifiche_file from anon;
 grant select, insert, update, delete on classifiche_mesi, classifiche_file to authenticated;
+
+-- Testo dell'email di avviso, scritto dall'amministratore generale dal sito (Classifiche → Email di avviso).
+-- Una riga per email (per ora solo 'classifiche'); senza riga vale il testo di partenza (scripts/testo-classifiche.mjs).
+create table if not exists testi_email (
+  chiave        text primary key check (chiave in ('classifiche')),
+  oggetto       text not null,
+  testo         text not null,
+  pulsante      text not null,
+  aggiornato_da text,
+  aggiornato_il timestamptz not null default now()
+);
+
+comment on table testi_email is
+  'Testi delle email scritti dall''amministratore generale dal sito (021: avviso delle classifiche)';
+
+create or replace function testi_email_prima() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.aggiornato_da := nullif(email_corrente(), '');
+  new.aggiornato_il := now();
+  return new;
+end $$;
+
+drop trigger if exists testi_email_prima on testi_email;
+create trigger testi_email_prima before insert or update on testi_email
+for each row execute function testi_email_prima();
+
+alter table testi_email enable row level security;
+drop policy if exists testi_email_gestione on testi_email;
+create policy testi_email_gestione on testi_email for all to authenticated
+  using (sono_admin_generale()) with check (sono_admin_generale());
+revoke all on testi_email from anon;
+grant select, insert, update, delete on testi_email to authenticated;
 
 -- Pubblica le classifiche di un mese; con p_avvisa = true chiede anche l'email di avviso a tutti gli account.
 -- L'email parte una volta sola per mese: ripubblicare non la rimanda.

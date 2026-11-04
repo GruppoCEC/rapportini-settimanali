@@ -32,6 +32,7 @@ import {
   promemoriaMensiliDiOggi, settimanaDelPromemoria, statoMensile, tipoSettimanale, ultimaChiamataAdesso, ultimoRitardo, TIPI_MENSILI, TIPI_SETTIMANALI,
   ULTIMA_CHIAMATA_MINUTI,
 } from './promemoria-calendario.mjs'
+import { componiEmailClassifiche, elencoClassifiche } from './testo-classifiche.mjs'
 
 const env = (nome, obbligatoria = true) => {
   const v = process.env[nome]?.trim()
@@ -194,15 +195,12 @@ const TESTI = {
       ${pulsante('Inserisci il rapportino del mese')}${aiuto}`),
   }),
 
-  // Classifiche del mese pubblicate (021): a tutti gli indirizzi per i promemoria, con il collegamento diretto
-  classifiche: ({ mese, nomi, link }) => ({
-    oggetto: `Classifiche di ${mese}`,
-    html: pagina(`
-      <p>Buongiorno,</p>
-      <p>sono disponibili le <strong>classifiche di ${mese}</strong>: ${nomi}.</p>
-      <p>Potete consultarle e stamparle dal sito, nel menu <strong>Classifiche</strong>.</p>
-      ${pulsante('Apri le classifiche', link)}`),
-  }),
+  // Classifiche del mese pubblicate (021): a tutti gli indirizzi per i promemoria, con il collegamento diretto.
+  // Il testo lo scrive l'amministratore generale dal sito (Classifiche → Email di avviso), vedi scripts/testo-classifiche.mjs
+  classifiche: ({ testi, mese, nomi, link }) => {
+    const e = componiEmailClassifiche(testi, { mese, classifiche: nomi })
+    return { oggetto: e.oggetto, html: pagina(`${e.paragrafiHtml}\n${pulsante(e.pulsante, link)}`) }
+  },
 
   // Mensile: il giorno dopo la scadenza, solo all'amministratore generale
   mensileRiepilogo: ({ mese, entro, blocca, mancanti, perCitta }) => ({
@@ -310,8 +308,6 @@ async function mensile({ tipo, mese, scadenza }) {
 }
 
 // ---------- Classifiche del mese (021) ----------
-const CATEGORIE_CLASSIFICHE = ['uffici', 'collaboratori', 'miglior_collaboratore', 'miglior_coordinatrice', 'miglior_coordinatore']
-const NOMI_CLASSIFICHE = { uffici: 'classifica uffici', collaboratori: 'classifica collaboratori', miglior_collaboratore: 'miglior collaboratore', miglior_coordinatrice: 'miglior coordinatrice', miglior_coordinatore: 'miglior coordinatore' }
 
 /** Mesi pubblicati con l'avviso chiesto e non ancora inviato; prima della 021 la tabella non c'è: nessuno */
 async function classificheDaAvvisare() {
@@ -325,14 +321,15 @@ async function classificheDaAvvisare() {
 async function classifiche(mese) {
   const { data: file, error } = await db.from('classifiche_file').select('categoria').eq('mese', mese)
   if (error) throw new Error(error.message)
-  const presenti = CATEGORIE_CLASSIFICHE.filter((c) => file.some((f) => f.categoria === c))
-  if (presenti.length === 0) { console.log(`Classifiche di ${nomeMese(mese)}: nessun PDF, nessuna email`); return }
-  const elenco = presenti.map((c) => NOMI_CLASSIFICHE[c])
-  const nomi = elenco.length === 1 ? elenco[0] : `${elenco.slice(0, -1).join(', ')} e ${elenco.at(-1)}`
+  if (file.length === 0) { console.log(`Classifiche di ${nomeMese(mese)}: nessun PDF, nessuna email`); return }
+  const nomi = elencoClassifiche(file.map((f) => f.categoria))
+  // il testo scritto dall'amministratore generale (se non c'è, o prima della tabella, vale quello di partenza)
+  const { data: testi, error: errTesti } = await db.from('testi_email').select('oggetto, testo, pulsante').eq('chiave', 'classifiche').maybeSingle()
+  if (errTesti) console.log(`Testo dell'email non letto (${errTesti.message}): uso quello di partenza`)
   const link = new URL(sito)
   link.searchParams.set('pagina', 'classifiche')
   link.searchParams.set('mese', mese.slice(0, 7))
-  const { oggetto, html } = TESTI.classifiche({ mese: nomeMese(mese), nomi, link: link.toString() })
+  const { oggetto, html } = TESTI.classifiche({ testi, mese: nomeMese(mese), nomi, link: link.toString() })
   const destinatari = indirizzi(utenti)
   // in prova una sola email all'indirizzo di prova, non una per ogni destinatario
   if (emailProva) {

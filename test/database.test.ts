@@ -885,6 +885,17 @@ describe('Classifiche del mese in PDF (021)', () => {
     await rifiutata('davide@test.it', `insert into classifiche_file (mese, categoria, percorso, nome_file) values ('2026-10-01', 'altro', 'x', 'x')`)
     await db.exec(`delete from classifiche_file; delete from classifiche_mesi;`)
   })
+
+  it('il testo dell\'email di avviso lo legge e lo cambia solo l\'amministratore generale', async () => {
+    const testo = `insert into testi_email (chiave, oggetto, testo, pulsante) values ('classifiche', 'Classifiche di {mese}', 'Ciao', 'Apri')`
+    await rifiutata('a@test.it', testo)
+    await rifiutata('adminmi@test.it', testo)
+    await come('davide@test.it', testo)
+    expect(await come('a@test.it', `select * from testi_email`)).toHaveLength(0)
+    expect(await come<{ aggiornato_da: string }>('davide@test.it', `select aggiornato_da from testi_email`)).toEqual([{ aggiornato_da: 'davide@test.it' }])
+    await rifiutata('davide@test.it', `insert into testi_email (chiave, oggetto, testo, pulsante) values ('altro', 'x', 'x', 'x')`)
+    await db.exec(`delete from testi_email`)
+  })
 })
 
 describe('Migrazioni rieseguite', () => {

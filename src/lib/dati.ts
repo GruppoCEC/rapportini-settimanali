@@ -343,3 +343,17 @@ export async function scaricaClassifica(percorso: string): Promise<Blob> {
   if (error || !data) throw new Error(error?.message ?? 'File non trovato')
   return data
 }
+
+/** Il testo dell'email di avviso delle classifiche scritto dall'amministratore generale (null = quello di partenza) */
+export async function caricaTestoClassifiche(): Promise<{ oggetto: string; testo: string; pulsante: string; aggiornato_il: string } | null> {
+  const { data, error } = await supabase.from('testi_email').select('oggetto, testo, pulsante, aggiornato_il').eq('chiave', 'classifiche').maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+/** Quanti indirizzi diversi ricevono l'avviso: tutti gli account attivi con l'email per i promemoria (come scripts/promemoria.mjs) */
+export async function contaDestinatari(): Promise<number> {
+  const { data, error } = await supabase.from('utenti').select('email_promemoria').eq('attivo', true)
+  if (error) throw new Error(error.message)
+  return new Set((data ?? []).flatMap((u: { email_promemoria: string | null }) => (u.email_promemoria ?? '').split(',')).map((e) => e.trim().toLowerCase()).filter(Boolean)).size
+}
