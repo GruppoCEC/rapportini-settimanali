@@ -834,7 +834,7 @@ kbd { font-family: inherit; font-size: 12px; padding: 2px 7px; background: #fff;
 .migliori-elenco { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
 .migliori-elenco li { display: flex; flex-direction: column; padding: 10px 12px; border-radius: 10px; background: var(--secondario-100); }
 .migliori-elenco li strong { font: 800 22px/1.2 var(--font-titoli); color: var(--secondario-800); }
-.migliori-riepilogo { display: flex; align-items: center; gap: 6px; }
+.migliori-riepilogo { display: flex; align-items: flex-start; gap: 6px; }
 .migliori-riepilogo i { font-size: 18px; color: var(--secondario-700); }
 .migliori-uffici { margin-top: 18px; gap: 16px; }
 .migliori-uffici h2 { font-size: 22px; margin: 0 0 4px; }

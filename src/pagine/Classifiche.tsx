@@ -68,7 +68,7 @@ export default function Classifiche({ ctx, meseLink }: { ctx: Contesto; meseLink
   const attivi = ctx.uffici.filter((u) => u.attivo).length
   const extra = (c: CategoriaClassifica): ReactNode => {
     if (c !== 'miglior_collaboratore') return null
-    if (generale) return <p className="piccolo migliori-riepilogo"><Icona nome="users-three" />Scelto in <strong>{miglioriMese.length} uffici su {attivi}</strong>: lo scegli più sotto, ufficio per ufficio.</p>
+    if (generale) return <p className="piccolo migliori-riepilogo"><Icona nome="users-three" /><span>Nome per ogni ufficio: scelto in <strong>{miglioriMese.length} su {attivi}</strong>, più sotto.</span></p>
     if (miglioriVisti.length === 0) return null
     return (
       <ul className="migliori-elenco">
